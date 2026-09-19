@@ -288,43 +288,43 @@ export default function Home() {
 
       {/* Floating Header */}
       <header className="absolute top-4 left-4 right-4 z-20 flex flex-col gap-2">
-        <Paper elevation={4} sx={{ p: 2, borderRadius: 4, bgcolor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)' }}>
+        <Paper elevation={4} sx={{ p: 2, borderRadius: 2, bgcolor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)' }}>
           <Typography variant="h5" component="div" sx={{ fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, letterSpacing: '-0.5px' }}>
-            <Box component="span" sx={{ width: 36, height: 36, bgcolor: '#0d9488', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3)' }}>
+            <Box component="span" sx={{ width: 36, height: 36, bgcolor: '#0d9488', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3)' }}>
               <IconMapPin size={20} color="white" />
             </Box>
             케어루트
           </Typography>
           
           <div className="flex gap-2">
-            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 3 }}>
+            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 1 }}>
               <Select
                 native
                 value={selectedSido}
                 onChange={(e) => setSelectedSido(e.target.value)}
-                sx={{ borderRadius: 3, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                sx={{ borderRadius: 1, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
               >
                 <option value="">시/도</option>
                 {sidos.map(sido => <option key={sido.code} value={sido.code}>{sido.name}</option>)}
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 3 }} disabled={!selectedSido}>
+            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 1 }} disabled={!selectedSido}>
               <Select
                 native
                 value={selectedSigungu}
                 onChange={(e) => setSelectedSigungu(e.target.value)}
-                sx={{ borderRadius: 3, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                sx={{ borderRadius: 1, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
               >
                 <option value="">시/군/구</option>
                 {sigungus.map(sig => <option key={sig.code} value={sig.code}>{sig.name.split(' ').pop()}</option>)}
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 3 }} disabled={!selectedSigungu}>
+            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 1 }} disabled={!selectedSigungu}>
               <Select
                 native
                 value={selectedDong}
                 onChange={(e) => setSelectedDong(e.target.value)}
-                sx={{ borderRadius: 3, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                sx={{ borderRadius: 1, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
               >
                 <option value="">동/읍/면</option>
                 {dongs.map(dong => <option key={dong.code} value={dong.code}>{dong.name.split(' ').pop()}</option>)}
@@ -390,11 +390,11 @@ export default function Home() {
             ) : (
               <div className="space-y-4">
                 {markers.sort((a,b) => a.visit_time.localeCompare(b.visit_time)).map((marker) => (
-                  <Card key={marker.id} elevation={0} sx={{ borderRadius: 5, mb: 3, border: '1px solid #f1f5f9', boxShadow: '0 4px 24px rgba(0,0,0,0.03)' }}>
+                  <Card key={marker.id} elevation={0} sx={{ borderRadius: 2, mb: 3, border: '1px solid #f1f5f9', boxShadow: '0 4px 24px rgba(0,0,0,0.03)' }}>
                     <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                          <Box sx={{ width: 56, height: 56, bgcolor: '#f0fdfa', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Box sx={{ width: 56, height: 56, bgcolor: '#f0fdfa', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <IconUser size={28} color="#0d9488" />
                           </Box>
                           <Box>
@@ -419,7 +419,7 @@ export default function Home() {
                         </Box>
                       </Box>
                       
-                      <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2, borderRadius: 3, mb: 2.5, display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                      <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2, borderRadius: 1, mb: 2.5, display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
                         <IconMapPin size={20} color="#94a3b8" style={{ marginTop: 2, flexShrink: 0 }} />
                         <Typography variant="body1" sx={{ fontWeight: 600, color: '#475569', lineHeight: 1.5 }}>
                           {marker.address}
@@ -432,7 +432,7 @@ export default function Home() {
                         size="large"
                         startIcon={<IconNavigation />}
                         onClick={() => handleDirections(marker.lat, marker.lng, marker.address)}
-                        sx={{ py: 1.5, borderRadius: 3, fontSize: '1.05rem', fontWeight: 800, bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' }, boxShadow: '0 4px 14px rgba(15,23,42,0.2)' }}
+                        sx={{ py: 1.5, borderRadius: 1, fontSize: '1.05rem', fontWeight: 800, bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' }, boxShadow: '0 4px 14px rgba(15,23,42,0.2)' }}
                       >
                         길안내 시작
                       </Button>
@@ -460,7 +460,7 @@ export default function Home() {
         anchor="bottom"
         open={Boolean(selectedRecipient && activeTab === 'map')}
         onClose={() => setSelectedRecipient(null)}
-        sx={{ '& .MuiDrawer-paper': { borderTopLeftRadius: 32, borderTopRightRadius: 32, p: 3, pb: 14 } }}
+        sx={{ '& .MuiDrawer-paper': { borderTopLeftRadius: 16, borderTopRightRadius: 16, p: 3, pb: 14 } }}
         ModalProps={{ keepMounted: true }}
       >
         {selectedRecipient && (
@@ -483,7 +483,7 @@ export default function Home() {
                 <IconX size={20} />
               </IconButton>
             </Box>
-            <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2.5, borderRadius: 4, mb: 3 }}>
+            <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2.5, borderRadius: 2, mb: 3 }}>
               <Typography variant="body1" sx={{ fontWeight: 600, color: '#475569', lineHeight: 1.6 }}>
                 {selectedRecipient.address}
               </Typography>
@@ -494,7 +494,7 @@ export default function Home() {
               size="large"
               startIcon={<IconNavigation />}
               onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address)}
-              sx={{ py: 2, borderRadius: 4, fontSize: '1.1rem', fontWeight: 800, bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' }, boxShadow: '0 8px 24px rgba(15,23,42,0.3)' }}
+              sx={{ py: 2, borderRadius: 2, fontSize: '1.1rem', fontWeight: 800, bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' }, boxShadow: '0 8px 24px rgba(15,23,42,0.3)' }}
             >
               이곳으로 길안내 시작
             </Button>
