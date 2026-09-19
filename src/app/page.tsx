@@ -189,6 +189,13 @@ export default function Home() {
 
   const [activeTab, setActiveTab] = useState<'map' | 'list' | 'settings'>('map');
 
+  const handleDirections = (lat: number, lng: number, name: string) => {
+    // 네이버 지도 길찾기 URL (PC/모바일 모두 호환성 좋은 방식)
+    const url = `https://m.map.naver.com/route.nhn?menu=route&ename=${encodeURIComponent(name)}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`;
+    window.open(url, '_blank');
+  };
+
+
   return (
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-slate-50 font-sans">
       {/* Top Header / Search Area (Only show on map and list) */}
@@ -317,7 +324,7 @@ export default function Home() {
                       </button>
                       <button 
                         className="flex-1 bg-teal-600 text-white py-3 rounded-xl text-base font-bold hover:bg-teal-700 active:bg-teal-800 transition-colors focus:ring-4 focus:ring-teal-500/30 shadow-md"
-                        onClick={() => alert('길안내 기능 (네이버 지도 앱 등) 연동 예정')}
+                        onClick={() => handleDirections(marker.lat, marker.lng, marker.address)}
                         aria-label={`${marker.name} 어르신 길찾기`}
                       >
                         길찾기
@@ -394,7 +401,7 @@ export default function Home() {
             </div>
             <button 
               className="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
-              onClick={() => alert('길안내 기능 (네이버 지도 앱 등) 연동 예정')}
+              onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address)}
             >
               <Navigation size={18} />
               길찾기
