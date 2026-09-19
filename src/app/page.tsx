@@ -289,8 +289,8 @@ export default function Home() {
       {/* Floating Header */}
       <header className="absolute top-4 left-4 right-4 z-20 flex flex-col gap-2">
         <Paper elevation={4} sx={{ p: 2, borderRadius: 4, bgcolor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)' }}>
-          <Typography variant="h5" sx={{ fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, letterSpacing: '-0.5px' }}>
-            <Box sx={{ width: 36, height: 36, bgcolor: '#0d9488', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3)' }}>
+          <Typography variant="h5" component="div" sx={{ fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, letterSpacing: '-0.5px' }}>
+            <Box component="span" sx={{ width: 36, height: 36, bgcolor: '#0d9488', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3)' }}>
               <IconMapPin size={20} color="white" />
             </Box>
             케어루트
@@ -398,7 +398,7 @@ export default function Home() {
                             <IconUser size={28} color="#0d9488" />
                           </Box>
                           <Box>
-                            <Typography variant="h6" sx={{ fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px' }}>
+                            <Typography variant="h6" component="div" sx={{ fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px' }}>
                               {marker.name} 어르신
                             </Typography>
                             <Chip 
@@ -467,7 +467,7 @@ export default function Home() {
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
               <Box>
-                <Typography variant="h5" sx={{ fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px' }}>
+                <Typography variant="h5" component="div" sx={{ fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px' }}>
                   {selectedRecipient.name} 어르신
                 </Typography>
                 <Chip 
