@@ -142,10 +142,20 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         try {
           coords = await getLatLng();
         } catch (e) {
-          console.warn('Geocoding completely failed. Using default coords to prevent blocking save.', e);
-          // Don't block save, just use default/0,0 or existing
-          if (recipientToEdit) {
-             coords = { lat: recipientToEdit.lat, lng: recipientToEdit.lng };
+          console.warn('Geocoding completely failed. Using OSM fallback...', e);
+          try {
+            const shortAddress = address.split(' ').slice(0, 3).join(' ');
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(shortAddress)}`);
+            const data = await res.json();
+            if (data && data.length > 0) {
+              coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+            } else if (recipientToEdit) {
+              coords = { lat: recipientToEdit.lat, lng: recipientToEdit.lng };
+            }
+          } catch (osmError) {
+             if (recipientToEdit) {
+               coords = { lat: recipientToEdit.lat, lng: recipientToEdit.lng };
+             }
           }
         }
       }
