@@ -76,23 +76,33 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
     try {
       // 주소를 위경도로 변환 (네이버 Geocoder)
-      const getLatLng = () => {
-        return new Promise<{ lat: number, lng: number }>((resolve, reject) => {
-          if (!window.naver || !window.naver.maps || !window.naver.maps.Service) {
-            reject(new Error('네이버 지도 스크립트가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.'));
-            return;
-          }
-          // @ts-ignore
-          window.naver.maps.Service.geocode({ query: address }, function(status, response) {
-            // @ts-ignore
-            if (status === window.naver.maps.Service.Status.OK && response.v2.addresses.length > 0) {
-              const item = response.v2.addresses[0];
-              resolve({ lat: parseFloat(item.y), lng: parseFloat(item.x) });
-            } else {
-              reject(new Error('입력하신 주소를 지도에서 찾을 수 없습니다.'));
+      const getLatLng = async (): Promise<{ lat: number; lng: number }> => {
+        try {
+          return await new Promise((resolve, reject) => {
+            if (!window.naver || !window.naver.maps || !window.naver.maps.Service) {
+              reject(new Error('네이버 지도 API를 불러오지 못했습니다.'));
+              return;
             }
+            // @ts-ignore
+            window.naver.maps.Service.geocode({ query: address }, function(status, response) {
+              // @ts-ignore
+              if (status === window.naver.maps.Service.Status.OK && response.v2.addresses.length > 0) {
+                const item = response.v2.addresses[0];
+                resolve({ lat: parseFloat(item.y), lng: parseFloat(item.x) });
+              } else {
+                reject(new Error('네이버 지도에서 주소를 찾을 수 없습니다.'));
+              }
+            });
           });
-        });
+        } catch (error) {
+          console.warn('네이버 Geocoding 실패, OpenStreetMap으로 대체합니다:', error);
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+          const data = await res.json();
+          if (data && data.length > 0) {
+            return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+          }
+          throw new Error('입력하신 주소를 찾을 수 없습니다.');
+        }
       };
 
       const coords = await getLatLng();

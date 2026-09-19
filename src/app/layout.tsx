@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <Script 
           strategy="beforeInteractive" 
-          src={`https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${process.env.NEXT_PUBLIC_NAVER_CLIENT_ID}&submodules=geocoder`} 
+          src={`https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=dxr1zrae95&submodules=geocoder`} 
         />
       </head>
       <body className="min-h-full flex flex-col bg-gray-50">
