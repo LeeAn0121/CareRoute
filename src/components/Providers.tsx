@@ -6,6 +6,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <NavermapsProvider
       ncpClientId={process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || ''}
+      submodules={["geocoder"]}
     >
       {children}
     </NavermapsProvider>
