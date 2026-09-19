@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useDaumPostcodePopup } from 'react-daum-postcode';
+import { DaumPostcodeEmbed } from 'react-daum-postcode';
 import {
   Dialog,
   DialogTitle,
@@ -50,8 +50,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   const [visitTime, setVisitTime] = useState('');
   const [visitDate, setVisitDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const openPostcode = useDaumPostcodePopup('https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js');
+  const [isAddressSearchOpen, setIsAddressSearchOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -86,10 +85,11 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
     setAddress(fullAddress);
     setBcode(data.bcode);
+    setIsAddressSearchOpen(false);
   };
 
   const handleSearchAddress = () => {
-    openPostcode({ onComplete: handleComplete });
+    setIsAddressSearchOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -250,13 +250,13 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
           />
         </Box>
       </DialogContent>
-      
+
       <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           form="recipient-form"
-          variant="contained" 
-          fullWidth 
+          variant="contained"
+          fullWidth
           size="large"
           disabled={isSubmitting}
           sx={{ borderRadius: 3, py: 1.5, fontSize: '1.1rem', fontWeight: 700, boxShadow: 'none' }}
@@ -264,6 +264,34 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
           {isSubmitting ? <CircularProgress size={24} color="inherit" /> : '저장하기'}
         </Button>
       </DialogActions>
+
+      {/* 주소 검색: window.open 팝업 대신 다이얼로그에 임베드해서 연다.
+          PWA를 홈 화면에 설치해 standalone 모드로 실행 중이면 팝업창이
+          열리지 않거나 opener와의 콜백 연결이 끊기는 경우가 흔하기 때문. */}
+      <Dialog
+        open={isAddressSearchOpen}
+        onClose={() => setIsAddressSearchOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        sx={{ '& .MuiDialog-paper': { borderRadius: 4 } }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" sx={{ fontWeight: 800 }}>주소 검색</Typography>
+          <IconButton onClick={() => setIsAddressSearchOpen(false)}>
+            <IconX />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, height: 500 }}>
+          {isAddressSearchOpen && (
+            <DaumPostcodeEmbed
+              scriptUrl="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
+              onComplete={handleComplete}
+              autoClose={false}
+              style={{ width: '100%', height: '100%' }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
