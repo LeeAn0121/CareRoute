@@ -234,7 +234,7 @@ export default function Home() {
             onChange={(e) => setSelectedDong(e.target.value)}
             disabled={!selectedSigungu}
           >
-            <option value="">읍/면/동 선택</option>
+            <option value="">읍/면/동 (전체)</option>
             {dongs.map((d) => (
               <option key={d.code} value={d.code}>
                 {getShortName(d.name)}
