@@ -1,4 +1,7 @@
-'use client';
+import re
+
+modal_path = "src/components/RecipientModal.tsx"
+new_content = """'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -158,9 +161,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   };
 
   return (
-    <Dialog open={isOpen} onClose={!isSubmitting ? onClose : undefined} fullWidth maxWidth="sm" sx={{ '& .MuiDialog-paper': { borderRadius: 4, p: 1 } }}>
+    <Dialog open={isOpen} onClose={!isSubmitting ? onClose : undefined} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 4, p: 1 } }}>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+        <Typography variant="h6" fontWeight={800}>
           {recipientToEdit ? '어르신 정보 수정' : '새 어르신 등록'}
         </Typography>
         <IconButton onClick={onClose} disabled={isSubmitting}>
@@ -178,7 +181,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isSubmitting}
-            
+            InputProps={{ sx: { borderRadius: 3 } }}
           />
           
           <Box sx={{ display: 'flex', gap: 1 }}>
@@ -189,7 +192,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
               required
               value={address}
               disabled
-              
+              InputProps={{ sx: { borderRadius: 3, bgcolor: '#f8fafc' } }}
             />
             <Button 
               variant="contained" 
@@ -210,7 +213,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             value={detailAddress}
             onChange={(e) => setDetailAddress(e.target.value)}
             disabled={isSubmitting}
-            
+            InputProps={{ sx: { borderRadius: 3 } }}
           />
 
           <TextField
@@ -222,8 +225,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             value={visitTime}
             onChange={(e) => setVisitTime(e.target.value)}
             disabled={isSubmitting}
-            
-            slotProps={{ inputLabel: { shrink: true } }}
+            InputProps={{ sx: { borderRadius: 3 } }}
+            InputLabelProps={{ shrink: true }}
           />
         </Box>
       </DialogContent>
@@ -244,3 +247,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
     </Dialog>
   );
 }
+"""
+
+with open(modal_path, "w", encoding="utf-8") as f:
+    f.write(new_content)
+

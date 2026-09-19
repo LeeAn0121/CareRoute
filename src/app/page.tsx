@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { MapPin, List, Plus, Navigation, Clock, User, Download, Share, X, ChevronRight, Check, Pencil, Trash2 } from 'lucide-react';
+import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
+import { Select, MenuItem, FormControl, InputLabel, Button, CircularProgress } from '@mui/material';
 import RecipientModal from '@/components/RecipientModal';
 
 interface RegCode {
@@ -229,7 +230,7 @@ export default function Home() {
         <div className="absolute top-4 left-4 right-4 z-[60] bg-teal-600 text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-fade-in-down">
           <div className="flex items-center gap-3">
             <div className="bg-white/20 p-2 rounded-xl">
-              <Download size={20} className="text-white" />
+              <IconDownload size={20} className="text-white" />
             </div>
             <div>
               <p className="font-bold text-sm">앱으로 설치하기</p>
@@ -244,7 +245,7 @@ export default function Home() {
               설치
             </button>
             <button onClick={() => { setShowInstallPrompt(false); setIsIOS(false); }} className="p-2 text-teal-200">
-              <X size={20} />
+              <IconX size={20} />
             </button>
           </div>
         </div>
@@ -255,41 +256,45 @@ export default function Home() {
         <div className="bg-white/90 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl p-4 border border-white/20">
           <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2 mb-3">
             <div className="w-8 h-8 bg-teal-500 rounded-xl flex items-center justify-center shadow-inner">
-              <MapPin size={18} className="text-white" />
+              <IconMapPin size={18} className="text-white" />
             </div>
             케어루트
           </h1>
           
           <div className="flex gap-2">
-            <select
-              value={selectedSido}
-              onChange={(e) => setSelectedSido(e.target.value)}
-              className="w-1/3 p-3 bg-slate-50 border-none rounded-xl text-[15px] font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-teal-500 transition-all appearance-none"
-              aria-label="시/도 선택"
-            >
-              <option value="">시/도</option>
-              {sidos.map(sido => <option key={sido.code} value={sido.code}>{sido.name}</option>)}
-            </select>
-            <select
-              value={selectedSigungu}
-              onChange={(e) => setSelectedSigungu(e.target.value)}
-              className="w-1/3 p-3 bg-slate-50 border-none rounded-xl text-[15px] font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-teal-500 transition-all appearance-none"
-              aria-label="시/군/구 선택"
-              disabled={!selectedSido}
-            >
-              <option value="">시/군/구</option>
-              {sigungus.map(sig => <option key={sig.code} value={sig.code}>{sig.name.split(' ').pop()}</option>)}
-            </select>
-            <select
-              value={selectedDong}
-              onChange={(e) => setSelectedDong(e.target.value)}
-              className="w-1/3 p-3 bg-slate-50 border-none rounded-xl text-[15px] font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-teal-500 transition-all appearance-none"
-              aria-label="동/읍/면 선택"
-              disabled={!selectedSigungu}
-            >
-              <option value="">동/읍/면</option>
-              {dongs.map(dong => <option key={dong.code} value={dong.code}>{dong.name.split(' ').pop()}</option>)}
-            </select>
+            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 3 }}>
+              <Select
+                value={selectedSido}
+                onChange={(e) => setSelectedSido(e.target.value)}
+                displayEmpty
+                sx={{ borderRadius: 3, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+              >
+                <MenuItem value="">시/도</MenuItem>
+                {sidos.map(sido => <MenuItem key={sido.code} value={sido.code} sx={{fontWeight: 600}}>{sido.name}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 3 }} disabled={!selectedSido}>
+              <Select
+                value={selectedSigungu}
+                onChange={(e) => setSelectedSigungu(e.target.value)}
+                displayEmpty
+                sx={{ borderRadius: 3, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+              >
+                <MenuItem value="">시/군/구</MenuItem>
+                {sigungus.map(sig => <MenuItem key={sig.code} value={sig.code} sx={{fontWeight: 600}}>{sig.name.split(' ').pop()}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 3 }} disabled={!selectedSigungu}>
+              <Select
+                value={selectedDong}
+                onChange={(e) => setSelectedDong(e.target.value)}
+                displayEmpty
+                sx={{ borderRadius: 3, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+              >
+                <MenuItem value="">동/읍/면</MenuItem>
+                {dongs.map(dong => <MenuItem key={dong.code} value={dong.code} sx={{fontWeight: 600}}>{dong.name.split(' ').pop()}</MenuItem>)}
+              </Select>
+            </FormControl>
           </div>
         </div>
       </header>
@@ -329,7 +334,7 @@ export default function Home() {
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 px-8 text-center pt-20">
               <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-sm mb-6">
-                <MapPin size={40} className="text-slate-300" />
+                <IconMapPin size={40} className="text-slate-300" />
               </div>
               <p className="font-extrabold text-xl text-slate-600 mb-3 tracking-tight">지도 연동 대기 중</p>
               <p className="text-[15px] leading-relaxed">네이버 클라우드 서버 동기화가 지연되고 있습니다.<br/>(목록 탭은 지금 바로 정상 사용 가능합니다!)</p>
@@ -343,7 +348,7 @@ export default function Home() {
             {markers.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-400 mt-20">
                 <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
-                  <User size={32} className="text-slate-300" />
+                  <IconUser size={32} className="text-slate-300" />
                 </div>
                 <p className="font-bold text-lg text-slate-500">이 지역엔 등록된 어르신이 없습니다.</p>
               </div>
@@ -354,31 +359,31 @@ export default function Home() {
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center">
-                          <User size={24} className="text-teal-600" />
+                          <IconUser size={24} className="text-teal-600" />
                         </div>
                         <div>
                           <h2 className="text-[22px] font-black text-slate-900 tracking-tight">
                             {marker.name} 어르신
                           </h2>
                           <div className="flex items-center gap-1.5 text-teal-600 font-bold mt-1 text-[15px]">
-                            <Clock size={16} />
+                            <IconClock size={16} />
                             {marker.visit_time.substring(0, 5)} 방문
                           </div>
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => { setEditingRecipient(marker); setIsModalOpen(true); }} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 active:bg-slate-200" aria-label="수정">
-                          <Pencil size={18} />
+                          <IconPencil size={18} />
                         </button>
                         <button onClick={() => handleDelete(marker.id)} className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-red-400 active:bg-red-100" aria-label="삭제">
-                          <Trash2 size={18} />
+                          <IconTrash size={18} />
                         </button>
                       </div>
                     </div>
                     
                     <div className="bg-slate-50 p-4 rounded-2xl mb-4">
                       <p className="text-[16px] text-slate-700 font-medium leading-relaxed flex items-start gap-2">
-                        <MapPin size={18} className="text-slate-400 mt-1 shrink-0" />
+                        <IconMapPin size={18} className="text-slate-400 mt-1 shrink-0" />
                         {marker.address}
                       </p>
                     </div>
@@ -387,7 +392,7 @@ export default function Home() {
                       className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-[17px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-lg shadow-slate-900/20"
                       onClick={() => handleDirections(marker.lat, marker.lng, marker.address)}
                     >
-                      <Navigation size={20} />
+                      <IconNavigation size={20} />
                       이곳으로 길안내 시작
                     </button>
                   </div>
@@ -404,7 +409,7 @@ export default function Home() {
         className="absolute bottom-[100px] right-6 z-40 w-16 h-16 bg-teal-600 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(13,148,136,0.4)] active:scale-90 transition-transform"
         aria-label="어르신 추가"
       >
-        <Plus size={32} strokeWidth={2.5} />
+        <IconPlus size={32} strokeWidth={2.5} />
       </button>
 
       {/* Map Marker Popup */}
@@ -416,12 +421,12 @@ export default function Home() {
                 {selectedRecipient.name} 어르신
               </h3>
               <div className="flex items-center gap-1.5 text-teal-600 font-bold mt-2 text-[16px]">
-                <Clock size={18} />
+                <IconClock size={18} />
                 {selectedRecipient.visit_time.substring(0, 5)} 방문 예정
               </div>
             </div>
             <button onClick={() => setSelectedRecipient(null)} className="p-2 text-slate-400 bg-slate-50 rounded-full active:bg-slate-200">
-              <X size={20} />
+              <IconX size={20} />
             </button>
           </div>
           <p className="text-[16px] text-slate-600 font-medium mb-5 bg-slate-50 p-4 rounded-2xl leading-relaxed">
@@ -431,7 +436,7 @@ export default function Home() {
             className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-[17px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-lg shadow-slate-900/20"
             onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address)}
           >
-            <Navigation size={20} />
+            <IconNavigation size={20} />
             길안내 시작
           </button>
         </div>
@@ -446,7 +451,7 @@ export default function Home() {
           role="tab"
         >
           <div className={`p-1.5 rounded-xl transition-colors ${activeTab === 'map' ? 'bg-teal-50' : ''}`}>
-            <MapPin size={24} strokeWidth={activeTab === 'map' ? 2.5 : 2} />
+            <IconMapPin size={24} strokeWidth={activeTab === 'map' ? 2.5 : 2} />
           </div>
           <span className={`text-[13px] ${activeTab === 'map' ? 'font-bold' : 'font-medium'}`}>지도 보기</span>
         </button>
@@ -457,7 +462,7 @@ export default function Home() {
           role="tab"
         >
           <div className={`p-1.5 rounded-xl transition-colors ${activeTab === 'list' ? 'bg-teal-50' : ''}`}>
-            <List size={24} strokeWidth={activeTab === 'list' ? 2.5 : 2} />
+            <IconList size={24} strokeWidth={activeTab === 'list' ? 2.5 : 2} />
           </div>
           <span className={`text-[13px] ${activeTab === 'list' ? 'font-bold' : 'font-medium'}`}>명단 보기</span>
         </button>
