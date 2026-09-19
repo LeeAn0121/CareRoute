@@ -287,8 +287,8 @@ function MainApp() {
       )}
 
       {/* Floating Header */}
-      <header className="absolute top-4 left-4 right-4 z-20 flex flex-col gap-2">
-        <Paper elevation={4} sx={{ p: 2, borderRadius: 2, bgcolor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)' }}>
+      <header className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
+        <Paper elevation={0} sx={{ p: 2, borderRadius: 0, borderBottom: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
           <Typography variant="h5" component="div" sx={{ fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, letterSpacing: '-0.5px' }}>
             <Box component="span" sx={{ width: 36, height: 36, bgcolor: '#0d9488', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3)' }}>
               <IconMapPin size={20} color="white" />
@@ -390,7 +390,7 @@ function MainApp() {
             ) : (
               <div className="space-y-4">
                 {markers.sort((a,b) => a.visit_time.localeCompare(b.visit_time)).map((marker) => (
-                  <Card key={marker.id} elevation={0} sx={{ borderRadius: 2, mb: 3, border: '1px solid #f1f5f9', boxShadow: '0 4px 24px rgba(0,0,0,0.03)' }}>
+                  <Card key={marker.id} elevation={0} sx={{ borderRadius: 1, mb: 2, border: '1px solid #e2e8f0' }}>
                     <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -450,7 +450,7 @@ function MainApp() {
         color="primary" 
         aria-label="어르신 추가" 
         onClick={() => { setEditingRecipient(null); setIsModalOpen(true); }}
-        sx={{ position: 'absolute', bottom: 100, right: 24, zIndex: 40, width: 64, height: 64, boxShadow: '0 8px 32px rgba(13,148,136,0.5)' }}
+        sx={{ position: 'absolute', bottom: 100, right: 24, zIndex: 40, width: 56, height: 56, borderRadius: 3, boxShadow: '0 4px 12px rgba(13,148,136,0.3)' }}
       >
         <IconPlus size={32} strokeWidth={2.5} />
       </Fab>
@@ -460,7 +460,7 @@ function MainApp() {
         anchor="bottom"
         open={Boolean(selectedRecipient && activeTab === 'map')}
         onClose={() => setSelectedRecipient(null)}
-        sx={{ '& .MuiDrawer-paper': { borderTopLeftRadius: 16, borderTopRightRadius: 16, p: 3, pb: 14 } }}
+        sx={{ '& .MuiDrawer-paper': { borderTopLeftRadius: 12, borderTopRightRadius: 12, p: 3, pb: 14 } }}
         ModalProps={{ keepMounted: true }}
       >
         {selectedRecipient && (
