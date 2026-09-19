@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { MapPin, List, Settings, UserPlus, Navigation, Clock, User } from 'lucide-react';
+import { MapPin, List, Settings, UserPlus, Navigation, Clock, User, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import RecipientModal from '@/components/RecipientModal';
 
 interface RegCode {
   code: string;
@@ -65,9 +66,12 @@ export default function Home() {
   const [markers, setMarkers] = useState<Recipient[]>([]);
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
 
-  useEffect(() => {
+  // 모달 상태
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
+
+  const fetchMarkers = () => {
     let query = supabase.from('recipients').select('*');
-    
     if (selectedDong) query = query.eq('dong', selectedDong);
     else if (selectedSigungu) query = query.eq('sigungu', selectedSigungu);
     else if (selectedSido) query = query.eq('sido', selectedSido);
@@ -75,6 +79,10 @@ export default function Home() {
     query.then(({ data, error }) => {
       if (!error && data) setMarkers(data);
     });
+  };
+
+  useEffect(() => {
+    fetchMarkers();
   }, [selectedSido, selectedSigungu, selectedDong]);
 
   useEffect(() => {
@@ -158,12 +166,25 @@ export default function Home() {
         }
       });
     }
-    setSelectedRecipient(null); // 지역 변경 시 선택된 마커 초기화
+    setSelectedRecipient(null);
   }, [selectedSido, selectedSigungu, selectedDong, sidos, sigungus, dongs]);
 
   const getShortName = (fullName: string) => {
     const parts = fullName.split(' ');
     return parts[parts.length - 1];
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('정말로 삭제하시겠습니까?')) return;
+    
+    const { error } = await supabase.from('recipients').delete().eq('id', id);
+    if (error) {
+      alert('삭제 중 오류가 발생했습니다.');
+      console.error(error);
+    } else {
+      setSelectedRecipient(null);
+      fetchMarkers();
+    }
   };
 
   return (
@@ -172,7 +193,13 @@ export default function Home() {
       <header className="bg-white shadow-sm rounded-b-3xl px-5 pt-safe-top pb-5 z-20 absolute top-0 w-full">
         <div className="flex items-center justify-between mb-4 mt-2">
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">케어루트</h1>
-          <button className="p-2 bg-teal-50 text-teal-600 rounded-full hover:bg-teal-100 transition-colors">
+          <button 
+            onClick={() => {
+              setEditingRecipient(null);
+              setIsModalOpen(true);
+            }}
+            className="p-2 bg-teal-50 text-teal-600 rounded-full hover:bg-teal-100 transition-colors"
+          >
             <UserPlus size={22} />
           </button>
         </div>
@@ -257,9 +284,28 @@ export default function Home() {
                 </h2>
                 <p className="text-slate-500 text-sm mt-1">{selectedRecipient.address}</p>
               </div>
-              <div className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
-                <Clock size={14} />
-                {selectedRecipient.visit_time.substring(0,5)}
+              <div className="flex flex-col items-end gap-2">
+                <div className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
+                  <Clock size={14} />
+                  {selectedRecipient.visit_time.substring(0,5)}
+                </div>
+                <div className="flex gap-2 text-slate-400">
+                  <button 
+                    onClick={() => {
+                      setEditingRecipient(selectedRecipient);
+                      setIsModalOpen(true);
+                    }}
+                    className="p-1.5 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(selectedRecipient.id)}
+                    className="p-1.5 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             </div>
             <button 
@@ -294,6 +340,16 @@ export default function Home() {
           <span className="text-[10px] font-medium">설정</span>
         </button>
       </nav>
+
+      <RecipientModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => {
+          setSelectedRecipient(null);
+          fetchMarkers();
+        }}
+        recipientToEdit={editingRecipient}
+      />
     </main>
   );
 }
