@@ -193,15 +193,15 @@ export default function Home() {
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-slate-50 font-sans">
       {/* Top Header / Search Area (Only show on map and list) */}
       {(activeTab === 'map' || activeTab === 'list') && (
-        <header className="bg-white shadow-sm rounded-b-3xl px-5 pt-safe-top pb-5 z-20 absolute top-0 w-full">
+        <header className="bg-white shadow-md rounded-b-3xl px-6 pt-safe-top pb-6 z-20 absolute top-0 w-full">
           <div className="flex items-center justify-between mb-4 mt-2">
-            <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">케어루트</h1>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight" aria-label="케어루트 홈">케어루트</h1>
             <button 
               onClick={() => {
                 setEditingRecipient(null);
                 setIsModalOpen(true);
               }}
-              className="p-2 bg-teal-50 text-teal-600 rounded-full hover:bg-teal-100 transition-colors"
+              className="p-3 bg-teal-100 text-teal-700 rounded-full hover:bg-teal-200 transition-colors focus:ring-4 focus:ring-teal-500/30 active:bg-teal-300 shadow-sm" aria-label="수급자 추가"
             >
               <UserPlus size={22} />
             </button>
@@ -209,7 +209,7 @@ export default function Home() {
           
           <div className="flex gap-2">
             <select
-              className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none"
+              className="flex-1 px-4 py-3 text-base font-bold border-2 border-slate-300 rounded-xl bg-white text-slate-800 focus:outline-none focus:ring-4 focus:ring-teal-500/30 focus:border-teal-600 appearance-none transition-all shadow-sm" aria-label="시/도 선택"
               value={selectedSido}
               onChange={(e) => setSelectedSido(e.target.value)}
             >
@@ -220,7 +220,7 @@ export default function Home() {
             </select>
 
             <select
-              className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none disabled:opacity-50"
+              className="flex-1 px-4 py-3 text-base font-bold border-2 border-slate-300 rounded-xl bg-white text-slate-800 focus:outline-none focus:ring-4 focus:ring-teal-500/30 focus:border-teal-600 appearance-none disabled:opacity-50 disabled:bg-slate-100 transition-all shadow-sm" aria-label="지역 선택"
               value={selectedSigungu}
               onChange={(e) => setSelectedSigungu(e.target.value)}
               disabled={!selectedSido}
@@ -232,7 +232,7 @@ export default function Home() {
             </select>
 
             <select
-              className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none disabled:opacity-50"
+              className="flex-1 px-4 py-3 text-base font-bold border-2 border-slate-300 rounded-xl bg-white text-slate-800 focus:outline-none focus:ring-4 focus:ring-teal-500/30 focus:border-teal-600 appearance-none disabled:opacity-50 disabled:bg-slate-100 transition-all shadow-sm" aria-label="지역 선택"
               value={selectedDong}
               onChange={(e) => setSelectedDong(e.target.value)}
               disabled={!selectedSigungu}
@@ -292,11 +292,11 @@ export default function Home() {
                   <div key={marker.id} className="bg-white rounded-2xl shadow-sm p-5 border border-slate-200">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
                           <User size={18} className="text-teal-600" />
                           {marker.name} 어르신
                         </h2>
-                        <p className="text-slate-500 text-sm mt-1">{marker.address}</p>
+                        <p className="text-slate-600 text-base mt-2 font-medium leading-relaxed">{marker.address}</p>
                       </div>
                       <div className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 whitespace-nowrap">
                         <Clock size={12} />
@@ -310,13 +310,15 @@ export default function Home() {
                           setSelectedRecipient(marker);
                           setActiveTab('map');
                         }}
-                        className="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-colors"
+                        className="flex-1 bg-slate-200 text-slate-800 py-3 rounded-xl text-base font-bold hover:bg-slate-300 active:bg-slate-400 transition-colors focus:ring-4 focus:ring-slate-500/30"
+                        aria-label={`${marker.name} 어르신 위치 지도로 보기`}
                       >
                         지도에서 보기
                       </button>
                       <button 
-                        className="flex-1 bg-teal-600 text-white py-2 rounded-xl text-sm font-semibold hover:bg-teal-700 transition-colors"
+                        className="flex-1 bg-teal-600 text-white py-3 rounded-xl text-base font-bold hover:bg-teal-700 active:bg-teal-800 transition-colors focus:ring-4 focus:ring-teal-500/30 shadow-md"
                         onClick={() => alert('길안내 기능 (네이버 지도 앱 등) 연동 예정')}
+                        aria-label={`${marker.name} 어르신 길찾기`}
                       >
                         길찾기
                       </button>

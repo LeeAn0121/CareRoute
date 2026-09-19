@@ -141,12 +141,12 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div className="bg-white w-full sm:w-[400px] h-[85vh] sm:h-auto sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
         
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-800">
+          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight" id="modal-title">
             {recipientToEdit ? '수급자 정보 수정' : '새 수급자 추가'}
           </h2>
           <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
@@ -171,30 +171,33 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             <>
               {/* 이름 입력 */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">이름</label>
+                <label htmlFor="recipient-name" className="block text-base font-bold text-slate-800 mb-2">어르신 성함</label>
                 <input 
+                  id="recipient-name"
                   type="text" 
                   value={name} 
                   onChange={(e) => setName(e.target.value)}
                   placeholder="예: 김할머니"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-shadow"
+                  className="w-full px-4 py-4 text-lg font-medium bg-white border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-teal-500/30 focus:border-teal-600 transition-all shadow-sm"
+                  aria-required="true"
                 />
               </div>
 
               {/* 주소 입력 */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">주소</label>
+                <label className="block text-base font-bold text-slate-800 mb-2">방문 주소</label>
                 <div className="flex gap-2 mb-2">
                   <input 
                     type="text" 
                     value={address} 
                     readOnly
                     placeholder="주소 검색을 눌러주세요"
-                    className="flex-1 px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-600 cursor-not-allowed focus:outline-none"
+                    className="flex-1 px-4 py-4 text-lg font-medium bg-slate-100 border-2 border-slate-300 rounded-xl text-slate-700 cursor-not-allowed focus:outline-none" aria-readonly="true"
                   />
                   <button 
                     onClick={() => setIsSearchingAddress(true)}
-                    className="px-4 py-3 bg-teal-50 text-teal-600 font-semibold rounded-xl hover:bg-teal-100 transition-colors whitespace-nowrap"
+                    className="px-6 py-4 bg-teal-100 text-teal-800 text-base font-extrabold rounded-xl hover:bg-teal-200 active:bg-teal-300 transition-colors whitespace-nowrap focus:ring-4 focus:ring-teal-500/30"
+                    aria-label="주소 검색 열기"
                   >
                     검색
                   </button>
@@ -204,18 +207,18 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                   value={detailAddress} 
                   onChange={(e) => setDetailAddress(e.target.value)}
                   placeholder="상세주소 (동, 호수 등 - 선택사항)"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-shadow"
+                  className="w-full px-4 py-4 text-lg font-medium bg-white border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-teal-500/30 focus:border-teal-600 transition-all shadow-sm"
                 />
               </div>
 
               {/* 방문 시간 입력 */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">방문 시간</label>
+                <label htmlFor="visit-time" className="block text-base font-bold text-slate-800 mb-2">방문 예정 시간</label>
                 <input 
                   type="time" 
                   value={visitTime}
                   onChange={(e) => setVisitTime(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-shadow"
+                  className="w-full px-4 py-4 text-lg font-medium bg-white border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-teal-500/30 focus:border-teal-600 transition-all shadow-sm"
                 />
               </div>
             </>
@@ -228,7 +231,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             <button 
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg shadow-teal-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-5 text-xl bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-extrabold rounded-2xl shadow-xl shadow-teal-600/30 transition-all focus:ring-4 focus:ring-teal-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-busy={isSubmitting}
             >
               {isSubmitting ? '저장 중...' : '저장하기'}
             </button>
