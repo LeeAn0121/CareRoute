@@ -24,9 +24,15 @@ self.addEventListener('fetch', (e) => {
 
   // Always go to the network for navigations (the HTML shell) so a new
   // deploy's fresh chunk references are used instead of a stale cached shell.
+  // If the network is unreachable (spotty mobile signal), fall back to
+  // whatever shell is cached rather than resolving to nothing, which the
+  // browser renders as its own "page couldn't load" error.
   if (request.mode === 'navigate') {
     e.respondWith(
-      fetch(request).catch(() => caches.match(request)),
+      fetch(request).catch(
+        () => caches.match(request)
+          .then((cached) => cached || caches.match('/CareRoute/')),
+      ),
     );
     return;
   }

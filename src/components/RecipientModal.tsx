@@ -94,7 +94,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !address || !bcode || !visitDate || !visitTime) {
+    if (!name || !address || !bcode || !visitDate) {
       alert('모든 필수 항목을 입력해주세요.');
       return;
     }
@@ -160,7 +160,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         dong: bcode,
         lat: coords.lat,
         lng: coords.lng,
-        visit_time: visitTime + ':00',
+        visit_time: visitTime ? `${visitTime}:00` : '',
         notes: visitDate
       };
 
@@ -186,84 +186,93 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         <Typography variant="h6" sx={{ fontWeight: 800 }}>
           {recipientToEdit ? '어르신 정보 수정' : '새 어르신 등록'}
         </Typography>
-        <IconButton onClick={onClose} disabled={isSubmitting}>
+        <IconButton type="button" onClick={onClose} disabled={isSubmitting}>
           <IconX />
         </IconButton>
       </DialogTitle>
-      
-      <DialogContent>
-        <Box component="form" id="recipient-form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
-          <TextField
-            label="성함"
-            variant="outlined"
-            fullWidth
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={isSubmitting}
-            
-          />
-          
-          <Box sx={{ display: 'flex', gap: 1 }}>
+
+      <Box component="form" onSubmit={handleSubmit}>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
             <TextField
-              label="기본 주소"
+              label="성함"
               variant="outlined"
               fullWidth
               required
-              value={address}
-              disabled
-              
-            />
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={handleSearchAddress}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               disabled={isSubmitting}
-              sx={{ borderRadius: 3, px: 3, boxShadow: 'none' }}
-              startIcon={<IconSearch size={18} />}
-            >
-              검색
-            </Button>
+            />
+
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField
+                label="기본 주소"
+                variant="outlined"
+                fullWidth
+                required
+                value={address}
+                disabled
+              />
+              <Button
+                type="button"
+                variant="contained"
+                color="primary"
+                onClick={handleSearchAddress}
+                disabled={isSubmitting}
+                sx={{ borderRadius: 3, px: 3, boxShadow: 'none' }}
+                startIcon={<IconSearch size={18} />}
+              >
+                검색
+              </Button>
+            </Box>
+
+            <TextField
+              label="상세 주소 (선택)"
+              variant="outlined"
+              fullWidth
+              value={detailAddress}
+              onChange={(e) => setDetailAddress(e.target.value)}
+              disabled={isSubmitting}
+            />
+
+            <TextField
+              label="방문 예정일"
+              type="date"
+              variant="outlined"
+              fullWidth
+              required
+              value={visitDate}
+              onChange={(e) => setVisitDate(e.target.value)}
+              disabled={isSubmitting}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+
+            <TextField
+              label="방문 예정 시간 (선택)"
+              type="time"
+              variant="outlined"
+              fullWidth
+              value={visitTime}
+              onChange={(e) => setVisitTime(e.target.value)}
+              disabled={isSubmitting}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
           </Box>
-          
-          <TextField
-            label="상세 주소 (선택)"
-            variant="outlined"
-            fullWidth
-            value={detailAddress}
-            onChange={(e) => setDetailAddress(e.target.value)}
-            disabled={isSubmitting}
-            
-          />
+        </DialogContent>
 
-          <TextField
-            label="방문 예정 시간"
-            type="time"
-            variant="outlined"
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button
+            type="submit"
+            variant="contained"
             fullWidth
-            required
-            value={visitTime}
-            onChange={(e) => setVisitTime(e.target.value)}
+            size="large"
             disabled={isSubmitting}
-            
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-        </Box>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button
-          type="submit"
-          form="recipient-form"
-          variant="contained"
-          fullWidth
-          size="large"
-          disabled={isSubmitting}
-          sx={{ borderRadius: 3, py: 1.5, fontSize: '1.1rem', fontWeight: 700, boxShadow: 'none' }}
-        >
-          {isSubmitting ? <CircularProgress size={24} color="inherit" /> : '저장하기'}
-        </Button>
-      </DialogActions>
+            sx={{ borderRadius: 3, py: 1.5, fontSize: '1.1rem', fontWeight: 700, boxShadow: 'none' }}
+          >
+            {isSubmitting ? <CircularProgress size={24} color="inherit" /> : '저장하기'}
+          </Button>
+        </DialogActions>
+      </Box>
 
       {/* 주소 검색: window.open 팝업 대신 다이얼로그에 임베드해서 연다.
           PWA를 홈 화면에 설치해 standalone 모드로 실행 중이면 팝업창이
