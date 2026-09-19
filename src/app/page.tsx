@@ -187,93 +187,175 @@ export default function Home() {
     }
   };
 
+  const [activeTab, setActiveTab] = useState<'map' | 'list' | 'settings'>('map');
+
   return (
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-slate-50 font-sans">
-      {/* Top Header / Search Area */}
-      <header className="bg-white shadow-sm rounded-b-3xl px-5 pt-safe-top pb-5 z-20 absolute top-0 w-full">
-        <div className="flex items-center justify-between mb-4 mt-2">
-          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">케어루트</h1>
-          <button 
-            onClick={() => {
-              setEditingRecipient(null);
-              setIsModalOpen(true);
-            }}
-            className="p-2 bg-teal-50 text-teal-600 rounded-full hover:bg-teal-100 transition-colors"
-          >
-            <UserPlus size={22} />
-          </button>
-        </div>
-        
-        <div className="flex gap-2">
-          <select
-            className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none"
-            value={selectedSido}
-            onChange={(e) => setSelectedSido(e.target.value)}
-          >
-            <option value="">시/도</option>
-            {sidos.map((d) => (
-              <option key={d.code} value={d.code}>{getShortName(d.name)}</option>
-            ))}
-          </select>
+      {/* Top Header / Search Area (Only show on map and list) */}
+      {(activeTab === 'map' || activeTab === 'list') && (
+        <header className="bg-white shadow-sm rounded-b-3xl px-5 pt-safe-top pb-5 z-20 absolute top-0 w-full">
+          <div className="flex items-center justify-between mb-4 mt-2">
+            <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">케어루트</h1>
+            <button 
+              onClick={() => {
+                setEditingRecipient(null);
+                setIsModalOpen(true);
+              }}
+              className="p-2 bg-teal-50 text-teal-600 rounded-full hover:bg-teal-100 transition-colors"
+            >
+              <UserPlus size={22} />
+            </button>
+          </div>
+          
+          <div className="flex gap-2">
+            <select
+              className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none"
+              value={selectedSido}
+              onChange={(e) => setSelectedSido(e.target.value)}
+            >
+              <option value="">시/도</option>
+              {sidos.map((d) => (
+                <option key={d.code} value={d.code}>{getShortName(d.name)}</option>
+              ))}
+            </select>
 
-          <select
-            className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none disabled:opacity-50"
-            value={selectedSigungu}
-            onChange={(e) => setSelectedSigungu(e.target.value)}
-            disabled={!selectedSido}
-          >
-            <option value="">시/군/구</option>
-            {sigungus.map((d) => (
-              <option key={d.code} value={d.code}>{getShortName(d.name)}</option>
-            ))}
-          </select>
+            <select
+              className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none disabled:opacity-50"
+              value={selectedSigungu}
+              onChange={(e) => setSelectedSigungu(e.target.value)}
+              disabled={!selectedSido}
+            >
+              <option value="">시/군/구</option>
+              {sigungus.map((d) => (
+                <option key={d.code} value={d.code}>{getShortName(d.name)}</option>
+              ))}
+            </select>
 
-          <select
-            className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none disabled:opacity-50"
-            value={selectedDong}
-            onChange={(e) => setSelectedDong(e.target.value)}
-            disabled={!selectedSigungu}
-          >
-            <option value="">읍/면/동(전체)</option>
-            {dongs.map((d) => (
-              <option key={d.code} value={d.code}>{getShortName(d.name)}</option>
-            ))}
-          </select>
-        </div>
-      </header>
+            <select
+              className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none disabled:opacity-50"
+              value={selectedDong}
+              onChange={(e) => setSelectedDong(e.target.value)}
+              disabled={!selectedSigungu}
+            >
+              <option value="">읍/면/동(전체)</option>
+              {dongs.map((d) => (
+                <option key={d.code} value={d.code}>{getShortName(d.name)}</option>
+              ))}
+            </select>
+          </div>
+        </header>
+      )}
 
-      {/* Map Area */}
-      <div className="flex-1 w-full bg-slate-200 relative">
-        <Container className="w-full h-full">
-          <NaverMap
-            defaultCenter={mapCenter}
-            center={mapCenter}
-            defaultZoom={15}
-          >
-            {markers.map((marker) => (
-              <Marker
-                key={marker.id}
-                position={{ lat: marker.lat, lng: marker.lng }}
-                onClick={() => setSelectedRecipient(marker)}
-                icon={{
-                  content: `
-                    <div class="relative flex items-center justify-center w-10 h-10 ${selectedRecipient?.id === marker.id ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-200">
-                      <div class="absolute inset-0 bg-teal-500 rounded-full opacity-20 animate-ping"></div>
-                      <div class="relative bg-teal-600 text-white rounded-full p-2 shadow-lg border-2 border-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      {/* Main Content Area */}
+      <div className="flex-1 w-full bg-slate-100 relative overflow-hidden flex flex-col pt-[140px]">
+        {activeTab === 'map' && (
+          <div className="absolute inset-0 top-0">
+            <Container className="w-full h-full">
+              <NaverMap
+                defaultCenter={mapCenter}
+                center={mapCenter}
+                defaultZoom={15}
+              >
+                {markers.map((marker) => (
+                  <Marker
+                    key={marker.id}
+                    position={{ lat: marker.lat, lng: marker.lng }}
+                    onClick={() => setSelectedRecipient(marker)}
+                    icon={{
+                      content: `
+                        <div class="relative flex items-center justify-center w-10 h-10 ${selectedRecipient?.id === marker.id ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-200">
+                          <div class="absolute inset-0 bg-teal-500 rounded-full opacity-20 animate-ping"></div>
+                          <div class="relative bg-teal-600 text-white rounded-full p-2 shadow-lg border-2 border-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                          </div>
+                        </div>
+                      `,
+                      anchor: { x: 20, y: 20 }
+                    }}
+                  />
+                ))}
+              </NaverMap>
+            </Container>
+          </div>
+        )}
+
+        {activeTab === 'list' && (
+          <div className="flex-1 overflow-y-auto px-5 pb-10">
+            {markers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                <User size={48} className="mb-4 opacity-20" />
+                <p>선택한 지역에 수급자가 없습니다.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {markers.sort((a,b) => a.visit_time.localeCompare(b.visit_time)).map((marker) => (
+                  <div key={marker.id} className="bg-white rounded-2xl shadow-sm p-5 border border-slate-200">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                          <User size={18} className="text-teal-600" />
+                          {marker.name} 어르신
+                        </h2>
+                        <p className="text-slate-500 text-sm mt-1">{marker.address}</p>
+                      </div>
+                      <div className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 whitespace-nowrap">
+                        <Clock size={12} />
+                        {marker.visit_time.substring(0,5)}
                       </div>
                     </div>
-                  `,
-                  anchor: { x: 20, y: 20 }
-                }}
-              />
-            ))}
-          </NaverMap>
-        </Container>
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
+                      <button 
+                        onClick={() => {
+                          setMapCenter({ lat: marker.lat, lng: marker.lng });
+                          setSelectedRecipient(marker);
+                          setActiveTab('map');
+                        }}
+                        className="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-colors"
+                      >
+                        지도에서 보기
+                      </button>
+                      <button 
+                        className="flex-1 bg-teal-600 text-white py-2 rounded-xl text-sm font-semibold hover:bg-teal-700 transition-colors"
+                        onClick={() => alert('길안내 기능 (네이버 지도 앱 등) 연동 예정')}
+                      >
+                        길찾기
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="absolute inset-0 top-0 bg-slate-50 flex-1 overflow-y-auto pt-safe-top">
+            <div className="px-5 py-6">
+              <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight mb-6">설정</h1>
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-5 border-b border-slate-100 flex items-center gap-4">
+                  <div className="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center">
+                    <User size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800">어머님 계정</h3>
+                    <p className="text-sm text-slate-500">사회복지사</p>
+                  </div>
+                </div>
+                <button className="w-full text-left p-5 text-slate-700 hover:bg-slate-50 transition-colors font-medium border-b border-slate-100">
+                  앱 정보 (v1.0.0)
+                </button>
+                <button className="w-full text-left p-5 text-red-500 hover:bg-slate-50 transition-colors font-medium">
+                  로그아웃
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Floating Card for Selected Recipient */}
-      {selectedRecipient && (
+      {/* Floating Card for Selected Recipient (Only on map) */}
+      {activeTab === 'map' && selectedRecipient && (
         <div className="absolute bottom-24 left-4 right-4 z-20 animate-in slide-in-from-bottom-5 fade-in duration-300">
           <div className="bg-white rounded-2xl shadow-xl p-5 border border-slate-100">
             <div className="flex justify-between items-start mb-3">
@@ -321,23 +403,32 @@ export default function Home() {
 
       {/* Bottom Navigation */}
       <nav className="bg-white border-t border-slate-100 flex justify-around p-2 pb-safe z-30 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
-        <button className="flex flex-col items-center justify-center w-full py-2 text-teal-600">
-          <div className="bg-teal-50 p-1.5 rounded-full mb-1">
-            <MapPin size={22} strokeWidth={2.5} />
+        <button 
+          onClick={() => setActiveTab('map')}
+          className={`flex flex-col items-center justify-center w-full py-2 transition-colors ${activeTab === 'map' ? 'text-teal-600' : 'text-slate-400 hover:text-teal-500'}`}
+        >
+          <div className={`${activeTab === 'map' ? 'bg-teal-50' : ''} p-1.5 rounded-full mb-1`}>
+            <MapPin size={22} strokeWidth={activeTab === 'map' ? 2.5 : 2} />
           </div>
-          <span className="text-[10px] font-bold">지도</span>
+          <span className={`text-[10px] ${activeTab === 'map' ? 'font-bold' : 'font-medium'}`}>지도</span>
         </button>
-        <button className="flex flex-col items-center justify-center w-full py-2 text-slate-400 hover:text-teal-500 transition-colors">
-          <div className="p-1.5 mb-1">
-            <List size={22} strokeWidth={2} />
+        <button 
+          onClick={() => setActiveTab('list')}
+          className={`flex flex-col items-center justify-center w-full py-2 transition-colors ${activeTab === 'list' ? 'text-teal-600' : 'text-slate-400 hover:text-teal-500'}`}
+        >
+          <div className={`${activeTab === 'list' ? 'bg-teal-50' : ''} p-1.5 rounded-full mb-1`}>
+            <List size={22} strokeWidth={activeTab === 'list' ? 2.5 : 2} />
           </div>
-          <span className="text-[10px] font-medium">목록</span>
+          <span className={`text-[10px] ${activeTab === 'list' ? 'font-bold' : 'font-medium'}`}>목록</span>
         </button>
-        <button className="flex flex-col items-center justify-center w-full py-2 text-slate-400 hover:text-teal-500 transition-colors">
-          <div className="p-1.5 mb-1">
-            <Settings size={22} strokeWidth={2} />
+        <button 
+          onClick={() => setActiveTab('settings')}
+          className={`flex flex-col items-center justify-center w-full py-2 transition-colors ${activeTab === 'settings' ? 'text-teal-600' : 'text-slate-400 hover:text-teal-500'}`}
+        >
+          <div className={`${activeTab === 'settings' ? 'bg-teal-50' : ''} p-1.5 rounded-full mb-1`}>
+            <Settings size={22} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
           </div>
-          <span className="text-[10px] font-medium">설정</span>
+          <span className={`text-[10px] ${activeTab === 'settings' ? 'font-bold' : 'font-medium'}`}>설정</span>
         </button>
       </nav>
 
