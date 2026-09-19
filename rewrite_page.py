@@ -1,7 +1,11 @@
-'use client';
+import re
+
+page_path = "src/app/page.tsx"
+
+new_code = """'use client';
 import { useState, useEffect } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { MapPin, List, Plus, Navigation, Clock, User, Download, Share, X, ChevronRight, Check, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, List, Plus, Navigation, Clock, User, Download, Share, X, ChevronRight, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
 
@@ -475,3 +479,9 @@ export default function Home() {
     </main>
   );
 }
+"""
+
+with open(page_path, "w", encoding="utf-8") as f:
+    f.write(new_code)
+
+print("Page rewritten")

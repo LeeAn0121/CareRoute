@@ -14,9 +14,26 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import type { Viewport } from 'next';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#0d9488',
+  viewportFit: 'cover',
+};
+
 export const metadata: Metadata = {
   title: "CareRoute",
-  description: "어머니를 위한 방문 요양 지도 서비스",
+  description: "어르신 방문 요양 경로 안내 서비스",
+  manifest: "/CareRoute/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "케어루트",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
