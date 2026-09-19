@@ -16,6 +16,12 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const { request } = e;
 
+  // The Cache API only supports GET; let POST/PUT/etc (Supabase writes, etc.)
+  // pass straight through to the network untouched.
+  if (request.method !== 'GET') {
+    return;
+  }
+
   // Always go to the network for navigations (the HTML shell) so a new
   // deploy's fresh chunk references are used instead of a stale cached shell.
   if (request.mode === 'navigate') {
