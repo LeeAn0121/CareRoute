@@ -95,27 +95,27 @@ export default function Home() {
       .then(data => {
         let loadedSidos = data.regcodes || [];
         
+        // 먼저 데이터를 화면에 뿌려줍니다 (GPS 권한 대기 중 빈 화면 방지)
+        setSidos(loadedSidos);
+        
         if ('geolocation' in navigator) {
           navigator.geolocation.getCurrentPosition(
             (position) => {
               const { latitude, longitude } = position.coords;
-              loadedSidos.sort((a: RegCode, b: RegCode) => {
+              const sorted = [...loadedSidos].sort((a: RegCode, b: RegCode) => {
                 const centerA = SIDO_CENTERS[a.name] || { lat: 37.5665, lng: 126.9780 };
                 const centerB = SIDO_CENTERS[b.name] || { lat: 37.5665, lng: 126.9780 };
                 const distA = getDistanceFromLatLonInKm(latitude, longitude, centerA.lat, centerA.lng);
                 const distB = getDistanceFromLatLonInKm(latitude, longitude, centerB.lat, centerB.lng);
                 return distA - distB;
               });
-              setSidos([...loadedSidos]);
-              if (loadedSidos.length > 0) setSelectedSido(loadedSidos[0].code);
+              setSidos(sorted);
+              if (sorted.length > 0) setSelectedSido(sorted[0].code);
             },
             (error) => {
-              console.error("GPS 위치 정보를 가져올 수 없습니다.", error);
-              setSidos(loadedSidos);
+              console.error("GPS 위치 정보를 가져올 수 없거나 거부되었습니다.", error);
             }
           );
-        } else {
-          setSidos(loadedSidos);
         }
       });
   }, []);
