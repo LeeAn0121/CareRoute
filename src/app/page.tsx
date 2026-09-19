@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { MapPin, List, Settings, UserPlus, Navigation, Clock, User, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, List, UserPlus, Navigation, Clock, User, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
 
@@ -187,7 +187,7 @@ export default function Home() {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'map' | 'list' | 'settings'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'list'>('map');
 
   const handleDirections = (lat: number, lng: number, name: string) => {
     // 네이버 지도 길찾기 URL (PC/모바일 모두 호환성 좋은 방식)
@@ -337,30 +337,7 @@ export default function Home() {
           </div>
         )}
 
-        {activeTab === 'settings' && (
-          <div className="absolute inset-0 top-0 bg-slate-50 flex-1 overflow-y-auto pt-safe-top">
-            <div className="px-5 py-6">
-              <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight mb-6">설정</h1>
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-5 border-b border-slate-100 flex items-center gap-4">
-                  <div className="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center">
-                    <User size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800">어머님 계정</h3>
-                    <p className="text-sm text-slate-500">사회복지사</p>
-                  </div>
-                </div>
-                <button className="w-full text-left p-5 text-slate-700 hover:bg-slate-50 transition-colors font-medium border-b border-slate-100">
-                  앱 정보 (v1.0.0)
-                </button>
-                <button className="w-full text-left p-5 text-red-500 hover:bg-slate-50 transition-colors font-medium">
-                  로그아웃
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+
       </div>
 
       {/* Floating Card for Selected Recipient (Only on map) */}
@@ -430,15 +407,7 @@ export default function Home() {
           </div>
           <span className={`text-[10px] ${activeTab === 'list' ? 'font-bold' : 'font-medium'}`}>목록</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center justify-center w-full py-2 transition-colors ${activeTab === 'settings' ? 'text-teal-600' : 'text-slate-400 hover:text-teal-500'}`}
-        >
-          <div className={`${activeTab === 'settings' ? 'bg-teal-50' : ''} p-1.5 rounded-full mb-1`}>
-            <Settings size={22} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
-          </div>
-          <span className={`text-[10px] ${activeTab === 'settings' ? 'font-bold' : 'font-medium'}`}>설정</span>
-        </button>
+
       </nav>
 
       <RecipientModal 
