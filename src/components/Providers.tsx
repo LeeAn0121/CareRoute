@@ -5,7 +5,7 @@ import { NavermapsProvider, preloadNavermaps } from 'react-naver-maps';
 
 const navermapsOptions = {
   ncpClientId: 'f9sp6e02ix',
-  submodules: ['geocoder'],
+  submodules: [],
 };
 
 export default function Providers({ children }: { children: React.ReactNode }) {
