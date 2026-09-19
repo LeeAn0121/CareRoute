@@ -61,7 +61,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   if (!isOpen) return null;
 
   const handleCompletePostcode = (data: any) => {
-    setAddress(data.address);
+    // 도로명 주소가 있으면 도로명 주소를, 없으면 지번 주소를 사용
+    const fullAddress = data.roadAddress || data.address;
+    setAddress(fullAddress);
     setBcode(data.bcode); // 10자리 법정동 코드
     setIsSearchingAddress(false);
   };
