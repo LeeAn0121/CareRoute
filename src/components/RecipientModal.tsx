@@ -32,6 +32,7 @@ interface Recipient {
   lat: number;
   lng: number;
   visit_time: string;
+  notes?: string | null;
 }
 
 interface RecipientModalProps {
@@ -47,6 +48,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   const [detailAddress, setDetailAddress] = useState('');
   const [bcode, setBcode] = useState('');
   const [visitTime, setVisitTime] = useState('');
+  const [visitDate, setVisitDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const openPostcode = useDaumPostcodePopup('https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js');
@@ -59,12 +61,14 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setDetailAddress('');
         setBcode(recipientToEdit.dong);
         setVisitTime(recipientToEdit.visit_time.substring(0, 5));
+        setVisitDate(recipientToEdit.notes || '');
       } else {
         setName('');
         setAddress('');
         setDetailAddress('');
         setBcode('');
         setVisitTime('');
+        setVisitDate('');
       }
       setIsSubmitting(false);
     }
@@ -90,7 +94,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !address || !bcode || !visitTime) {
+    if (!name || !address || !bcode || !visitDate || !visitTime) {
       alert('모든 필수 항목을 입력해주세요.');
       return;
     }
@@ -156,7 +160,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         dong: bcode,
         lat: coords.lat,
         lng: coords.lng,
-        visit_time: visitTime + ':00'
+        visit_time: visitTime + ':00',
+        notes: visitDate
       };
 
       if (recipientToEdit?.id) {

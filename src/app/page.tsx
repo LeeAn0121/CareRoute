@@ -21,6 +21,7 @@ interface Recipient {
   lat: number;
   lng: number;
   visit_time: string;
+  notes?: string | null;
 }
 
 const SIDO_CENTERS: Record<string, { lat: number, lng: number }> = {
@@ -78,6 +79,40 @@ export default function Home() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(true); // default true to hide initially
+  
+  // Notification Logic
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    const checkAlarms = () => {
+      const now = new Date();
+      const currentYMD = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const currentHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      
+      markers.forEach(marker => {
+        if (marker.notes === currentYMD && marker.visit_time.substring(0, 5) === currentHM) {
+          const alarmKey = `alarm_${marker.id}_${currentYMD}_${currentHM}`;
+          if (!localStorage.getItem(alarmKey)) {
+            localStorage.setItem(alarmKey, 'true'); // Prevent duplicate fires
+            
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('케어루트 알림 🚨', {
+                body: `${marker.name} 어르신 방문 예정 시간입니다! (${marker.address})`,
+                icon: '/CareRoute/icon-192.png'
+              });
+            } else {
+              alert(`🚨 [케어루트 알림] ${marker.name} 어르신 방문 시간입니다!`);
+            }
+          }
+        }
+      });
+    };
+
+    const intervalId = setInterval(checkAlarms, 30000); // Check every 30 seconds
+    return () => clearInterval(intervalId);
+  }, [markers]);
 
   useEffect(() => {
     // Check iOS and Standalone
@@ -368,7 +403,7 @@ export default function Home() {
                             </Typography>
                             <Chip 
                               icon={<IconClock size={14} />} 
-                              label={`${marker.visit_time.substring(0, 5)} 방문`} 
+                              label={`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5)} 방문`} 
                               size="small" 
                               sx={{ mt: 0.5, bgcolor: '#ccfbf1', color: '#0f766e', fontWeight: 800, borderRadius: 1.5, '& .MuiChip-icon': { color: '#0f766e' } }} 
                             />
@@ -437,7 +472,7 @@ export default function Home() {
                 </Typography>
                 <Chip 
                   icon={<IconClock size={16} />} 
-                  label={`${selectedRecipient.visit_time.substring(0, 5)} 방문 예정`} 
+                  label={`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5)} 방문 예정`} 
                   color="primary" 
                   variant="outlined" 
                   size="small" 
