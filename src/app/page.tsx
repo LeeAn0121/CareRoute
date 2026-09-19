@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Container, MapDiv, NaverMap, Marker } from 'react-naver-maps';
+import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { MapPin, List, Settings } from 'lucide-react';
 
 const DISTRICTS = [
@@ -47,7 +47,7 @@ export default function Home() {
 
       {/* Map Area */}
       <div className="flex-1 w-full bg-gray-200 relative">
-        <MapDiv className="w-full h-full">
+        <Container className="w-full h-full">
           <NaverMap
             defaultCenter={selectedDistrict.center}
             center={selectedDistrict.center}
@@ -61,7 +61,7 @@ export default function Home() {
               />
             ))}
           </NaverMap>
-        </MapDiv>
+        </Container>
       </div>
 
       {/* Bottom Navigation */}
