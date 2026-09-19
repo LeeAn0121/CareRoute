@@ -127,7 +127,25 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         }
       };
 
-      const coords = await getLatLng();
+      let coords = { lat: 37.5665, lng: 126.9780 }; // Default fallback
+      
+      // If editing and address is identical to the original base address, keep old coords
+      const isAddressUnchanged = recipientToEdit && recipientToEdit.address.startsWith(address);
+      
+      if (isAddressUnchanged) {
+        coords = { lat: recipientToEdit!.lat, lng: recipientToEdit!.lng };
+      } else {
+        try {
+          coords = await getLatLng();
+        } catch (e) {
+          console.warn('Geocoding completely failed. Using default coords to prevent blocking save.', e);
+          // Don't block save, just use default/0,0 or existing
+          if (recipientToEdit) {
+             coords = { lat: recipientToEdit.lat, lng: recipientToEdit.lng };
+          }
+        }
+      }
+
       const finalAddress = detailAddress ? `${address} ${detailAddress}` : address;
 
       const recipientData = {
