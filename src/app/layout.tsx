@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import ThemeRegistry from './ThemeRegistry';
 import Providers from "@/components/Providers";
@@ -44,10 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        <Script 
-          strategy="beforeInteractive" 
-          src={`https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=f9sp6e02ix&submodules=geocoder`} 
-        />
+        
         <link rel="stylesheet" as="style" crossOrigin="anonymous" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   </head>
       <body className="min-h-full flex flex-col bg-gray-50">
