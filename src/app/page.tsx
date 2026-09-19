@@ -1,8 +1,6 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { MapPin, List, Settings } from 'lucide-react';
+import { MapPin, List, Settings, UserPlus, Navigation, Clock, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface RegCode {
@@ -54,10 +52,8 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
 }
 
 export default function Home() {
-  const [mapCenter, setMapCenter] = useState({ lat: 37.5666, lng: 126.9784 }); // 기본: 서울시청
-
+  const [mapCenter, setMapCenter] = useState({ lat: 37.5666, lng: 126.9784 });
   const [sidos, setSidos] = useState<RegCode[]>([]);
-
   const [sigungus, setSigungus] = useState<RegCode[]>([]);
   const [dongs, setDongs] = useState<RegCode[]>([]);
 
@@ -66,36 +62,25 @@ export default function Home() {
   const [selectedDong, setSelectedDong] = useState<string>('');
 
   const [markers, setMarkers] = useState<Recipient[]>([]);
+  const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
 
-  // Supabase에서 데이터 가져오기 (해당 구/동에 맞는 데이터만 필터링)
   useEffect(() => {
     let query = supabase.from('recipients').select('*');
     
-    if (selectedDong) {
-      query = query.eq('dong', selectedDong);
-    } else if (selectedSigungu) {
-      query = query.eq('sigungu', selectedSigungu);
-    } else if (selectedSido) {
-      query = query.eq('sido', selectedSido);
-    }
+    if (selectedDong) query = query.eq('dong', selectedDong);
+    else if (selectedSigungu) query = query.eq('sigungu', selectedSigungu);
+    else if (selectedSido) query = query.eq('sido', selectedSido);
 
     query.then(({ data, error }) => {
-      if (error) {
-        console.error('Error fetching recipients:', error);
-      } else if (data) {
-        setMarkers(data);
-      }
+      if (!error && data) setMarkers(data);
     });
   }, [selectedSido, selectedSigungu, selectedDong]);
 
-  // 1. 시/도 데이터 가져오기 및 GPS 정렬
   useEffect(() => {
     fetch('https://grpc-proxy-server-mkvo6j4wsq-du.a.run.app/v1/regcodes?regcode_pattern=*00000000')
       .then(res => res.json())
       .then(data => {
         let loadedSidos = data.regcodes || [];
-        
-        // 먼저 데이터를 화면에 뿌려줍니다 (GPS 권한 대기 중 빈 화면 방지)
         setSidos(loadedSidos);
         
         if ('geolocation' in navigator) {
@@ -112,15 +97,12 @@ export default function Home() {
               setSidos(sorted);
               if (sorted.length > 0) setSelectedSido(sorted[0].code);
             },
-            (error) => {
-              console.error("GPS 위치 정보를 가져올 수 없거나 거부되었습니다.", error);
-            }
+            () => {}
           );
         }
       });
   }, []);
 
-  // 2. 시/군/구 데이터 가져오기 (시/도가 선택되었을 때)
   useEffect(() => {
     if (!selectedSido) {
       setSigungus([]);
@@ -131,22 +113,18 @@ export default function Home() {
     fetch(`https://grpc-proxy-server-mkvo6j4wsq-du.a.run.app/v1/regcodes?regcode_pattern=${pattern}&is_ignore_zero=true`)
       .then(res => res.json())
       .then(data => {
-        // 첫 번째 값은 시/도 자체이므로 제외
         const list = (data.regcodes || []).filter((item: RegCode) => item.code !== selectedSido);
         setSigungus(list);
         setSelectedSigungu('');
       });
   }, [selectedSido]);
 
-  // 3. 읍/면/동 데이터 가져오기 (시/군/구가 선택되었을 때)
   useEffect(() => {
     if (!selectedSigungu) {
       setDongs([]);
       setSelectedDong('');
       return;
     }
-    const pattern = selectedSigungu.substring(0, 4) + '*';
-    // 구가 선택된 경우 하위 동을 가져옴
     const finalPattern = selectedSigungu.substring(0, 5) + '*';
     fetch(`https://grpc-proxy-server-mkvo6j4wsq-du.a.run.app/v1/regcodes?regcode_pattern=${finalPattern}&is_ignore_zero=true`)
       .then(res => res.json())
@@ -157,19 +135,14 @@ export default function Home() {
       });
   }, [selectedSigungu]);
 
-  // 선택된 지역이 바뀔 때마다 네이버 Geocoding API를 통해 위경도로 변환 후 지도 이동
   useEffect(() => {
     let addressToSearch = '';
-    
     if (selectedDong) {
-      const dongName = dongs.find(d => d.code === selectedDong)?.name;
-      if (dongName) addressToSearch = dongName;
+      addressToSearch = dongs.find(d => d.code === selectedDong)?.name || '';
     } else if (selectedSigungu) {
-      const sigunguName = sigungus.find(s => s.code === selectedSigungu)?.name;
-      if (sigunguName) addressToSearch = sigunguName;
+      addressToSearch = sigungus.find(s => s.code === selectedSigungu)?.name || '';
     } else if (selectedSido) {
-      const sidoName = sidos.find(s => s.code === selectedSido)?.name;
-      if (sidoName) addressToSearch = sidoName;
+      addressToSearch = sidos.find(s => s.code === selectedSido)?.name || '';
     }
 
     if (addressToSearch && window.naver && window.naver.maps && window.naver.maps.Service) {
@@ -184,67 +157,65 @@ export default function Home() {
         }
       });
     }
+    setSelectedRecipient(null); // 지역 변경 시 선택된 마커 초기화
   }, [selectedSido, selectedSigungu, selectedDong, sidos, sigungus, dongs]);
 
-  // 이름만 짧게 보여주기 위한 헬퍼 함수 (예: "서울특별시 강남구 역삼동" -> "역삼동")
   const getShortName = (fullName: string) => {
     const parts = fullName.split(' ');
     return parts[parts.length - 1];
   };
 
   return (
-    <main className="flex-1 flex flex-col h-[100dvh] relative">
-      <header className="bg-white shadow-sm p-4 z-10 space-y-3">
-        <h1 className="text-xl font-bold text-gray-800">오늘의 방문 지역</h1>
+    <main className="flex-1 flex flex-col h-[100dvh] relative bg-slate-50 font-sans">
+      {/* Top Header / Search Area */}
+      <header className="bg-white shadow-sm rounded-b-3xl px-5 pt-safe-top pb-5 z-20 absolute top-0 w-full">
+        <div className="flex items-center justify-between mb-4 mt-2">
+          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">케어루트</h1>
+          <button className="p-2 bg-teal-50 text-teal-600 rounded-full hover:bg-teal-100 transition-colors">
+            <UserPlus size={22} />
+          </button>
+        </div>
         
         <div className="flex gap-2">
-          {/* 시/도 */}
           <select
-            className="flex-1 p-2 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none"
             value={selectedSido}
             onChange={(e) => setSelectedSido(e.target.value)}
           >
-            <option value="">시/도 선택</option>
+            <option value="">시/도</option>
             {sidos.map((d) => (
-              <option key={d.code} value={d.code}>
-                {getShortName(d.name)}
-              </option>
+              <option key={d.code} value={d.code}>{getShortName(d.name)}</option>
             ))}
           </select>
 
-          {/* 시/군/구 */}
           <select
-            className="flex-1 p-2 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none disabled:opacity-50"
             value={selectedSigungu}
             onChange={(e) => setSelectedSigungu(e.target.value)}
             disabled={!selectedSido}
           >
-            <option value="">시/군/구 선택</option>
+            <option value="">시/군/구</option>
             {sigungus.map((d) => (
-              <option key={d.code} value={d.code}>
-                {getShortName(d.name)}
-              </option>
+              <option key={d.code} value={d.code}>{getShortName(d.name)}</option>
             ))}
           </select>
 
-          {/* 읍/면/동 */}
           <select
-            className="flex-1 p-2 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="flex-1 px-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none disabled:opacity-50"
             value={selectedDong}
             onChange={(e) => setSelectedDong(e.target.value)}
             disabled={!selectedSigungu}
           >
-            <option value="">읍/면/동 (전체)</option>
+            <option value="">읍/면/동(전체)</option>
             {dongs.map((d) => (
-              <option key={d.code} value={d.code}>
-                {getShortName(d.name)}
-              </option>
+              <option key={d.code} value={d.code}>{getShortName(d.name)}</option>
             ))}
           </select>
         </div>
       </header>
 
-      <div className="flex-1 w-full bg-gray-200 relative">
+      {/* Map Area */}
+      <div className="flex-1 w-full bg-slate-200 relative">
         <Container className="w-full h-full">
           <NaverMap
             defaultCenter={mapCenter}
@@ -255,25 +226,71 @@ export default function Home() {
               <Marker
                 key={marker.id}
                 position={{ lat: marker.lat, lng: marker.lng }}
-                onClick={() => alert(`${marker.name}님 (방문시간: ${marker.visit_time.substring(0,5)})`)}
+                onClick={() => setSelectedRecipient(marker)}
+                icon={{
+                  content: `
+                    <div class="relative flex items-center justify-center w-10 h-10 ${selectedRecipient?.id === marker.id ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-200">
+                      <div class="absolute inset-0 bg-teal-500 rounded-full opacity-20 animate-ping"></div>
+                      <div class="relative bg-teal-600 text-white rounded-full p-2 shadow-lg border-2 border-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      </div>
+                    </div>
+                  `,
+                  anchor: { x: 20, y: 20 }
+                }}
               />
             ))}
           </NaverMap>
         </Container>
       </div>
 
-      <nav className="bg-white border-t border-gray-200 flex justify-around p-3 pb-safe z-10">
-        <button className="flex flex-col items-center text-blue-600">
-          <MapPin size={24} />
-          <span className="text-xs mt-1 font-medium">지도</span>
+      {/* Floating Card for Selected Recipient */}
+      {selectedRecipient && (
+        <div className="absolute bottom-24 left-4 right-4 z-20 animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className="bg-white rounded-2xl shadow-xl p-5 border border-slate-100">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <User size={20} className="text-teal-600" />
+                  {selectedRecipient.name} 어르신
+                </h2>
+                <p className="text-slate-500 text-sm mt-1">{selectedRecipient.address}</p>
+              </div>
+              <div className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
+                <Clock size={14} />
+                {selectedRecipient.visit_time.substring(0,5)}
+              </div>
+            </div>
+            <button 
+              className="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+              onClick={() => alert('길안내 기능 (네이버 지도 앱 등) 연동 예정')}
+            >
+              <Navigation size={18} />
+              길찾기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Navigation */}
+      <nav className="bg-white border-t border-slate-100 flex justify-around p-2 pb-safe z-30 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
+        <button className="flex flex-col items-center justify-center w-full py-2 text-teal-600">
+          <div className="bg-teal-50 p-1.5 rounded-full mb-1">
+            <MapPin size={22} strokeWidth={2.5} />
+          </div>
+          <span className="text-[10px] font-bold">지도</span>
         </button>
-        <button className="flex flex-col items-center text-gray-500 hover:text-blue-600 transition-colors">
-          <List size={24} />
-          <span className="text-xs mt-1 font-medium">목록</span>
+        <button className="flex flex-col items-center justify-center w-full py-2 text-slate-400 hover:text-teal-500 transition-colors">
+          <div className="p-1.5 mb-1">
+            <List size={22} strokeWidth={2} />
+          </div>
+          <span className="text-[10px] font-medium">목록</span>
         </button>
-        <button className="flex flex-col items-center text-gray-500 hover:text-blue-600 transition-colors">
-          <Settings size={24} />
-          <span className="text-xs mt-1 font-medium">설정</span>
+        <button className="flex flex-col items-center justify-center w-full py-2 text-slate-400 hover:text-teal-500 transition-colors">
+          <div className="p-1.5 mb-1">
+            <Settings size={22} strokeWidth={2} />
+          </div>
+          <span className="text-[10px] font-medium">설정</span>
         </button>
       </nav>
     </main>
