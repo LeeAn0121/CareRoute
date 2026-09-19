@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Container, NaverMap, Marker, useNavermaps } from 'react-naver-maps';
+import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { MapPin, List, Settings } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -54,10 +54,10 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
 }
 
 export default function Home() {
-  const navermaps = useNavermaps();
   const [mapCenter, setMapCenter] = useState({ lat: 37.5666, lng: 126.9784 }); // 기본: 서울시청
 
   const [sidos, setSidos] = useState<RegCode[]>([]);
+
   const [sigungus, setSigungus] = useState<RegCode[]>([]);
   const [dongs, setDongs] = useState<RegCode[]>([]);
 
@@ -172,11 +172,11 @@ export default function Home() {
       if (sidoName) addressToSearch = sidoName;
     }
 
-    if (addressToSearch && navermaps && navermaps.Service) {
+    if (addressToSearch && window.naver && window.naver.maps && window.naver.maps.Service) {
       // @ts-ignore
-      navermaps.Service.geocode({ query: addressToSearch }, function(status, response) {
+      window.naver.maps.Service.geocode({ query: addressToSearch }, function(status, response) {
         // @ts-ignore
-        if (status === navermaps.Service.Status.OK) {
+        if (status === window.naver.maps.Service.Status.OK) {
           const item = response.v2.addresses[0];
           if (item) {
             setMapCenter({ lat: parseFloat(item.y), lng: parseFloat(item.x) });
@@ -184,7 +184,7 @@ export default function Home() {
         }
       });
     }
-  }, [selectedSido, selectedSigungu, selectedDong, navermaps, sidos, sigungus, dongs]);
+  }, [selectedSido, selectedSigungu, selectedDong, sidos, sigungus, dongs]);
 
   // 이름만 짧게 보여주기 위한 헬퍼 함수 (예: "서울특별시 강남구 역삼동" -> "역삼동")
   const getShortName = (fullName: string) => {
