@@ -3,16 +3,24 @@
 import { useState, useEffect } from 'react';
 import { Container, NaverMap, Marker, useNavermaps } from 'react-naver-maps';
 import { MapPin, List, Settings } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface RegCode {
   code: string;
   name: string;
 }
 
-const MOCK_DATA = [
-  { id: 1, name: '김할머니', address: '서울특별시 강남구 역삼동 123', lat: 37.5172, lng: 127.0473, time: '10:00' },
-  { id: 2, name: '이할아버지', address: '서울특별시 강남구 개포동 456', lat: 37.4890, lng: 127.0650, time: '14:00' },
-];
+interface Recipient {
+  id: string;
+  name: string;
+  address: string;
+  sido: string;
+  sigungu: string;
+  dong: string;
+  lat: number;
+  lng: number;
+  visit_time: string;
+}
 
 const SIDO_CENTERS: Record<string, { lat: number; lng: number }> = {
   '서울특별시': { lat: 37.5665, lng: 126.9780 },
@@ -56,6 +64,29 @@ export default function Home() {
   const [selectedSido, setSelectedSido] = useState<string>('');
   const [selectedSigungu, setSelectedSigungu] = useState<string>('');
   const [selectedDong, setSelectedDong] = useState<string>('');
+
+  const [markers, setMarkers] = useState<Recipient[]>([]);
+
+  // Supabase에서 데이터 가져오기 (해당 구/동에 맞는 데이터만 필터링)
+  useEffect(() => {
+    let query = supabase.from('recipients').select('*');
+    
+    if (selectedDong) {
+      query = query.eq('dong', selectedDong);
+    } else if (selectedSigungu) {
+      query = query.eq('sigungu', selectedSigungu);
+    } else if (selectedSido) {
+      query = query.eq('sido', selectedSido);
+    }
+
+    query.then(({ data, error }) => {
+      if (error) {
+        console.error('Error fetching recipients:', error);
+      } else if (data) {
+        setMarkers(data);
+      }
+    });
+  }, [selectedSido, selectedSigungu, selectedDong]);
 
   // 1. 시/도 데이터 가져오기 및 GPS 정렬
   useEffect(() => {
@@ -220,11 +251,11 @@ export default function Home() {
             center={mapCenter}
             defaultZoom={15}
           >
-            {MOCK_DATA.map((marker) => (
+            {markers.map((marker) => (
               <Marker
                 key={marker.id}
                 position={{ lat: marker.lat, lng: marker.lng }}
-                onClick={() => alert(`${marker.name}님 (방문시간: ${marker.time})`)}
+                onClick={() => alert(`${marker.name}님 (방문시간: ${marker.visit_time.substring(0,5)})`)}
               />
             ))}
           </NaverMap>
