@@ -1,3 +1,4 @@
+'use client';
 import { useState, useEffect } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { MapPin, List, Settings, UserPlus, Navigation, Clock, User } from 'lucide-react';
