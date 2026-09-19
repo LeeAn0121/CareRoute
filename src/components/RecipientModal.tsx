@@ -27,6 +27,7 @@ interface RecipientModalProps {
 export default function RecipientModal({ isOpen, onClose, onSuccess, recipientToEdit }: RecipientModalProps) {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
+  const [detailAddress, setDetailAddress] = useState('');
   const [bcode, setBcode] = useState(''); // 법정동 코드 (10자리)
   const [visitTime, setVisitTime] = useState('10:00');
   
@@ -37,12 +38,19 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
     if (isOpen) {
       if (recipientToEdit) {
         setName(recipientToEdit.name);
+        
+        // 기존 주소에서 상세주소를 분리하려는 간단한 시도 (완벽하진 않음)
+        // 하지만 편의상 통째로 놔두거나 쪼갤 수 있음. 가장 쉬운 방법은 그냥 그대로 두는 것
+        // 사용자가 다시 수정하면 됨
         setAddress(recipientToEdit.address);
+        setDetailAddress('');
+        
         setBcode(recipientToEdit.dong);
         setVisitTime(recipientToEdit.visit_time.substring(0, 5));
       } else {
         setName('');
         setAddress('');
+        setDetailAddress('');
         setBcode('');
         setVisitTime('10:00');
       }
@@ -60,7 +68,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
   const handleSubmit = async () => {
     if (!name || !address || !bcode || !visitTime) {
-      alert('모든 정보를 입력해주세요.');
+      alert('필수 정보를 모두 입력해주세요.');
       return;
     }
 
@@ -71,7 +79,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       const getLatLng = () => {
         return new Promise<{ lat: number, lng: number }>((resolve, reject) => {
           if (!window.naver || !window.naver.maps || !window.naver.maps.Service) {
-            reject(new Error('네이버 지도 API가 로드되지 않았습니다.'));
+            reject(new Error('네이버 지도 스크립트가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.'));
             return;
           }
           // @ts-ignore
@@ -81,17 +89,18 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
               const item = response.v2.addresses[0];
               resolve({ lat: parseFloat(item.y), lng: parseFloat(item.x) });
             } else {
-              reject(new Error('주소를 위경도로 변환할 수 없습니다.'));
+              reject(new Error('입력하신 주소를 지도에서 찾을 수 없습니다.'));
             }
           });
         });
       };
 
       const coords = await getLatLng();
+      const finalAddress = detailAddress ? `${address} ${detailAddress}` : address;
 
       const recipientData = {
         name,
-        address,
+        address: finalAddress,
         sido: bcode.substring(0, 2) + '00000000',
         sigungu: bcode.substring(0, 5) + '00000',
         dong: bcode,
@@ -104,12 +113,10 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         // 수정
         const { error } = await supabase.from('recipients').update(recipientData).eq('id', recipientToEdit.id);
         if (error) throw error;
-        alert('수정되었습니다.');
       } else {
         // 추가
         const { error } = await supabase.from('recipients').insert([recipientData]);
         if (error) throw error;
-        alert('추가되었습니다.');
       }
       
       onSuccess();
@@ -122,7 +129,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 animate-in fade-in duration-200">
       <div className="bg-white w-full sm:w-[400px] h-[85vh] sm:h-auto sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
         
         {/* Header */}
@@ -180,6 +187,13 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                     검색
                   </button>
                 </div>
+                <input 
+                  type="text" 
+                  value={detailAddress} 
+                  onChange={(e) => setDetailAddress(e.target.value)}
+                  placeholder="상세주소 (동, 호수 등 - 선택사항)"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-shadow"
+                />
               </div>
 
               {/* 방문 시간 입력 */}

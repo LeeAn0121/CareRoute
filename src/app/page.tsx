@@ -248,36 +248,36 @@ export default function Home() {
 
       {/* Main Content Area */}
       <div className="flex-1 w-full bg-slate-100 relative overflow-hidden flex flex-col pt-[140px]">
-        {activeTab === 'map' && (
-          <div className="absolute inset-0 top-0">
-            <Container className="w-full h-full">
-              <NaverMap
-                defaultCenter={mapCenter}
-                center={mapCenter}
-                defaultZoom={15}
-              >
-                {markers.map((marker) => (
-                  <Marker
-                    key={marker.id}
-                    position={{ lat: marker.lat, lng: marker.lng }}
-                    onClick={() => setSelectedRecipient(marker)}
-                    icon={{
-                      content: `
-                        <div class="relative flex items-center justify-center w-10 h-10 ${selectedRecipient?.id === marker.id ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-200">
-                          <div class="absolute inset-0 bg-teal-500 rounded-full opacity-20 animate-ping"></div>
-                          <div class="relative bg-teal-600 text-white rounded-full p-2 shadow-lg border-2 border-white">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                          </div>
+        
+        {/* Map View (Always mounted, visually hidden if not active to keep script loaded) */}
+        <div className={`absolute inset-0 top-0 ${activeTab === 'map' ? 'block' : 'hidden'}`}>
+          <Container className="w-full h-full">
+            <NaverMap
+              defaultCenter={mapCenter}
+              center={mapCenter}
+              defaultZoom={15}
+            >
+              {markers.map((marker) => (
+                <Marker
+                  key={marker.id}
+                  position={{ lat: marker.lat, lng: marker.lng }}
+                  onClick={() => setSelectedRecipient(marker)}
+                  icon={{
+                    content: `
+                      <div class="relative flex items-center justify-center w-10 h-10 ${selectedRecipient?.id === marker.id ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-200">
+                        <div class="absolute inset-0 bg-teal-500 rounded-full opacity-20 animate-ping"></div>
+                        <div class="relative bg-teal-600 text-white rounded-full p-2 shadow-lg border-2 border-white">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         </div>
-                      `,
-                      anchor: { x: 20, y: 20 }
-                    }}
-                  />
-                ))}
-              </NaverMap>
-            </Container>
-          </div>
-        )}
+                      </div>
+                    `,
+                    anchor: { x: 20, y: 20 }
+                  }}
+                />
+              ))}
+            </NaverMap>
+          </Container>
+        </div>
 
         {activeTab === 'list' && (
           <div className="flex-1 overflow-y-auto px-5 pb-10">
