@@ -299,35 +299,35 @@ export default function Home() {
           <div className="flex gap-2">
             <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 3 }}>
               <Select
+                native
                 value={selectedSido}
                 onChange={(e) => setSelectedSido(e.target.value)}
-                displayEmpty
                 sx={{ borderRadius: 3, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
               >
-                <MenuItem value="">시/도</MenuItem>
-                {sidos.map(sido => <MenuItem key={sido.code} value={sido.code} sx={{fontWeight: 600}}>{sido.name}</MenuItem>)}
+                <option value="">시/도</option>
+                {sidos.map(sido => <option key={sido.code} value={sido.code}>{sido.name}</option>)}
               </Select>
             </FormControl>
             <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 3 }} disabled={!selectedSido}>
               <Select
+                native
                 value={selectedSigungu}
                 onChange={(e) => setSelectedSigungu(e.target.value)}
-                displayEmpty
                 sx={{ borderRadius: 3, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
               >
-                <MenuItem value="">시/군/구</MenuItem>
-                {sigungus.map(sig => <MenuItem key={sig.code} value={sig.code} sx={{fontWeight: 600}}>{sig.name.split(' ').pop()}</MenuItem>)}
+                <option value="">시/군/구</option>
+                {sigungus.map(sig => <option key={sig.code} value={sig.code}>{sig.name.split(' ').pop()}</option>)}
               </Select>
             </FormControl>
             <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 3 }} disabled={!selectedSigungu}>
               <Select
+                native
                 value={selectedDong}
                 onChange={(e) => setSelectedDong(e.target.value)}
-                displayEmpty
                 sx={{ borderRadius: 3, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
               >
-                <MenuItem value="">동/읍/면</MenuItem>
-                {dongs.map(dong => <MenuItem key={dong.code} value={dong.code} sx={{fontWeight: 600}}>{dong.name.split(' ').pop()}</MenuItem>)}
+                <option value="">동/읍/면</option>
+                {dongs.map(dong => <option key={dong.code} value={dong.code}>{dong.name.split(' ').pop()}</option>)}
               </Select>
             </FormControl>
           </div>
