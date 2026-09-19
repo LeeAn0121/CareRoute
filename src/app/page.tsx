@@ -55,7 +55,7 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
   return R * c;
 }
 
-export default function Home() {
+function MainApp() {
   const [sidos, setSidos] = useState<RegCode[]>([]);
   const [sigungus, setSigungus] = useState<RegCode[]>([]);
   const [dongs, setDongs] = useState<RegCode[]>([]);
@@ -537,3 +537,6 @@ export default function Home() {
     </main>
   );
 }
+
+import dynamic from 'next/dynamic';
+export default dynamic(() => Promise.resolve(MainApp), { ssr: false });
