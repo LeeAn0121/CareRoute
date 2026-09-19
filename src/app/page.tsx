@@ -1,24 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { MapPin, List, Settings } from 'lucide-react';
-
-const DISTRICTS = [
-  { name: '강남구', center: { lat: 37.5172, lng: 127.0473 } },
-  { name: '서초구', center: { lat: 37.4837, lng: 127.0324 } },
-  { name: '송파구', center: { lat: 37.5145, lng: 127.1058 } },
-  // 더 많은 구 추가 가능
-];
+import { KOREA_DISTRICTS, getDistanceFromLatLonInKm } from '@/lib/districts';
 
 const MOCK_DATA = [
   { id: 1, name: '김할머니', district: '강남구', lat: 37.5172, lng: 127.0473, time: '10:00' },
   { id: 2, name: '이할아버지', district: '강남구', lat: 37.5200, lng: 127.0500, time: '14:00' },
   { id: 3, name: '박할머니', district: '서초구', lat: 37.4837, lng: 127.0324, time: '11:00' },
+  { id: 4, name: '최할아버지', district: '수원시', lat: 37.2650, lng: 127.0300, time: '15:00' },
 ];
 
 export default function Home() {
-  const [selectedDistrict, setSelectedDistrict] = useState(DISTRICTS[0]);
+  const [districts, setDistricts] = useState(KOREA_DISTRICTS);
+  const [selectedDistrict, setSelectedDistrict] = useState(KOREA_DISTRICTS[0]);
+
+  // GPS를 통해 현재 위치를 가져오고 가까운 순으로 구 리스트를 정렬합니다.
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const sortedDistricts = [...KOREA_DISTRICTS].sort((a, b) => {
+            const distA = getDistanceFromLatLonInKm(latitude, longitude, a.center.lat, a.center.lng);
+            const distB = getDistanceFromLatLonInKm(latitude, longitude, b.center.lat, b.center.lng);
+            return distA - distB;
+          });
+          setDistricts(sortedDistricts);
+          setSelectedDistrict(sortedDistricts[0]);
+        },
+        (error) => {
+          console.error("GPS 위치 정보를 가져올 수 없습니다.", error);
+        }
+      );
+    }
+  }, []);
 
   const filteredMarkers = MOCK_DATA.filter(
     (item) => item.district === selectedDistrict.name
@@ -33,11 +50,11 @@ export default function Home() {
           className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={selectedDistrict.name}
           onChange={(e) => {
-            const found = DISTRICTS.find(d => d.name === e.target.value);
+            const found = districts.find(d => d.name === e.target.value);
             if (found) setSelectedDistrict(found);
           }}
         >
-          {DISTRICTS.map((d) => (
+          {districts.map((d) => (
             <option key={d.name} value={d.name}>
               {d.name}
             </option>
