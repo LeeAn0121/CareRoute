@@ -132,8 +132,25 @@ function MainApp() {
       // 1. 기존 데이터 모두 지우기
       map.data.getAllFeature().forEach((f: any) => map.data.removeFeature(f));
       
-      // 2. 새 데이터 그리기
-      map.data.addGeoJson(geoCache[lvl]);
+      // 2. 새 데이터 그리기 (화면 근처 폴리곤만 필터링)
+      const bounds = map.getBounds();
+      // 약 10km 반경 (대략 0.1도) 여유 버퍼
+      const minLat = bounds.minY() - 0.15;
+      const maxLat = bounds.maxY() + 0.15;
+      const minLng = bounds.minX() - 0.15;
+      const maxLng = bounds.maxX() + 0.15;
+      
+      const filteredFeatures = geoCache[lvl].features.filter((f: any) => {
+         const lat = f.properties?._centerLat;
+         const lng = f.properties?._centerLng;
+         if (lat && lng) {
+            return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+         }
+         return true;
+      });
+      
+      const filteredGeoJson = { ...geoCache[lvl], features: filteredFeatures };
+      map.data.addGeoJson(filteredGeoJson);
       map.data.setStyle({
         fillColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
         fillOpacity: 0.1,
@@ -144,7 +161,6 @@ function MainApp() {
       });
 
       // 3. 마커 렌더링 최적화 (현재 뷰포트 내의 마커만 표시)
-      const bounds = map.getBounds();
       ['sido', 'sigungu', 'dong'].forEach(l => {
         labelCache[l].forEach((m: any) => {
           if (l === lvl && bounds.hasLatLng(m.getPosition())) {
@@ -161,6 +177,43 @@ function MainApp() {
       window.naver.maps.Event.addListener(map, 'idle', () => {
         if (!showRegions || !currentRenderedLevel) return;
         const bounds = map.getBounds();
+        
+        // 줌 레벨 변동 없이 패닝만 일어났을 때도 폴리곤 채우기
+        const minLat = bounds.minY() - 0.15;
+        const maxLat = bounds.maxY() + 0.15;
+        const minLng = bounds.minX() - 0.15;
+        const maxLng = bounds.maxX() + 0.15;
+        
+        // 새로 보여야 할 폴리곤만 추가 (성능 최적화)
+        if (geoCache[currentRenderedLevel]) {
+           const existingIds = new Set();
+           map.data.getAllFeature().forEach((f: any) => {
+              if (f.getProperty('name')) existingIds.add(f.getProperty('name'));
+           });
+           
+           const featuresToAdd = geoCache[currentRenderedLevel].features.filter((f: any) => {
+              const lat = f.properties?._centerLat;
+              const lng = f.properties?._centerLng;
+              if (lat && lng) {
+                 const inBounds = lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+                 return inBounds && !existingIds.has(f.properties.name);
+              }
+              return false;
+           });
+           
+           if (featuresToAdd.length > 0) {
+              map.data.addGeoJson({ type: "FeatureCollection", features: featuresToAdd });
+              map.data.setStyle({
+                fillColor: currentRenderedLevel === 'dong' ? '#0ea5e9' : (currentRenderedLevel === 'sigungu' ? '#0d9488' : '#8b5cf6'),
+                fillOpacity: 0.1,
+                strokeColor: currentRenderedLevel === 'dong' ? '#0ea5e9' : (currentRenderedLevel === 'sigungu' ? '#0d9488' : '#8b5cf6'),
+                strokeWeight: currentRenderedLevel === 'dong' ? 1 : 2,
+                strokeOpacity: 0.6,
+                visible: true
+              });
+           }
+        }
+        
         labelCache[currentRenderedLevel].forEach((m: any) => {
           if (bounds.hasLatLng(m.getPosition())) {
             if (!m.getMap()) m.setMap(map);
@@ -200,6 +253,8 @@ function MainApp() {
                 if (valid) {
                   const centerLat = (minLat + maxLat) / 2;
                   const centerLng = (minLng + maxLng) / 2;
+                  feature.properties._centerLat = centerLat;
+                  feature.properties._centerLng = centerLng;
                   const bg = level === 'dong' ? 'rgba(14, 165, 233, 0.85)' : (level === 'sigungu' ? 'rgba(13, 148, 136, 0.95)' : 'rgba(139, 92, 246, 0.95)');
                   const fs = level === 'dong' ? '11px' : '13px';
                   
