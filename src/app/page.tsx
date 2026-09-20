@@ -648,7 +648,7 @@ function MainApp() {
                       setMapCenter({ lat: marker.lat, lng: marker.lng });
                       setMapZoom(17); // Zoom in deeply
                       setActiveTab('map'); // Switch to map tab
-                      setSelectedRecipient(marker);
+                      setSelectedRecipient(null);
                     }}
                   >
                     <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
