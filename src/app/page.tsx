@@ -1289,16 +1289,14 @@ function MainApp() {
                   직선거리 기준 추천 순서예요 · 총 {todayRoute.length}곳
                 </p>
               </div>
-              {todayRoute.length > 0 && (
-                <Button
-                  variant="ghost"
-                  loading={isSyncingCalendar}
-                  onClick={handleSyncToCalendar}
-                  className="py-2 text-sm whitespace-nowrap"
-                >
-                  구글 캘린더 동기화
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                loading={isSyncingCalendar}
+                onClick={handleSyncToCalendar}
+                className="py-2 text-sm whitespace-nowrap"
+              >
+                구글 캘린더 동기화
+              </Button>
             </div>
 
             {todayRoute.length === 0 ? (
