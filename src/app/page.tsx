@@ -1106,6 +1106,7 @@ function MainApp() {
       )}
 
       {/* Floating Header */}
+      {activeTab !== 'settings' && (
       <header className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
         <div id="tour-header" className="p-4 pb-5 bg-surface rounded-b-3xl shadow-[0_8px_24px_rgba(18,32,61,0.08)]">
           <h1 className="flex items-center gap-3 mb-4 text-2xl font-black text-primary tracking-tight">
@@ -1152,6 +1153,7 @@ function MainApp() {
           </div>
         </div>
       </header>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 relative w-full h-full bg-surface-muted">

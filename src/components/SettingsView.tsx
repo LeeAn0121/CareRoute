@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { IconPalette, IconHelp, IconShieldLock, IconChevronRight, IconMoonStars, IconSun, IconDeviceDesktop } from '@tabler/icons-react';
 import { useTheme } from 'next-themes';
+import { motion } from 'motion/react';
 
 interface SettingsViewProps {
   onReplayTutorial: () => void;
 }
 
 const colorThemes = [
-  { id: 'theme-navy', name: '네이비', color: 'bg-[#12203D]' },
-  { id: 'theme-blue', name: '블루', color: 'bg-blue-600' },
-  { id: 'theme-emerald', name: '에메랄드', color: 'bg-emerald-600' },
-  { id: 'theme-rose', name: '로즈', color: 'bg-rose-600' },
-  { id: 'theme-purple', name: '퍼플', color: 'bg-purple-600' },
-  { id: 'theme-teal', name: '틸', color: 'bg-teal-600' },
+  { id: 'theme-navy', name: '네이비', color: 'bg-blue-900' },
+  { id: 'theme-blue', name: '블루', color: 'bg-blue-500' },
+  { id: 'theme-emerald', name: '에메랄드', color: 'bg-emerald-500' },
+  { id: 'theme-rose', name: '로즈', color: 'bg-rose-500' },
+  { id: 'theme-purple', name: '퍼플', color: 'bg-purple-500' },
+  { id: 'theme-teal', name: '틸', color: 'bg-teal-500' },
 ];
 
 export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
@@ -24,19 +25,12 @@ export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
 
   useEffect(() => {
     setMounted(true);
-    
-    // Load current color theme
     const current = localStorage.getItem('careroute_color_theme') || 'theme-navy';
     setColorTheme(current);
 
-    // Check Notification Permission
-    if ('Notification' in window) {
-      setNotifPerm(Notification.permission);
-    } else {
-      setNotifPerm('지원 안 함');
-    }
+    if ('Notification' in window) setNotifPerm(Notification.permission);
+    else setNotifPerm('지원 안 함');
 
-    // Check Geolocation Permission
     if ('permissions' in navigator) {
       navigator.permissions.query({ name: 'geolocation' }).then(result => {
         setLocationPerm(result.state);
@@ -55,114 +49,119 @@ export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
   };
 
   const translatePerm = (status: string) => {
-    if (status === 'granted') return <span className="text-emerald-500 font-bold">허용됨</span>;
-    if (status === 'denied') return <span className="text-red-500 font-bold">거부됨</span>;
-    if (status === 'prompt' || status === 'default') return <span className="text-slate-400 font-bold">요청 전</span>;
-    return <span className="text-slate-400 font-bold">{status}</span>;
+    if (status === 'granted') return <span className="text-primary font-bold bg-primary/10 px-2.5 py-1 rounded-md text-xs">허용됨</span>;
+    if (status === 'denied') return <span className="text-red-500 font-bold bg-red-500/10 px-2.5 py-1 rounded-md text-xs">거부됨</span>;
+    if (status === 'prompt' || status === 'default') return <span className="text-foreground/50 font-bold bg-surface-muted px-2.5 py-1 rounded-md text-xs">요청 전</span>;
+    return <span className="text-foreground/50 font-bold bg-surface-muted px-2.5 py-1 rounded-md text-xs">{status}</span>;
   };
 
   if (!mounted) return null;
 
   return (
-    <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-surface text-foreground transition-colors duration-300">
-      <div className="mb-6">
-        <h2 className="text-2xl font-black">설정</h2>
-        <p className="text-sm font-semibold opacity-60 mt-1">앱 환경을 맞춤 설정하세요</p>
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="absolute inset-0 overflow-y-auto px-5 pt-16 pb-32 bg-background text-foreground transition-colors duration-500"
+    >
+      <div className="mb-8">
+        <h2 className="text-3xl font-black tracking-tight text-primary">설정</h2>
+        <p className="text-[15px] font-semibold text-foreground/50 mt-1">앱 환경을 내 취향에 맞게 꾸며보세요.</p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Appearance Settings */}
-        <div className="bg-surface-muted rounded-2xl p-5 shadow-sm border border-surface-border transition-colors duration-300">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <IconPalette size={18} className="text-primary" />
-            </div>
-            <h3 className="font-bold text-lg">화면 테마</h3>
+        <section>
+          <div className="flex items-center gap-2.5 mb-4">
+            <IconPalette size={20} className="text-primary" />
+            <h3 className="font-bold text-lg text-foreground/80">화면 및 테마</h3>
           </div>
           
-          <div className="flex gap-2 mb-6">
-            {[
-              { id: 'light', label: '라이트', icon: <IconSun size={18} /> },
-              { id: 'dark', label: '다크', icon: <IconMoonStars size={18} /> },
-              { id: 'system', label: '시스템', icon: <IconDeviceDesktop size={18} /> },
-            ].map(t => (
-              <button
-                key={t.id}
-                onClick={() => setTheme(t.id)}
-                className={`flex-1 py-3 px-2 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all border-2 ${
-                  theme === t.id 
-                    ? 'border-primary bg-primary/10 text-primary' 
-                    : 'border-surface-border bg-surface text-foreground/60 hover:bg-surface-muted'
-                }`}
-              >
-                {t.icon}
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <div className="bg-surface rounded-2xl shadow-sm border border-surface-border p-5 space-y-6">
+            <div>
+              <p className="text-sm font-bold text-foreground/60 mb-3">모드 설정</p>
+              <div className="flex p-1 bg-surface-muted rounded-xl">
+                {[
+                  { id: 'light', label: '라이트', icon: <IconSun size={18} /> },
+                  { id: 'dark', label: '다크', icon: <IconMoonStars size={18} /> },
+                  { id: 'system', label: '시스템', icon: <IconDeviceDesktop size={18} /> },
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTheme(t.id)}
+                    className={`flex-1 py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${
+                      theme === t.id 
+                        ? 'bg-surface text-primary shadow-sm' 
+                        : 'text-foreground/50 hover:text-foreground/80'
+                    }`}
+                  >
+                    {t.icon}
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          <div className="space-y-3">
-            <h4 className="text-sm font-extrabold opacity-60">색 테마 (포인트 컬러)</h4>
-            <div className="grid grid-cols-3 gap-3">
-              {colorThemes.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => handleColorThemeChange(t.id)}
-                  className={`flex flex-col items-center justify-center py-3 rounded-xl border-2 transition-all gap-2 ${
-                    colorTheme === t.id ? 'border-primary bg-primary/5' : 'border-surface-border bg-surface hover:bg-surface-muted'
-                  }`}
-                >
-                  <div className={`w-6 h-6 rounded-full shadow-sm ${t.color}`} />
-                  <span className={`text-xs font-bold ${colorTheme === t.id ? 'text-primary' : 'text-foreground/70'}`}>
-                    {t.name}
-                  </span>
-                </button>
-              ))}
+            <div>
+              <p className="text-sm font-bold text-foreground/60 mb-3">전체 시스템 테마 컬러</p>
+              <div className="grid grid-cols-3 gap-3">
+                {colorThemes.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => handleColorThemeChange(t.id)}
+                    className={`relative flex flex-col items-center justify-center py-4 rounded-xl border-2 transition-all gap-2 ${
+                      colorTheme === t.id ? 'border-primary bg-primary/5' : 'border-surface-border bg-surface hover:bg-surface-muted'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full shadow-md border-2 border-white/50 ${t.color}`} />
+                    <span className={`text-[13px] font-bold ${colorTheme === t.id ? 'text-primary' : 'text-foreground/70'}`}>
+                      {t.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Permissions */}
-        <div className="bg-surface-muted rounded-2xl p-5 shadow-sm border border-surface-border transition-colors duration-300">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center">
-              <IconShieldLock size={18} className="text-rose-500" />
-            </div>
-            <h3 className="font-bold text-lg">사용 권한 상태</h3>
+        <section>
+          <div className="flex items-center gap-2.5 mb-4">
+            <IconShieldLock size={20} className="text-primary" />
+            <h3 className="font-bold text-lg text-foreground/80">개인정보 및 권한</h3>
           </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-surface rounded-xl border border-surface-border">
-              <span className="font-semibold text-foreground/80">위치 정보 (내 위치 표시)</span>
+          <div className="bg-surface rounded-2xl shadow-sm border border-surface-border overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-surface-border">
+              <span className="font-semibold text-[15px]">위치 정보 (내 위치 표시)</span>
               {translatePerm(locationPerm)}
             </div>
-            <div className="flex items-center justify-between p-3 bg-surface rounded-xl border border-surface-border">
-              <span className="font-semibold text-foreground/80">알림 (방문 시간 안내)</span>
+            <div className="flex items-center justify-between p-4">
+              <span className="font-semibold text-[15px]">알림 (방문 시간 안내)</span>
               {translatePerm(notifPerm)}
             </div>
-            {(locationPerm === 'denied' || notifPerm === 'denied') && (
-              <p className="text-xs text-foreground/50 mt-2 px-1">
-                * 거부된 권한은 브라우저 설정(사이트 설정)에서 직접 허용으로 변경해야 합니다.
-              </p>
-            )}
           </div>
-        </div>
+          {(locationPerm === 'denied' || notifPerm === 'denied') && (
+            <p className="text-[13px] text-foreground/50 mt-3 px-2 font-medium">
+              * 거부된 권한은 기기의 브라우저 설정에서 직접 허용해야 합니다.
+            </p>
+          )}
+        </section>
 
-        {/* Tutorial */}
-        <div className="bg-surface-muted rounded-2xl p-2 shadow-sm border border-surface-border transition-colors duration-300">
-          <button
-            onClick={onReplayTutorial}
-            className="w-full flex items-center justify-between p-3 bg-transparent hover:bg-surface rounded-xl transition-colors active:scale-[0.98]"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center">
-                <IconHelp size={18} className="text-accent" />
+        {/* Support */}
+        <section>
+          <div className="bg-surface rounded-2xl shadow-sm border border-surface-border overflow-hidden">
+            <button
+              onClick={onReplayTutorial}
+              className="w-full flex items-center justify-between p-4 hover:bg-surface-muted transition-colors active:bg-surface-muted/80"
+            >
+              <div className="flex items-center gap-3">
+                <IconHelp size={22} className="text-primary" />
+                <span className="font-bold text-[15px]">앱 사용법 (가이드 투어) 다시 보기</span>
               </div>
-              <h3 className="font-bold text-lg">가이드 투어 다시 보기</h3>
-            </div>
-            <IconChevronRight size={20} className="text-foreground/40" />
-          </button>
-        </div>
+              <IconChevronRight size={20} className="text-foreground/30" />
+            </button>
+          </div>
+        </section>
       </div>
-    </div>
+    </motion.div>
   );
 }
