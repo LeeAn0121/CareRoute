@@ -413,10 +413,14 @@ function MainApp() {
 
 
   // PWA Install State
+  const INSTALL_DISMISSED_KEY = 'careroute_install_dismissed';
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(true); // default true to hide initially
+  // X로 한 번 닫으면 새로고침해도 계속 안 뜨게 유지 (단, 강제 새로고침
+  // 버튼을 눌렀을 때는 이 값을 지워서 다시 뜨도록 함)
+  const [installDismissed, setInstallDismissed] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const waitingWorkerRef = useRef<ServiceWorker | null>(null);
   
@@ -461,7 +465,14 @@ function MainApp() {
     // Check iOS and Standalone
     const ios = /iPad|iPhone|iPod/i.test(navigator.userAgent);
     setIsIOS(ios);
-    
+
+    try {
+      if (localStorage.getItem(INSTALL_DISMISSED_KEY) === 'true') {
+        setInstallDismissed(true);
+      }
+    } catch {}
+
+
     const standalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     setIsStandalone(standalone);
 
@@ -985,7 +996,7 @@ function MainApp() {
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-[#FBFAF7] font-sans">
       
       {/* PWA Install Banner */}
-      {(!isStandalone && (showInstallPrompt || isIOS)) && (
+      {(!isStandalone && !installDismissed && (showInstallPrompt || isIOS)) && (
         <div className="absolute top-4 left-4 right-4 z-[60] bg-[#12203D] text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-fade-in-down">
           <div className="flex items-center gap-3">
             <div className="bg-white/10 p-2 rounded-xl">
@@ -1003,7 +1014,15 @@ function MainApp() {
             >
               설치
             </button>
-            <button onClick={() => { setShowInstallPrompt(false); setIsIOS(false); }} className="p-2 text-slate-400">
+            <button
+              onClick={() => {
+                setShowInstallPrompt(false);
+                setIsIOS(false);
+                setInstallDismissed(true);
+                try { localStorage.setItem(INSTALL_DISMISSED_KEY, 'true'); } catch {}
+              }}
+              className="p-2 text-slate-400"
+            >
               <IconX size={20} />
             </button>
           </div>
@@ -1377,6 +1396,8 @@ function MainApp() {
                 await reg.unregister();
               }
             }
+            // 강제 새로고침일 때는 예외적으로 설치 배너 닫힘 상태를 초기화
+            try { localStorage.removeItem(INSTALL_DISMISSED_KEY); } catch {}
             window.location.href = window.location.pathname + '?t=' + Date.now();
           }}
           className="w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg bg-red-500 text-white hover:bg-red-600 transition active:scale-95"
