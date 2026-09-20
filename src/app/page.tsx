@@ -1498,53 +1498,72 @@ function MainApp() {
                 <p className="font-bold text-lg text-foreground/60">오늘 방문 예정인 어르신이 없습니다.</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="relative pl-6 space-y-5 mt-4">
+                {/* Vertical Timeline Line */}
+                <div className="absolute top-4 bottom-8 left-[11px] w-[2px] bg-surface-border rounded-full" />
+                
                 {todayRoute.map((marker, i) => {
                   const completed = isCompletedToday(marker);
+                  const isNext = !completed && (i === 0 || isCompletedToday(todayRoute[i-1]));
+
                   return (
                     <div
                       key={marker.id}
                       onClick={() => setSelectedRecipient(marker)}
-                      className={`rounded-xl border border-surface-border shadow-sm shadow-foreground/5 bg-surface p-4 flex gap-3 items-start cursor-pointer active:scale-[0.98] transition-transform ${completed ? 'opacity-50' : ''}`}
+                      className={`relative flex gap-4 items-start cursor-pointer transition-all ${completed ? 'opacity-60' : 'opacity-100'}`}
                     >
-                      <div className="w-8 h-8 rounded-full bg-primary text-white text-sm font-extrabold flex items-center justify-center flex-shrink-0 mt-0.5">
-                        {i + 1}
+                      {/* Timeline Dot */}
+                      <div className={`absolute -left-[24px] top-1.5 w-[24px] h-[24px] rounded-full flex items-center justify-center z-10 ${completed ? 'bg-surface-muted border-2 border-surface-border text-foreground/40' : (isNext ? 'bg-primary border-4 border-primary/20 text-primary-foreground shadow-lg shadow-primary/40' : 'bg-surface border-[3px] border-surface-border text-foreground/60')}`}>
+                        {completed ? <IconCheck size={14} strokeWidth={3} /> : <span className="text-[11px] font-black">{i + 1}</span>}
                       </div>
-                      <div className="w-11 h-11 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {marker.photo_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <IconUser size={20} color='var(--primary)' />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className={`font-black text-primary ${completed ? 'line-through' : ''}`}>{marker.name} 어르신</p>
-                          <Chip icon={<IconClock size={12} color="#8A5A00" />} className="bg-accent/20 text-foreground/80 font-bold">
-                            {marker.visit_time && marker.visit_time !== '00:00:00' ? marker.visit_time.substring(0, 5) : '서비스 시간 미정'}
-                          </Chip>
+                      
+                      {/* Card Content */}
+                      <div className={`flex-1 rounded-2xl border ${isNext ? 'border-primary shadow-md shadow-primary/10' : 'border-surface-border shadow-sm shadow-foreground/5'} bg-surface p-4 active:scale-[0.98] transition-transform`}>
+                        <div className="flex gap-3 items-start">
+                          <div className="w-12 h-12 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            {marker.photo_url ? (
+                              <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <IconUser size={24} color='var(--primary)' />
+                            )}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0 pt-0.5">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className={`font-black text-lg text-primary tracking-tight truncate ${completed ? 'line-through opacity-80' : ''}`}>{marker.name}</p>
+                              {isNext && <span className="px-2 py-0.5 bg-accent text-accent-foreground text-[10px] font-black rounded-full animate-pulse shadow-sm">NEXT</span>}
+                            </div>
+                            <div className="flex items-center gap-1.5 mb-1 text-xs font-bold text-foreground/60">
+                              <IconClock size={14} className={isNext ? 'text-accent' : ''} />
+                              <span className={isNext ? 'text-accent' : ''}>
+                                {marker.visit_time && marker.visit_time !== '00:00:00' ? marker.visit_time.substring(0, 5) : '시간 미정'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-foreground/60 font-medium truncate">
+                              {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-sm text-foreground/60 font-medium mt-1 truncate">
-                          {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
-                        </p>
-                        <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            variant={completed ? 'ghost' : 'primary'}
-                            startIcon={<IconCheck size={16} />}
-                            onClick={() => toggleCompleted(marker)}
-                            className="py-1.5 text-sm"
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 mt-4" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
+                            className={`flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${completed ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
                           >
-                            {completed ? '완료 취소' : '완료'}
-                          </Button>
-                          <Button
-                            variant="dark"
-                            startIcon={<IconNavigation size={16} />}
-                            onClick={() => handleDirections(marker.lat, marker.lng, marker.address)}
-                            className="py-1.5 text-sm"
-                          >
-                            길안내
-                          </Button>
+                            <IconCheck size={16} />
+                            {completed ? '완료 취소' : '방문 완료'}
+                          </button>
+                          
+                          {!completed && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }}
+                              className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-bold bg-foreground text-background hover:opacity-90 transition-opacity"
+                            >
+                              <IconNavigation size={16} />
+                              길안내
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
