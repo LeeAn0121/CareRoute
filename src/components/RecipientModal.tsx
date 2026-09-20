@@ -230,7 +230,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         <h2 className="text-lg font-extrabold text-primary">
           {recipientToEdit ? '어르신 정보 수정' : '새 어르신 등록'}
         </h2>
-        <IconButton onClick={onClose} disabled={isSubmitting} className="hover:bg-slate-100" aria-label="닫기">
+        <IconButton onClick={onClose} disabled={isSubmitting} className="hover:bg-surface-muted" aria-label="닫기">
           <IconX size={20} />
         </IconButton>
       </div>
@@ -250,7 +250,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photoPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="flex flex-col items-center gap-1 text-slate-400">
+                  <div className="flex flex-col items-center gap-1 text-foreground/50">
                     <IconUser size={32} />
                     <span className="text-[11px] font-bold">사진 추가</span>
                   </div>
@@ -272,7 +272,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                   whileTap={{ scale: 0.9 }}
                   onClick={() => { setPhotoFile(null); setExistingPhotoUrl(null); if (photoInputRef.current) photoInputRef.current.value = ''; }}
                   disabled={isSubmitting}
-                  className="absolute top-0 right-0 w-6 h-6 rounded-full bg-white text-red-500 shadow flex items-center justify-center"
+                  className="absolute top-0 right-0 w-6 h-6 rounded-full bg-surface text-red-500 shadow flex items-center justify-center"
                   aria-label="사진 제거"
                 >
                   <IconX size={14} />
@@ -290,7 +290,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
           </div>
 
           <div className="flex flex-col gap-3">
-            <p className="text-xs font-extrabold text-slate-400 tracking-wide">기본 정보</p>
+            <p className="text-xs font-extrabold text-foreground/50 tracking-wide">기본 정보</p>
             <TextField
               label="성함"
               required
@@ -330,10 +330,10 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             />
           </div>
 
-          <div className="h-px bg-slate-100" />
+          <div className="h-px bg-surface-muted" />
 
           <div className="flex flex-col gap-3">
-            <p className="text-xs font-extrabold text-slate-400 tracking-wide">방문 일정</p>
+            <p className="text-xs font-extrabold text-foreground/50 tracking-wide">방문 일정</p>
             <TextField
               label="방문 예정일 (선택)"
               type="date"
@@ -348,7 +348,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             />
 
             <div>
-              <span className="block text-sm font-bold text-slate-600 mb-1">반복 요일 (선택)</span>
+              <span className="block text-sm font-bold text-foreground/70 mb-1">반복 요일 (선택)</span>
               <div className="flex gap-1.5">
                 {WEEKDAY_LABELS.map((label, day) => {
                   const active = recurringDays.includes(day);
@@ -376,7 +376,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                 })}
               </div>
               {recurringDays.length > 0 && (
-                <p className="text-xs text-slate-400 mt-1.5">매주 {recurringDays.slice().sort().map((d) => WEEKDAY_LABELS[d]).join(', ')}요일마다 방문 예정에 자동으로 포함됩니다.</p>
+                <p className="text-xs text-foreground/50 mt-1.5">매주 {recurringDays.slice().sort().map((d) => WEEKDAY_LABELS[d]).join(', ')}요일마다 방문 예정에 자동으로 포함됩니다.</p>
               )}
             </div>
 

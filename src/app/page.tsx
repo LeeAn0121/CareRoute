@@ -1044,7 +1044,7 @@ function MainApp() {
       {(!isStandalone && !installDismissed && (showInstallPrompt || isIOS)) && (
         <div className="absolute top-4 left-4 right-4 z-[60] bg-primary text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-fade-in-down">
           <div className="flex items-center gap-3">
-            <div className="bg-white/10 p-2 rounded-xl">
+            <div className="bg-surface/10 p-2 rounded-xl">
               <IconDownload size={20} className="text-white" />
             </div>
             <div>
@@ -1066,7 +1066,7 @@ function MainApp() {
                 setInstallDismissed(true);
                 try { localStorage.setItem(INSTALL_DISMISSED_KEY, 'true'); } catch {}
               }}
-              className="p-2 text-slate-400"
+              className="p-2 text-foreground/50"
             >
               <IconX size={20} />
             </button>
@@ -1085,9 +1085,9 @@ function MainApp() {
 
       {/* 앱 업데이트 안내창 */}
       {updateAvailable && (
-        <div className="absolute top-4 left-4 right-4 z-[60] bg-slate-800 text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-fade-in-down">
+        <div className="absolute top-4 left-4 right-4 z-[60] bg-foreground text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-fade-in-down">
           <div className="flex items-center gap-3">
-            <div className="bg-white/15 p-2 rounded-xl">
+            <div className="bg-surface/15 p-2 rounded-xl">
               <IconDownload size={20} className="text-white" />
             </div>
             <div>
@@ -1097,7 +1097,7 @@ function MainApp() {
           </div>
           <button
             onClick={handleUpdateRefresh}
-            className="px-4 py-2 bg-white text-slate-800 font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform whitespace-nowrap"
+            className="px-4 py-2 bg-surface text-foreground/90 font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform whitespace-nowrap"
           >
             새로고침
           </button>
@@ -1106,7 +1106,7 @@ function MainApp() {
 
       {/* Floating Header */}
       <header className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
-        <div id="tour-header" className="p-4 pb-5 bg-white rounded-b-3xl shadow-[0_8px_24px_rgba(18,32,61,0.08)]">
+        <div id="tour-header" className="p-4 pb-5 bg-surface rounded-b-3xl shadow-[0_8px_24px_rgba(18,32,61,0.08)]">
           <h1 className="flex items-center gap-3 mb-4 text-2xl font-black text-primary tracking-tight">
             <span className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)]">
               <IconMapPin size={20} color="white" />
@@ -1116,7 +1116,7 @@ function MainApp() {
 
           <div className="flex gap-2">
             <NativeSelect
-              className="bg-slate-100"
+              className="bg-surface-muted"
               value={selectedSido}
               onChange={(e) => {
                 setSelectedSido(e.target.value);
@@ -1128,7 +1128,7 @@ function MainApp() {
               {sidos.map(sido => <option key={sido.code} value={sido.code}>{sido.name}</option>)}
             </NativeSelect>
             <NativeSelect
-              className="bg-slate-100"
+              className="bg-surface-muted"
               value={selectedSigungu}
               disabled={!selectedSido}
               onChange={(e) => {
@@ -1140,7 +1140,7 @@ function MainApp() {
               {sigungus.map(sig => <option key={sig.code} value={sig.code}>{sig.name.split(' ').pop()}</option>)}
             </NativeSelect>
             <NativeSelect
-              className="bg-slate-100"
+              className="bg-surface-muted"
               value={selectedDong}
               disabled={!selectedSigungu}
               onChange={(e) => setSelectedDong(e.target.value)}
@@ -1153,7 +1153,7 @@ function MainApp() {
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 relative w-full h-full bg-slate-100">
+      <div className="flex-1 relative w-full h-full bg-surface-muted">
         
         {/* Map View */}
         <div className={`absolute inset-0 top-0 ${activeTab === 'map' ? 'block' : 'hidden'}`}>
@@ -1183,7 +1183,7 @@ function MainApp() {
                                   ${marker.photo_url ? `<img src="${marker.photo_url}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
                                 </div>
                               </div>
-                              <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-amber-500 text-primary' : 'bg-white text-primary'} text-[11px] font-bold rounded-md shadow-sm border border-slate-200 whitespace-nowrap transition-colors duration-300">
+                              <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-amber-500 text-primary' : 'bg-surface text-primary'} text-[11px] font-bold rounded-md shadow-sm border border-surface-border whitespace-nowrap transition-colors duration-300">
                                 ${marker.name}
                               </div>
                             </div>
@@ -1224,15 +1224,15 @@ function MainApp() {
               </NaverMap>
             </Container>
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 px-8 text-center pt-20">
+            <div className="w-full h-full flex flex-col items-center justify-center bg-surface-muted text-foreground/50 px-8 text-center pt-20">
               <div className="relative w-24 h-24 flex items-center justify-center mb-6">
                 <div className="absolute inset-0 rounded-full border-4 border-amber-100"></div>
                 <div className="absolute inset-0 rounded-full border-4 border-amber-400 border-t-transparent animate-spin"></div>
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm">
+                <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center shadow-sm">
                   <IconMapPin size={28} className="text-primary" />
                 </div>
               </div>
-              <p className="font-extrabold text-xl text-slate-600 mb-3 tracking-tight">지도 연동 대기 중</p>
+              <p className="font-extrabold text-xl text-foreground/70 mb-3 tracking-tight">지도 연동 대기 중</p>
               <p className="text-[15px] leading-relaxed">네이버 클라우드 서버 동기화가 지연되고 있습니다.<br/>(목록 탭은 지금 바로 정상 사용 가능합니다!)</p>
             </div>
           )}
@@ -1249,13 +1249,13 @@ function MainApp() {
                 placeholder="이름 또는 주소 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl py-3.5 pl-12 pr-10 text-[16px] shadow-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all"
+                className="w-full bg-surface border border-surface-border rounded-xl py-3.5 pl-12 pr-10 text-[16px] shadow-sm font-semibold text-foreground/80 placeholder:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all"
               />
-              <IconSearch size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <IconSearch size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/50" />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-slate-100 p-1 rounded-full"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-foreground/70 bg-surface-muted p-1 rounded-full"
                 >
                   <IconX size={16} />
                 </button>
@@ -1276,7 +1276,7 @@ function MainApp() {
                     key={f.key}
                     onClick={() => setListFilter(f.key)}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
-                      listFilter === f.key ? 'bg-primary text-white' : 'bg-white text-slate-500 border border-slate-200'
+                      listFilter === f.key ? 'bg-primary text-white' : 'bg-surface text-foreground/60 border border-surface-border'
                     }`}
                   >
                     {f.label}
@@ -1286,7 +1286,7 @@ function MainApp() {
               <select
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
-                className="flex-shrink-0 bg-white border border-slate-200 rounded-full px-2.5 py-1.5 text-xs font-bold text-slate-600 focus:outline-none"
+                className="flex-shrink-0 bg-surface border border-surface-border rounded-full px-2.5 py-1.5 text-xs font-bold text-foreground/70 focus:outline-none"
               >
                 <option value="time">서비스 시간순</option>
                 <option value="name">이름순</option>
@@ -1295,11 +1295,11 @@ function MainApp() {
             </div>
 
             {(markers.length === 0) ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400 mt-16">
-                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
+              <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-16">
+                <div className="w-20 h-20 bg-surface rounded-full flex items-center justify-center shadow-sm mb-4">
                   <IconUser size={32} className="text-slate-300" />
                 </div>
-                <p className="font-bold text-lg text-slate-500">이 지역엔 등록된 어르신이 없습니다.</p>
+                <p className="font-bold text-lg text-foreground/60">이 지역엔 등록된 어르신이 없습니다.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1326,9 +1326,9 @@ function MainApp() {
 
                   if (filteredMarkers.length === 0) {
                     return (
-                      <div className="flex flex-col items-center justify-center text-slate-400 mt-12 bg-white rounded-xl py-12 shadow-sm border border-slate-100">
+                      <div className="flex flex-col items-center justify-center text-foreground/50 mt-12 bg-surface rounded-xl py-12 shadow-sm border border-surface-border">
                         <IconSearch size={40} className="text-slate-200 mb-4" />
-                        <p className="font-bold text-lg text-slate-500">조건에 맞는 어르신이 없습니다.</p>
+                        <p className="font-bold text-lg text-foreground/60">조건에 맞는 어르신이 없습니다.</p>
                       </div>
                     );
                   }
@@ -1344,7 +1344,7 @@ function MainApp() {
                     exit={{ opacity: 0, scale: 0.96 }}
                     transition={{ duration: 0.22, delay: Math.min(index, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
                     whileTap={{ scale: 0.98 }}
-                    className="rounded-xl mb-2 border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] cursor-pointer bg-white"
+                    className="rounded-xl mb-2 border border-surface-border shadow-[0_4px_20px_rgba(0,0,0,0.03)] cursor-pointer bg-surface"
                     onClick={() => {
                       setMapCenter({ lat: marker.lat, lng: marker.lng });
                       setMapZoom(17); // Zoom in deeply
@@ -1376,10 +1376,10 @@ function MainApp() {
                           </div>
                         </div>
                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                          <IconButton onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} className={isCompletedToday(marker) ? 'bg-[#4C7A6B] text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-200'} aria-label="오늘 방문 완료 체크">
+                          <IconButton onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} className={isCompletedToday(marker) ? 'bg-[#4C7A6B] text-white' : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'} aria-label="오늘 방문 완료 체크">
                             <IconCheck size={18} />
                           </IconButton>
-                          <IconButton onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} className="bg-slate-50 text-slate-500 hover:bg-slate-200">
+                          <IconButton onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} className="bg-surface-muted text-foreground/60 hover:bg-surface-border">
                             <IconPencil size={18} />
                           </IconButton>
                           <IconButton onClick={(e) => { e.stopPropagation(); handleDelete(marker.id); }} className="bg-red-50 text-red-500 hover:bg-red-200">
@@ -1388,9 +1388,9 @@ function MainApp() {
                         </div>
                       </div>
 
-                      <div className="bg-slate-50 rounded-lg p-4 mb-5 flex gap-3 items-center">
+                      <div className="bg-surface-muted rounded-lg p-4 mb-5 flex gap-3 items-center">
                         <IconMapPin size={22} color="#94a3b8" className="flex-shrink-0" />
-                        <p className="font-semibold text-slate-600 leading-snug">
+                        <p className="font-semibold text-foreground/70 leading-snug">
                           {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
                         </p>
                       </div>
@@ -1422,7 +1422,7 @@ function MainApp() {
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-lg font-black text-primary">오늘의 방문 순서</p>
-                <p className="text-sm text-slate-400 font-semibold">
+                <p className="text-sm text-foreground/50 font-semibold">
                   직선거리 기준 추천 순서예요 · 총 {todayRoute.length}곳
                 </p>
               </div>
@@ -1437,11 +1437,11 @@ function MainApp() {
             </div>
 
             {todayRoute.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400 mt-16">
-                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
+              <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-16">
+                <div className="w-20 h-20 bg-surface rounded-full flex items-center justify-center shadow-sm mb-4">
                   <IconNavigation size={32} className="text-slate-300" />
                 </div>
-                <p className="font-bold text-lg text-slate-500">오늘 방문 예정인 어르신이 없습니다.</p>
+                <p className="font-bold text-lg text-foreground/60">오늘 방문 예정인 어르신이 없습니다.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1451,7 +1451,7 @@ function MainApp() {
                     <div
                       key={marker.id}
                       onClick={() => setSelectedRecipient(marker)}
-                      className={`rounded-xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] bg-white p-4 flex gap-3 items-start cursor-pointer active:scale-[0.98] transition-transform ${completed ? 'opacity-50' : ''}`}
+                      className={`rounded-xl border border-surface-border shadow-[0_4px_20px_rgba(0,0,0,0.03)] bg-surface p-4 flex gap-3 items-start cursor-pointer active:scale-[0.98] transition-transform ${completed ? 'opacity-50' : ''}`}
                     >
                       <div className="w-8 h-8 rounded-full bg-primary text-white text-sm font-extrabold flex items-center justify-center flex-shrink-0 mt-0.5">
                         {i + 1}
@@ -1471,7 +1471,7 @@ function MainApp() {
                             {marker.visit_time && marker.visit_time !== '00:00:00' ? marker.visit_time.substring(0, 5) : '서비스 시간 미정'}
                           </Chip>
                         </div>
-                        <p className="text-sm text-slate-500 font-medium mt-1 truncate">
+                        <p className="text-sm text-foreground/60 font-medium mt-1 truncate">
                           {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
                         </p>
                         <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
@@ -1545,7 +1545,7 @@ function MainApp() {
             <button
               type="button"
               onClick={() => setShowRegions(!showRegions)}
-              className={`w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg transition active:scale-95 ${showRegions ? 'bg-primary text-white' : 'bg-white text-slate-600'}`}
+              className={`w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg transition active:scale-95 ${showRegions ? 'bg-primary text-white' : 'bg-surface text-foreground/70'}`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
             </button>
@@ -1554,14 +1554,14 @@ function MainApp() {
             <button
               type="button"
               onClick={() => setMapZoom(prev => Math.min(prev + 1, 21))}
-              className="w-10 h-10 mt-1 flex items-center justify-center rounded-2xl shadow-lg bg-white transition active:scale-95"
+              className="w-10 h-10 mt-1 flex items-center justify-center rounded-2xl shadow-lg bg-surface transition active:scale-95"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </button>
             <button
               type="button"
               onClick={() => setMapZoom(prev => Math.max(prev - 1, 6))}
-              className="w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg bg-white transition active:scale-95"
+              className="w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg bg-surface transition active:scale-95"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </button>
@@ -1571,7 +1571,7 @@ function MainApp() {
               type="button"
               onClick={handleMyLocation}
               disabled={isLocating}
-              className="w-10 h-10 mt-1 flex items-center justify-center rounded-2xl shadow-lg bg-white transition active:scale-95 disabled:opacity-60"
+              className="w-10 h-10 mt-1 flex items-center justify-center rounded-2xl shadow-lg bg-surface transition active:scale-95 disabled:opacity-60"
             >
               {isLocating ? (
                 <Spinner size={18} className="text-primary" />
@@ -1602,7 +1602,7 @@ function MainApp() {
             <div className="relative h-28 bg-gradient-to-br from-[#12203D] to-[#1A2F52]">
               <IconButton
                 onClick={() => setSelectedRecipient(null)}
-                className="absolute top-3 right-3 bg-white/15 text-white hover:bg-white/25"
+                className="absolute top-3 right-3 bg-surface/15 text-white hover:bg-surface/25"
                 aria-label="닫기"
               >
                 <IconX size={18} />
@@ -1627,10 +1627,10 @@ function MainApp() {
                   </Chip>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
-                  <IconButton onClick={() => toggleCompleted(selectedRecipient)} className={isCompletedToday(selectedRecipient) ? 'bg-[#4C7A6B] text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-200'} aria-label="오늘 방문 완료 체크">
+                  <IconButton onClick={() => toggleCompleted(selectedRecipient)} className={isCompletedToday(selectedRecipient) ? 'bg-[#4C7A6B] text-white' : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'} aria-label="오늘 방문 완료 체크">
                     <IconCheck size={18} />
                   </IconButton>
-                  <IconButton onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} className="bg-slate-50 text-slate-500 hover:bg-slate-200">
+                  <IconButton onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} className="bg-surface-muted text-foreground/60 hover:bg-surface-border">
                     <IconPencil size={18} />
                   </IconButton>
                   <IconButton onClick={() => handleDelete(selectedRecipient.id)} className="bg-red-50 text-red-500 hover:bg-red-200">
@@ -1639,9 +1639,9 @@ function MainApp() {
                 </div>
               </div>
 
-              <div className="bg-slate-50 rounded-lg p-4 mt-4 flex gap-3 items-center">
+              <div className="bg-surface-muted rounded-lg p-4 mt-4 flex gap-3 items-center">
                 <IconMapPin size={20} color="#94a3b8" className="flex-shrink-0" />
-                <p className="font-semibold text-slate-600 leading-snug text-sm">
+                <p className="font-semibold text-foreground/70 leading-snug text-sm">
                   {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
                 </p>
               </div>
@@ -1661,7 +1661,7 @@ function MainApp() {
       </Modal>
 
       {/* Redesigned Bottom Navigation */}
-      <div id="tour-bottom-nav" className="absolute bottom-0 left-0 right-0 z-50 rounded-t-2xl overflow-hidden shadow-[0_-10px_40px_rgba(0,0,0,0.08)] bg-white">
+      <div id="tour-bottom-nav" className="absolute bottom-0 left-0 right-0 z-50 rounded-t-2xl overflow-hidden shadow-[0_-10px_40px_rgba(0,0,0,0.08)] bg-surface">
         <div className="flex h-20 pb-[env(safe-area-inset-bottom)]">
           {([
             { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
@@ -1673,7 +1673,7 @@ function MainApp() {
               key={key}
               type="button"
               onClick={() => setActiveTab(key)}
-              className={`relative flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === key ? 'text-primary font-extrabold' : 'text-slate-400 font-semibold'}`}
+              className={`relative flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === key ? 'text-primary font-extrabold' : 'text-foreground/50 font-semibold'}`}
             >
               {activeTab === key && (
                 <motion.div

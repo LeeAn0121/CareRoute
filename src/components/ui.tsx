@@ -24,9 +24,9 @@ type ButtonVariant = 'primary' | 'dark' | 'ghost' | 'danger-ghost' | 'plain';
 const buttonVariants: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-primary shadow-sm hover:brightness-95',
   dark: 'bg-primary text-white shadow-sm hover:bg-[#1A2F52]',
-  ghost: 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+  ghost: 'bg-surface-muted text-foreground/70 hover:bg-surface-border',
   'danger-ghost': 'bg-red-50 text-red-600 hover:bg-red-100',
-  plain: 'bg-white text-primary border border-slate-200 hover:bg-slate-50',
+  plain: 'bg-surface text-primary border border-surface-border hover:bg-surface-muted',
 };
 
 export function Button({
@@ -165,7 +165,7 @@ export function TextField({
 }) {
   return (
     <label className="block">
-      <span className="block text-sm font-bold text-slate-600 mb-1">
+      <span className="block text-sm font-bold text-foreground/70 mb-1">
         {label}
       </span>
       <div className="relative">
@@ -178,7 +178,7 @@ export function TextField({
           required={required}
           disabled={disabled}
           placeholder={placeholder}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[0.95rem] font-medium text-primary disabled:bg-slate-100 disabled:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
+          className="w-full rounded-xl border border-surface-border bg-surface px-3 py-2.5 text-[0.95rem] font-medium text-primary disabled:bg-surface-muted disabled:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
         />
         {endAdornment && (
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">{endAdornment}</div>
@@ -206,7 +206,7 @@ export function NativeSelect({
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className={`w-full rounded-lg bg-slate-50 px-2.5 py-2 text-sm font-bold text-primary shadow-sm disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-400 ${className}`}
+      className={`w-full rounded-lg bg-surface-muted px-2.5 py-2 text-sm font-bold text-primary shadow-sm disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-400 ${className}`}
     >
       {children}
     </select>
@@ -268,7 +268,7 @@ export function Modal({
                 }}
               >
                 <motion.div
-                  className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl pointer-events-auto"
+                  className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-2xl bg-surface shadow-2xl pointer-events-auto"
                   initial={{ opacity: 0, scale: 0.96, y: 8 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, y: 4 }}
@@ -328,7 +328,7 @@ export function BottomSheet({
               }}
             >
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[90] rounded-t-2xl bg-white shadow-2xl"
+                className="fixed inset-x-0 bottom-0 z-[90] rounded-t-2xl bg-surface shadow-2xl"
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
