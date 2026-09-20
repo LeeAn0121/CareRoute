@@ -1,10 +1,14 @@
 'use client';
 
-import { ReactNode, useEffect, useRef } from 'react';
+import { ReactNode } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { AnimatePresence, motion } from 'motion/react';
 
 // MUI를 대체하는 최소한의 Tailwind 기반 UI 프리미티브.
 // 디자인 토큰(네이비/앰버)을 직접 통제하기 위해 외부 컴포넌트 라이브러리 대신
 // 이 앱에 필요한 만큼만 직접 구현한다.
+// 접근성이 까다로운 다이얼로그류(Modal/BottomSheet)는 Radix UI의 검증된
+// 포커스 트랩/스크롤 락/Esc 처리를 그대로 쓰고, 시각 스타일만 Tailwind로 입힌다.
 
 export function Spinner({ size = 20, className = '' }: { size?: number; className?: string }) {
   return (
@@ -105,16 +109,17 @@ export function Fab({
   'aria-label'?: string;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
       style={{ width: size, height: size }}
-      className={`inline-flex items-center justify-center rounded-2xl shadow-lg transition active:scale-95 disabled:opacity-50 ${buttonVariants[variant]} ${className}`}
+      whileTap={{ scale: 0.92 }}
+      className={`inline-flex items-center justify-center rounded-2xl shadow-lg transition-colors disabled:opacity-50 ${buttonVariants[variant]} ${className}`}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -208,45 +213,10 @@ export function NativeSelect({
   );
 }
 
-// 포커스를 다이얼로그 안에 가두고, Esc로 닫고, 닫힐 때 원래 포커스로 되돌린다.
-function useModalA11y(open: boolean, onClose: () => void, containerRef: React.RefObject<HTMLElement | null>) {
-  const triggerRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    triggerRef.current = document.activeElement as HTMLElement;
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-        return;
-      }
-      if (e.key !== 'Tab' || !containerRef.current) return;
-      const focusables = containerRef.current.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusables.length === 0) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    const firstInput = containerRef.current?.querySelector<HTMLElement>('input, button, select, textarea');
-    firstInput?.focus();
-
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      triggerRef.current?.focus?.();
-    };
-  }, [open, onClose, containerRef]);
-}
+const overlayVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+};
 
 export function Modal({
   open,
@@ -259,27 +229,61 @@ export function Modal({
   children: ReactNode;
   closeOnBackdrop?: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useModalA11y(open, onClose, ref);
-
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40"
-      onMouseDown={(e) => {
-        if (closeOnBackdrop && e.target === e.currentTarget) onClose();
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
       }}
     >
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
-      >
-        {children}
-      </div>
-    </div>
+      <AnimatePresence>
+        {open && (
+          <Dialog.Portal forceMount>
+            <Dialog.Overlay asChild>
+              <motion.div
+                className="fixed inset-0 z-[100] bg-black/40"
+                variants={overlayVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                transition={{ duration: 0.15 }}
+              />
+            </Dialog.Overlay>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+              <Dialog.Content
+                asChild
+                onOpenAutoFocus={(e) => {
+                  const container = e.currentTarget as HTMLElement;
+                  const firstInput = container.querySelector<HTMLElement>('input, button, select, textarea');
+                  if (firstInput) {
+                    e.preventDefault();
+                    firstInput.focus();
+                  }
+                }}
+                onPointerDownOutside={(e) => {
+                  if (!closeOnBackdrop) e.preventDefault();
+                }}
+                onInteractOutside={(e) => {
+                  if (!closeOnBackdrop) e.preventDefault();
+                }}
+              >
+                <motion.div
+                  className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl pointer-events-auto"
+                  initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.97, y: 4 }}
+                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <Dialog.Title className="sr-only">대화 상자</Dialog.Title>
+                  <Dialog.Description className="sr-only">CareRoute 다이얼로그</Dialog.Description>
+                  {children}
+                </motion.div>
+              </Dialog.Content>
+            </div>
+          </Dialog.Portal>
+        )}
+      </AnimatePresence>
+    </Dialog.Root>
   );
 }
 
@@ -292,23 +296,52 @@ export function BottomSheet({
   onClose: () => void;
   children: ReactNode;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useModalA11y(open, onClose, ref);
-
   return (
-    <div className={`fixed inset-0 z-[90] ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open}>
-      <div
-        className={`absolute inset-0 bg-black/30 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}
-        onMouseDown={onClose}
-      />
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        className={`absolute inset-x-0 bottom-0 rounded-t-2xl bg-white shadow-2xl transition-transform duration-300 ease-out ${open ? 'translate-y-0' : 'translate-y-full'}`}
-      >
-        {children}
-      </div>
-    </div>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <AnimatePresence>
+        {open && (
+          <Dialog.Portal forceMount>
+            <Dialog.Overlay asChild>
+              <motion.div
+                className="fixed inset-0 z-[90] bg-black/30"
+                variants={overlayVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                transition={{ duration: 0.2 }}
+              />
+            </Dialog.Overlay>
+            <Dialog.Content
+              asChild
+              onOpenAutoFocus={(e) => {
+                const container = e.currentTarget as HTMLElement;
+                const firstInput = container.querySelector<HTMLElement>('input, button, select, textarea');
+                if (firstInput) {
+                  e.preventDefault();
+                  firstInput.focus();
+                }
+              }}
+            >
+              <motion.div
+                className="fixed inset-x-0 bottom-0 z-[90] rounded-t-2xl bg-white shadow-2xl"
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 32, stiffness: 320 }}
+              >
+                <Dialog.Title className="sr-only">상세 정보</Dialog.Title>
+                <Dialog.Description className="sr-only">CareRoute 상세 시트</Dialog.Description>
+                {children}
+              </motion.div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        )}
+      </AnimatePresence>
+    </Dialog.Root>
   );
 }
