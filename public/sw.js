@@ -49,3 +49,35 @@ self.addEventListener('fetch', (e) => {
     }),
   );
 });
+
+// 서버(Edge Function)에서 보낸 Web Push를 받아 실제 OS 알림으로 표시.
+// 앱이 닫혀있거나 백그라운드여도 브라우저가 이 이벤트를 깨워서 실행해준다.
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { title: '케어루트 알림', body: event.data ? event.data.text() : '' };
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title || '케어루트 알림 🚨', {
+      body: payload.body || '',
+      icon: '/CareRoute/icon-192.png',
+      badge: '/CareRoute/icon-192.png',
+      data: { url: payload.url || '/CareRoute/' },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/CareRoute/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      const existing = windowClients.find((c) => c.url.includes('/CareRoute/'));
+      if (existing) return existing.focus();
+      return clients.openWindow(url);
+    }),
+  );
+});

@@ -56,6 +56,14 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
   return R * c;
 }
 
+// VAPID 공개키(base64url)를 PushManager.subscribe가 요구하는 Uint8Array로 변환
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
 
 // GeoJSON 밎 마커 캐시
 const geoCache: any = { sido: null, sigungu: null, dong: null };
@@ -430,42 +438,42 @@ function MainApp() {
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(true); // default true to hide initially
   
-  // Notification Logic
+  // Push 알림 구독: 서버(Edge Function)가 방문 예정 시간에 맞춰 실제 Web Push를
+  // 보내주므로, 앱이 닫혀있거나 백그라운드여도 알림이 온다. (예전의 setInterval
+  // 기반 포그라운드 전용 체크는 앱이 열려있을 때만 동작해 신뢰할 수 없었음)
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
+    const setupPush = async () => {
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
-    const checkAlarms = () => {
-      const now = new Date();
-      const currentYMD = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const currentHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      
-      markers.forEach(marker => {
-        // 방문 시간을 입력하지 않은 경우 DB엔 '00:00:00'이 기본값으로 들어가는데,
-        // 이걸 그대로 두면 시간 미지정 어르신 전원이 매일 자정에 알림이 울린다.
-        const hasTime = marker.visit_time && marker.visit_time !== '00:00:00';
-        if (hasTime && marker.notes === currentYMD && marker.visit_time.substring(0, 5) === currentHM) {
-          const alarmKey = `alarm_${marker.id}_${currentYMD}_${currentHM}`;
-          if (!localStorage.getItem(alarmKey)) {
-            localStorage.setItem(alarmKey, 'true'); // Prevent duplicate fires
-            
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification('케어루트 알림 🚨', {
-                body: `${marker.name} 어르신 방문 예정 시간입니다! (${marker.address})`,
-                icon: '/CareRoute/icon-192.png'
-              });
-            } else {
-              alert(`🚨 [케어루트 알림] ${marker.name} 어르신 방문 시간입니다!`);
-            }
-          }
-        }
-      });
+      if (Notification.permission === 'default') {
+        const result = await Notification.requestPermission();
+        if (result !== 'granted') return;
+      }
+      if (Notification.permission !== 'granted') return;
+
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapidKey) return;
+
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
+      }
+
+      const json = subscription.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return;
+
+      await supabase.from('push_subscriptions').upsert(
+        { endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
+        { onConflict: 'endpoint' },
+      );
     };
 
-    const intervalId = setInterval(checkAlarms, 30000); // Check every 30 seconds
-    return () => clearInterval(intervalId);
-  }, [markers]);
+    setupPush().catch((err) => console.warn('Push 구독 설정 실패:', err));
+  }, []);
 
   useEffect(() => {
     // Check iOS and Standalone
