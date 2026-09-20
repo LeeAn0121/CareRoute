@@ -476,7 +476,7 @@ function MainApp() {
                 }}
                 sx={{ borderRadius: 1, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
               >
-                <option value="">시/군/구</option>
+                <option value="">군/구</option>
                 {sigungus.map(sig => <option key={sig.code} value={sig.code}>{sig.name.split(' ').pop()}</option>)}
               </Select>
             </FormControl>
