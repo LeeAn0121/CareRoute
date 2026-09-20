@@ -129,6 +129,7 @@ function MainApp() {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapZoom, setMapZoom] = useState(15);
   const [isLocating, setIsLocating] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const [showRegions, setShowRegions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const mapRef = useRef<any>(null);
@@ -566,18 +567,20 @@ function MainApp() {
     waitingWorkerRef.current?.postMessage('SKIP_WAITING');
   };
 
+  const OFFLINE_CACHE_KEY = 'careroute_markers_cache_v1';
+
   const fetchMarkers = () => {
     let query = supabase.from('recipients').select('*');
-    
+
     // DB에 dong, sigungu 컬럼이 존재하지 않으므로 오직 address.ilike 로만 필터링합니다.
     if (selectedDong) {
       const dongName = dongs.find(d => d.code === selectedDong)?.name.split(' ').pop();
       if (dongName) query = query.ilike('address', `%${dongName}%`);
-    } 
+    }
     else if (selectedSigungu) {
       const sigName = sigungus.find(s => s.code === selectedSigungu)?.name.split(' ').pop();
       if (sigName) query = query.ilike('address', `%${sigName}%`);
-    } 
+    }
     else if (selectedSido) {
       const sidoName = sidos.find(s => s.code === selectedSido)?.name;
       if (sidoName) query = query.ilike('address', `%${sidoName.substring(0, 2)}%`);
@@ -585,6 +588,7 @@ function MainApp() {
 
     query.then(({ data, error }) => {
       if (!error && data) {
+        setIsOffline(false);
         // 근접 마커 자동 분산 처리: 완전히 같은 좌표뿐 아니라 같은 건물/블록처럼
         // '근처'인 경우까지 하나의 클러스터로 묶어 부챗살 모양으로 벌려서 배치한다.
         const PROXIMITY_KM = 0.02; // 약 20m 이내는 같은 클러스터로 취급
@@ -617,12 +621,37 @@ function MainApp() {
         });
 
         setMarkers(offsetData);
+
+        // 필터 없이 받은 전체 목록만 오프라인 캐시로 저장 (현장에서 신호가
+        // 약해져도 마지막으로 받은 명단/위치는 계속 보이도록).
+        if (!selectedSido && !selectedSigungu && !selectedDong) {
+          try {
+            localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: offsetData }));
+          } catch {}
+        }
+      } else {
+        // 네트워크 실패 등으로 못 받아왔으면 마지막으로 저장해둔 캐시를 대신 보여준다.
+        try {
+          const cached = localStorage.getItem(OFFLINE_CACHE_KEY);
+          if (cached) {
+            const { data: cachedData } = JSON.parse(cached);
+            setMarkers(cachedData);
+          }
+        } catch {}
+        setIsOffline(true);
       }
     });
   };
 
   useEffect(() => {
     fetchMarkers();
+  }, [selectedSido, selectedSigungu, selectedDong]);
+
+  // 네트워크가 끊겼다가 다시 연결되면 캐시 대신 최신 데이터로 자동 갱신
+  useEffect(() => {
+    const handleOnline = () => fetchMarkers();
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
   }, [selectedSido, selectedSigungu, selectedDong]);
 
   // 방문 알림을 눌렀을 때 해당 어르신 위치로 포커싱 (명단 클릭과 동일한 효과).
@@ -882,6 +911,15 @@ function MainApp() {
               <IconX size={20} />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* 오프라인 안내: 서버 연결에 실패하면 마지막으로 저장해둔 명단을 대신
+          보여주는데, 그게 최신 데이터가 아닐 수 있다는 걸 알려준다. */}
+      {isOffline && (
+        <div className="absolute top-4 left-4 right-4 z-[60] bg-amber-500 text-[#12203D] p-3 rounded-2xl shadow-xl flex items-center gap-2 animate-fade-in-down">
+          <IconDownload size={18} className="flex-shrink-0" />
+          <p className="text-sm font-bold">오프라인 상태입니다. 마지막으로 저장된 명단을 보여주고 있어요.</p>
         </div>
       )}
 
