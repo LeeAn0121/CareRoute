@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
@@ -789,6 +789,32 @@ function MainApp() {
     }
   };
 
+  // 줌 레벨에 따라 마커를 숫자 뱃지로 뭉치거나(축소) 개별 마커로 풀어서(확대)
+  // 보여준다. 반경은 줌이 낮을수록(더 축소될수록) 커진다.
+  const clusterRadiusKm = (zoom: number) => {
+    if (zoom <= 11) return 5;
+    if (zoom <= 12) return 2.5;
+    if (zoom <= 13) return 1.2;
+    if (zoom <= 14) return 0.5;
+    if (zoom <= 15) return 0.2;
+    return 0; // 16 이상은 클러스터링 없이 개별 마커 (같은 건물 부챗살 분산만 적용)
+  };
+
+  const markerClusters = useMemo(() => {
+    const radius = clusterRadiusKm(mapZoom);
+    if (radius === 0) return markers.map((m) => [m]);
+
+    const clusters: Recipient[][] = [];
+    markers.forEach((marker) => {
+      const cluster = clusters.find((c) =>
+        getDistanceFromLatLonInKm(c[0].lat, c[0].lng, marker.lat, marker.lng) < radius
+      );
+      if (cluster) cluster.push(marker);
+      else clusters.push([marker]);
+    });
+    return clusters;
+  }, [markers, mapZoom]);
+
   return (
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-slate-50 font-sans">
       
@@ -906,27 +932,56 @@ function MainApp() {
                 defaultCenter={mapCenter}
                 defaultZoom={mapZoom}
               >
-                {markers.map((marker) => (
-                  <Marker
-                    key={marker.id}
-                    position={{ lat: marker.lat, lng: marker.lng }}
-                    onClick={() => setSelectedRecipient(marker)}
-                    icon={{
-                      content: (() => {
-                        const isSelected = selectedRecipient?.id === marker.id;
-                        return `
-                        <div class="relative flex items-center justify-center ${isSelected ? 'scale-125 z-50' : 'scale-100'} transition-transform duration-300">
-                          ${isSelected ? '<div class="absolute -inset-2 bg-amber-400 rounded-full opacity-60 animate-ping"></div>' : ''}
-                          <div class="relative ${isSelected ? 'bg-amber-500' : 'bg-teal-600'} text-white rounded-full p-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.35)] border-2 border-white transition-colors duration-300">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                {markerClusters.map((cluster) => {
+                  if (cluster.length === 1) {
+                    const marker = cluster[0];
+                    const isSelected = selectedRecipient?.id === marker.id;
+                    return (
+                      <Marker
+                        key={marker.id}
+                        position={{ lat: marker.lat, lng: marker.lng }}
+                        onClick={() => setSelectedRecipient(marker)}
+                        icon={{
+                          content: `
+                            <div class="relative flex items-center justify-center ${isSelected ? 'scale-125 z-50' : 'scale-100'} transition-transform duration-300">
+                              ${isSelected ? '<div class="absolute -inset-2 bg-amber-400 rounded-full opacity-60 animate-ping"></div>' : ''}
+                              <div class="relative ${isSelected ? 'bg-amber-500' : 'bg-teal-600'} text-white rounded-full p-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.35)] border-2 border-white transition-colors duration-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                              </div>
+                            </div>
+                          `,
+                          anchor: { x: 24, y: 24 }
+                        }}
+                      />
+                    );
+                  }
+
+                  // 클러스터: 여러 명이 근처에 모여있으면 숫자 뱃지 하나로 표시.
+                  // 탭하면 그 지점으로 확대되면서 개별 마커로 풀린다.
+                  const centerLat = cluster.reduce((sum, m) => sum + m.lat, 0) / cluster.length;
+                  const centerLng = cluster.reduce((sum, m) => sum + m.lng, 0) / cluster.length;
+                  const size = cluster.length >= 10 ? 52 : cluster.length >= 5 ? 46 : 40;
+
+                  return (
+                    <Marker
+                      key={`cluster-${cluster.map((m) => m.id).join('-')}`}
+                      position={{ lat: centerLat, lng: centerLng }}
+                      onClick={() => {
+                        setMapCenter({ lat: centerLat, lng: centerLng });
+                        setMapZoom((prev) => Math.min(prev + 3, 21));
+                      }}
+                      icon={{
+                        content: `
+                          <div class="flex items-center justify-center rounded-full bg-teal-700 text-white font-extrabold border-2 border-white shadow-[0_4px_16px_rgba(0,0,0,0.35)] cursor-pointer"
+                               style="width:${size}px;height:${size}px;font-size:${size >= 46 ? 16 : 14}px;">
+                            ${cluster.length}
                           </div>
-                        </div>
-                      `;
-                      })(),
-                      anchor: { x: 24, y: 24 }
-                    }}
-                  />
-                ))}
+                        `,
+                        anchor: { x: size / 2, y: size / 2 }
+                      }}
+                    />
+                  );
+                })}
               </NaverMap>
             </Container>
           ) : (
