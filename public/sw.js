@@ -1,7 +1,15 @@
 const CACHE_NAME = 'careroute-store-v3';
 
-self.addEventListener('install', (e) => {
-  self.skipWaiting();
+// 예전엔 install 시점에 무조건 skipWaiting()을 호출해서 새 배포가 감지되는
+// 즉시(사용자 동의 없이) 조용히 페이지를 강제 새로고침시켰다. 이제는 새
+// 버전을 'waiting' 상태로 대기시켜두고, 클라이언트가 사용자 확인을 받은
+// 뒤 SKIP_WAITING 메시지를 보낼 때만 활성화한다.
+self.addEventListener('install', () => {});
+
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (e) => {
@@ -72,6 +80,24 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
+  // '업데이트 가능' 알림을 눌렀을 때: 대기 중인 새 버전을 바로 활성화시킨다.
+  // (활성화되면 activate 핸들러가 옛 캐시를 지우고, 클라이언트의
+  // controllerchange 리스너가 자동으로 새로고침한다.)
+  if (event.notification.data?.type === 'update') {
+    event.waitUntil(
+      (async () => {
+        if (self.registration.waiting) {
+          self.registration.waiting.postMessage('SKIP_WAITING');
+        }
+        const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+        if (windowClients.length > 0) return windowClients[0].focus();
+        return clients.openWindow('/CareRoute/');
+      })(),
+    );
+    return;
+  }
+
   const url = event.notification.data?.url || '/CareRoute/';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {

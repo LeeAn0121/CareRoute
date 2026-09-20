@@ -437,6 +437,8 @@ function MainApp() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(true); // default true to hide initially
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const waitingWorkerRef = useRef<ServiceWorker | null>(null);
   
   // Push 알림 구독: 서버(Edge Function)가 방문 예정 시간에 맞춰 실제 Web Push를
   // 보내주므로, 앱이 닫혀있거나 백그라운드여도 알림이 온다. (예전의 setInterval
@@ -485,8 +487,44 @@ function MainApp() {
 
     // Register Service Worker and handle updates
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/CareRoute/sw.js').catch(console.error);
-      
+      const notifyUpdateAvailable = (worker: ServiceWorker) => {
+        waitingWorkerRef.current = worker;
+        setUpdateAvailable(true);
+        // 앱이 백그라운드/다른 화면에 있어도 알아챌 수 있도록 시스템 알림도 함께 띄움
+        if (Notification.permission === 'granted') {
+          navigator.serviceWorker.ready.then((reg) => {
+            reg.showNotification('케어루트 업데이트', {
+              body: '새 버전이 있습니다. 눌러서 새로고침하세요.',
+              icon: '/CareRoute/icon-192.png',
+              tag: 'careroute-update',
+              data: { type: 'update' },
+            });
+          });
+        }
+      };
+
+      navigator.serviceWorker.register('/CareRoute/sw.js').then((registration) => {
+        // 등록 시점에 이미 새 버전이 대기 중인 경우 (예: 이전 방문 때 못 보고 넘어간 업데이트)
+        if (registration.waiting && navigator.serviceWorker.controller) {
+          notifyUpdateAvailable(registration.waiting);
+        }
+
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            // controller가 이미 있다 = 첫 설치가 아니라 갱신된 버전이 새로 설치된 것
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              notifyUpdateAvailable(newWorker);
+            }
+          });
+        });
+
+        // 앱을 오래 켜두는 현장 특성상, 새로고침 없이도 주기적으로 새 버전을 확인
+        const updateCheckId = setInterval(() => registration.update().catch(() => {}), 5 * 60 * 1000);
+        return () => clearInterval(updateCheckId);
+      }).catch(console.error);
+
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!refreshing) {
@@ -536,6 +574,17 @@ function MainApp() {
       setDeferredPrompt(null);
       setShowInstallPrompt(false);
     }
+  };
+
+  const handleUpdateRefresh = async () => {
+    // 강제 캐시 지우기: 새 버전 파일들을 확실히 새로 받아오도록 기존 캐시를 모두 비움
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      } catch {}
+    }
+    waitingWorkerRef.current?.postMessage('SKIP_WAITING');
   };
 
   const fetchMarkers = () => {
@@ -719,6 +768,27 @@ function MainApp() {
               <IconX size={20} />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* 앱 업데이트 안내창 */}
+      {updateAvailable && (
+        <div className="absolute top-4 left-4 right-4 z-[60] bg-slate-800 text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-fade-in-down">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/15 p-2 rounded-xl">
+              <IconDownload size={20} className="text-white" />
+            </div>
+            <div>
+              <p className="font-bold text-sm">새 버전이 있습니다</p>
+              <p className="text-xs text-slate-300">지금 새로고침하면 최신 버전으로 업데이트돼요</p>
+            </div>
+          </div>
+          <button
+            onClick={handleUpdateRefresh}
+            className="px-4 py-2 bg-white text-slate-800 font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform whitespace-nowrap"
+          >
+            새로고침
+          </button>
         </div>
       )}
 
@@ -1015,56 +1085,52 @@ function MainApp() {
         <IconPlus size={32} strokeWidth={2.5} />
       </Fab>
 
-      {/* Map Marker Popup */}
+      {/* Map Marker Popup (비중을 줄인 컴팩트 버전) */}
       <Drawer
         anchor="bottom"
         open={Boolean(selectedRecipient && activeTab === 'map')}
         onClose={() => setSelectedRecipient(null)}
-        sx={{ '& .MuiDrawer-paper': { borderTopLeftRadius: 12, borderTopRightRadius: 12, p: 3, pb: 14 } }}
+        sx={{ '& .MuiDrawer-paper': { borderTopLeftRadius: 16, borderTopRightRadius: 16, p: 2, pb: 11 } }}
         ModalProps={{ keepMounted: true }}
       >
         {selectedRecipient && (
           <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-              <Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                  <Typography variant="h5" component="div" sx={{ fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px' }}>
-                    {selectedRecipient.name} 어르신
-                  </Typography>
-                  <IconButton onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} size="small" sx={{ bgcolor: '#f8fafc' }}>
-                    <IconPencil size={18} />
-                  </IconButton>
-                  <IconButton onClick={() => handleDelete(selectedRecipient.id)} size="small" sx={{ bgcolor: '#fef2f2', color: '#ef4444' }}>
-                    <IconTrash size={18} />
-                  </IconButton>
-                </Box>
-                <Chip 
-                  icon={<IconClock size={16} />} 
-                  label={`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : selectedRecipient.visit_time.substring(0, 5) + ' 방문'}`} 
-                  color="primary" 
-                  variant="outlined" 
-                  size="small" 
-                  sx={{ mt: 1, fontWeight: 700, borderRadius: 2 }} 
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                <Typography variant="subtitle1" component="div" sx={{ fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                  {selectedRecipient.name} 어르신
+                </Typography>
+                <Chip
+                  icon={<IconClock size={12} />}
+                  label={`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : selectedRecipient.visit_time.substring(0, 5)}`}
+                  size="small"
+                  sx={{ height: 22, fontSize: 11, fontWeight: 700, bgcolor: '#f1f5f9', color: '#475569', '& .MuiChip-icon': { color: '#475569', ml: 0.5 } }}
                 />
               </Box>
-              <IconButton onClick={() => setSelectedRecipient(null)} sx={{ bgcolor: '#f1f5f9' }}>
-                <IconX size={20} />
-              </IconButton>
+              <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
+                <IconButton onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} size="small">
+                  <IconPencil size={16} />
+                </IconButton>
+                <IconButton onClick={() => handleDelete(selectedRecipient.id)} size="small" sx={{ color: '#ef4444' }}>
+                  <IconTrash size={16} />
+                </IconButton>
+                <IconButton onClick={() => setSelectedRecipient(null)} size="small">
+                  <IconX size={16} />
+                </IconButton>
+              </Box>
             </Box>
-            <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2.5, borderRadius: 2, mb: 3 }}>
-              <Typography variant="body1" sx={{ fontWeight: 600, color: '#475569', lineHeight: 1.6 }}>
-                {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
-              </Typography>
-            </Paper>
+            <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500, mb: 1.5, display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+              <IconMapPin size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+              {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
+            </Typography>
             <Button
               variant="contained"
               fullWidth
-              size="large"
-              startIcon={<IconNavigation />}
+              startIcon={<IconNavigation size={18} />}
               onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address)}
-              sx={{ py: 2, borderRadius: 2, fontSize: '1.1rem', fontWeight: 800, bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' }, boxShadow: '0 8px 24px rgba(15,23,42,0.3)' }}
+              sx={{ py: 1, borderRadius: 2, fontSize: '0.95rem', fontWeight: 700, bgcolor: '#0f172a', boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}
             >
-              이곳으로 길안내 시작
+              길안내 시작
             </Button>
           </Box>
         )}
