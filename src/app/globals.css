@@ -105,3 +105,14 @@ body {
 @utility pt-safe-top {
   padding-top: env(safe-area-inset-top);
 }
+
+/* Naver Map Dark Mode Simulation */
+.dark #react-naver-map {
+  filter: invert(98%) hue-rotate(180deg) brightness(85%) contrast(90%);
+  background-color: #000000 !important;
+}
+
+/* Reverse the filter for custom HTML markers so they retain their original theme colors */
+.dark #react-naver-map .marker-wrapper {
+  filter: invert(100%) hue-rotate(180deg) brightness(115%) contrast(110%);
+}

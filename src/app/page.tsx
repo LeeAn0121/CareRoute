@@ -253,7 +253,7 @@ function MainApp() {
     const marker = new window.naver.maps.Marker({
       position: new window.naver.maps.LatLng(centerLat, centerLng),
       icon: {
-        content: `<div style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; cursor: pointer;">${name}</div>`,
+        content: `<div class="marker-wrapper" style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; cursor: pointer;">${name}</div>`,
         anchor: new window.naver.maps.Point(20, 10)
       }
     });
@@ -1106,7 +1106,7 @@ function MainApp() {
       )}
 
       {/* Floating Header */}
-      {activeTab !== 'settings' && (
+      {activeTab === 'map' && (
       <header className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
         <div id="tour-header" className="p-4 pb-5 bg-surface rounded-b-3xl shadow-lg shadow-primary/5">
           <h1 className="flex items-center gap-3 mb-4 text-2xl font-black text-primary tracking-tight">
@@ -1159,9 +1159,9 @@ function MainApp() {
       <div className="flex-1 relative w-full h-full bg-surface-muted">
         
         {/* Map View */}
-        <div className={`absolute inset-0 top-0 ${activeTab === 'map' ? 'block' : 'hidden'}`}>
+        <div className={`absolute inset-0 top-0 transition-opacity duration-300 ${activeTab === 'map' ? 'z-0 opacity-100' : 'opacity-0 pointer-events-none'}`} style={{ zIndex: activeTab === 'map' ? 0 : -10 }}>
           {mapLoaded ? (
-            <Container className="w-full h-full">
+            <Container id="react-naver-map" className="w-full h-full bg-surface-muted transition-all duration-500">
               <NaverMap
                 ref={mapRef}
                 defaultCenter={mapCenter}
@@ -1178,7 +1178,7 @@ function MainApp() {
                         onClick={() => setSelectedRecipient(marker)}
                         icon={{
                           content: `
-                            <div class="relative flex flex-col items-center ${isSelected ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
+                            <div class="marker-wrapper relative flex flex-col items-center ${isSelected ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
                               <div class="relative w-11 h-11 flex items-center justify-center">
                                 ${isSelected ? '<div class="absolute -inset-1.5 bg-accent rounded-full opacity-60 animate-ping"></div>' : ''}
                                 <div class="relative w-11 h-11 rounded-full overflow-hidden bg-primary flex items-center justify-center border-2 ${isSelected ? 'border-accent' : 'border-white'} shadow-md shadow-foreground/20 transition-colors duration-300">
@@ -1214,7 +1214,7 @@ function MainApp() {
                       }}
                       icon={{
                         content: `
-                          <div class="flex items-center justify-center rounded-full bg-accent text-primary font-extrabold border-2 border-white shadow-lg shadow-accent/40 cursor-pointer"
+                          <div class="marker-wrapper flex items-center justify-center rounded-full bg-accent text-primary font-extrabold border-2 border-white shadow-lg shadow-accent/40 cursor-pointer"
                                style="width:${size}px;height:${size}px;font-size:${size >= 46 ? 16 : 14}px;">
                             ${cluster.length}
                           </div>
@@ -1243,7 +1243,7 @@ function MainApp() {
 
         {/* List View (Redesigned) */}
         {activeTab === 'list' && (
-          <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-background">
+          <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background">
             
             {/* 검색바 */}
             <div className="mb-3 relative">
@@ -1472,7 +1472,7 @@ function MainApp() {
         {/* 오늘의 경로: 오늘 방문 예정(날짜 지정 또는 반복 요일)인 곳만 모아
             최근접 삽입 휴리스틱으로 방문 순서를 매겨 보여준다. */}
         {activeTab === 'route' && (
-          <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-background">
+          <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-lg font-black text-primary">오늘의 방문 순서</p>
@@ -1585,7 +1585,7 @@ function MainApp() {
       {/* Floating Action Button (Add Recipient) */}
       {/* 우측 플로팅 버튼 스택: 헤더 높이(+노치 안전영역)만큼 아래에서 시작해서
           헤더의 시/도·군/구·동 select와 겹치지 않게 한 줄로 쌓는다. */}
-      {activeTab !== 'settings' && (<div
+      {activeTab === 'map' && (<div
         className="absolute right-4 z-40 flex flex-col gap-2"
         style={{ top: 'calc(env(safe-area-inset-top, 0px) + 132px)' }}
       >
