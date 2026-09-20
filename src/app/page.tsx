@@ -789,31 +789,29 @@ function MainApp() {
     }
   };
 
-  // 줌 레벨에 따라 마커를 숫자 뱃지로 뭉치거나(축소) 개별 마커로 풀어서(확대)
-  // 보여준다. 반경은 줌이 낮을수록(더 축소될수록) 커진다.
-  const clusterRadiusKm = (zoom: number) => {
-    if (zoom <= 11) return 5;
-    if (zoom <= 12) return 2.5;
-    if (zoom <= 13) return 1.2;
-    if (zoom <= 14) return 0.5;
-    if (zoom <= 15) return 0.2;
-    return 0; // 16 이상은 클러스터링 없이 개별 마커 (같은 건물 부챗살 분산만 적용)
-  };
+  // 줌 레벨에 따라 마커를 행정구역(시/도 → 시/군/구 → 동/읍/면) 단위로 묶어
+  // 숫자 뱃지로 보여준다. 거리 기반 그리드 대신 실제 행정구역 코드로 묶기
+  // 때문에, 지도를 조금만 움직여도 클러스터가 들쭉날쭉 바뀌던 문제가 없고
+  // 행정구역 경계 표시 기능과 동일한 줌 기준(10/13/15)을 공유해 일관적이다.
+  const clusterField: 'sido' | 'sigungu' | 'dong' | null =
+    mapZoom <= 10 ? 'sido' : mapZoom <= 13 ? 'sigungu' : mapZoom <= 15 ? 'dong' : null;
+
+  // 클러스터를 탭했을 때 다음 단계(하위 행정구역/개별 마커)가 바로 보이는
+  // 줌 레벨로 확대
+  const clusterDrillZoom = clusterField === 'sido' ? 12 : clusterField === 'sigungu' ? 14 : 17;
 
   const markerClusters = useMemo(() => {
-    const radius = clusterRadiusKm(mapZoom);
-    if (radius === 0) return markers.map((m) => [m]);
+    if (!clusterField) return markers.map((m) => [m]);
 
-    const clusters: Recipient[][] = [];
+    const groups = new Map<string, Recipient[]>();
     markers.forEach((marker) => {
-      const cluster = clusters.find((c) =>
-        getDistanceFromLatLonInKm(c[0].lat, c[0].lng, marker.lat, marker.lng) < radius
-      );
-      if (cluster) cluster.push(marker);
-      else clusters.push([marker]);
+      const key = marker[clusterField] || '__unknown__';
+      const group = groups.get(key);
+      if (group) group.push(marker);
+      else groups.set(key, [marker]);
     });
-    return clusters;
-  }, [markers, mapZoom]);
+    return Array.from(groups.values());
+  }, [markers, clusterField]);
 
   return (
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-slate-50 font-sans">
@@ -962,13 +960,14 @@ function MainApp() {
                   const centerLng = cluster.reduce((sum, m) => sum + m.lng, 0) / cluster.length;
                   const size = cluster.length >= 10 ? 52 : cluster.length >= 5 ? 46 : 40;
 
+                  const clusterKey = clusterField ? cluster[0][clusterField] : cluster[0].id;
                   return (
                     <Marker
-                      key={`cluster-${cluster.map((m) => m.id).join('-')}`}
+                      key={`cluster-${clusterKey}`}
                       position={{ lat: centerLat, lng: centerLng }}
                       onClick={() => {
                         setMapCenter({ lat: centerLat, lng: centerLng });
-                        setMapZoom((prev) => Math.min(prev + 3, 21));
+                        setMapZoom(clusterDrillZoom);
                       }}
                       icon={{
                         content: `
