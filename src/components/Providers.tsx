@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { NavermapsProvider, preloadNavermaps } from 'react-naver-maps';
 
 const navermapsOptions = {
-  ncpClientId: 'f9sp6e02ix',
+  ncpKeyId: 'f9sp6e02ix',
   submodules: [],
 };
 
