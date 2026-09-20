@@ -7,7 +7,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     fetch: (url, options) => {
-      return fetch(url, { ...options, cache: 'no-store' });
+      const fetchUrl = typeof url === 'string' ? url : url.toString();
+      const separator = fetchUrl.includes('?') ? '&' : '?';
+      const noCacheUrl = `${fetchUrl}${separator}t=${Date.now()}`;
+      return fetch(noCacheUrl, { ...options, cache: 'no-store' });
     }
   }
 })
