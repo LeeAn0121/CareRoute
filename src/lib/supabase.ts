@@ -7,17 +7,16 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     fetch: (url, options) => {
-      // url param must be string or Request. We don't modify the url string.
-      // Modifying query string with random params breaks PostgREST.
+      // options.headers가 Headers 객체일 수 있으므로 안전하게 복사
+      const headers = new Headers(options?.headers);
+      headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      headers.set('Pragma', 'no-cache');
+      headers.set('Expires', '0');
+
       return fetch(url, {
         ...options,
         cache: 'no-store',
-        headers: {
-          ...options?.headers,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
+        headers
       });
     }
   }
