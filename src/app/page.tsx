@@ -172,6 +172,49 @@ function MainApp() {
       });
     };
 
+    // 폴리곤 클릭 시 해당 구역으로 드롭다운 자동 필터링 (Reverse Geocoding)
+    if (!window.naver.maps.Event.hasListener(map.data, 'click')) {
+      window.naver.maps.Event.addListener(map.data, 'click', (e: any) => {
+        const lat = e.feature.properties?._centerLat;
+        const lng = e.feature.properties?._centerLng;
+        if (!lat || !lng || !window.naver.maps.Service) return;
+
+        // @ts-ignore
+        window.naver.maps.Service.reverseGeocode({
+          coords: new window.naver.maps.LatLng(lat, lng),
+          orders: [window.naver.maps.Service.OrderType.LEGAL_CODE].join(',')
+        }, function(status: any, response: any) {
+          if (status === 200 && response.v2.results.length > 0) {
+            const bcode = response.v2.results[0].code.id; // 10자리 법정동 코드
+            if (bcode && bcode.length === 10) {
+              const sido = bcode.substring(0, 2) + '00000000';
+              const sigungu = bcode.substring(0, 5) + '00000';
+              const dong = bcode;
+              
+              // 현재 보여지는 줌 레벨에 따라 드롭다운 세팅 다르게
+              if (currentRenderedLevel === 'sido') {
+                setSelectedSido(sido);
+                setSelectedSigungu('');
+                setSelectedDong('');
+                setMapZoom(11); // 군구 레벨로 줌인
+              } else if (currentRenderedLevel === 'sigungu') {
+                setSelectedSido(sido);
+                // 약간의 딜레이를 주어 Sido가 먼저 세팅되게 함 (목록 갱신을 위해)
+                setTimeout(() => setSelectedSigungu(sigungu), 100);
+                setSelectedDong('');
+                setMapZoom(14); // 동 레벨로 줌인
+              } else {
+                setSelectedSido(sido);
+                setTimeout(() => setSelectedSigungu(sigungu), 100);
+                setTimeout(() => setSelectedDong(dong), 200);
+                setMapZoom(15);
+              }
+            }
+          }
+        });
+      });
+    }
+
     // 지도 이동/확대 시 화면에 보이는 마커만 업데이트 (최적화)
     if (!window.naver.maps.Event.hasListener(map, 'idle')) {
       window.naver.maps.Event.addListener(map, 'idle', () => {
@@ -261,10 +304,47 @@ function MainApp() {
                   const marker = new window.naver.maps.Marker({
                     position: new window.naver.maps.LatLng(centerLat, centerLng),
                     icon: {
-                      content: `<div style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap;">${name}</div>`,
+                      content: `<div style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; cursor: pointer;">${name}</div>`,
                       anchor: new window.naver.maps.Point(20, 10)
                     }
                   });
+                  
+                  // 마커(라벨) 클릭 시에도 폴리곤 클릭과 동일하게 동작
+                  window.naver.maps.Event.addListener(marker, 'click', () => {
+                    // @ts-ignore
+                    if (!window.naver.maps.Service) return;
+                    // @ts-ignore
+                    window.naver.maps.Service.reverseGeocode({
+                      coords: new window.naver.maps.LatLng(centerLat, centerLng),
+                      orders: [window.naver.maps.Service.OrderType.LEGAL_CODE].join(',')
+                    }, function(status: any, response: any) {
+                      if (status === 200 && response.v2.results.length > 0) {
+                        const bcode = response.v2.results[0].code.id;
+                        if (bcode && bcode.length === 10) {
+                          const sido = bcode.substring(0, 2) + '00000000';
+                          const sigungu = bcode.substring(0, 5) + '00000';
+                          const dong = bcode;
+                          if (level === 'sido') {
+                            setSelectedSido(sido);
+                            setSelectedSigungu('');
+                            setSelectedDong('');
+                            setMapZoom(11);
+                          } else if (level === 'sigungu') {
+                            setSelectedSido(sido);
+                            setTimeout(() => setSelectedSigungu(sigungu), 100);
+                            setSelectedDong('');
+                            setMapZoom(14);
+                          } else {
+                            setSelectedSido(sido);
+                            setTimeout(() => setSelectedSigungu(sigungu), 100);
+                            setTimeout(() => setSelectedDong(dong), 200);
+                            setMapZoom(15);
+                          }
+                        }
+                      }
+                    });
+                  });
+                  
                   labelCache[level].push(marker);
                 }
               }
