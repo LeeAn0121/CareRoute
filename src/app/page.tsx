@@ -102,6 +102,28 @@ function MainApp() {
   const regionsLoaded = useRef(false);
   const regionLabelsRef = useRef<any[]>([]);
 
+  // Programmatic Pan & Zoom (React State -> Map API)
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    
+    // 현재 지도의 실제 상태
+    const currentCenter = map.getCenter();
+    const currentZoom = map.getZoom();
+    
+    // React State와 실제 지도 상태가 다를 때만 이동 (유저가 직접 드래그한 것을 되돌리지 않기 위해)
+    const latDiff = Math.abs(currentCenter.y - mapCenter.lat);
+    const lngDiff = Math.abs(currentCenter.x - mapCenter.lng);
+    
+    if (latDiff > 0.0001 || lngDiff > 0.0001) {
+      map.panTo(mapCenter);
+    }
+    
+    if (currentZoom !== mapZoom) {
+      map.setZoom(mapZoom);
+    }
+  }, [mapCenter, mapZoom]);
+
   // Semantic Zoom (시도 -> 시군구 -> 동)
   useEffect(() => {
     if (!mapRef.current || !window.naver) return;
@@ -224,6 +246,18 @@ function MainApp() {
         const minLng = bounds.minX() - 0.15;
         const maxLng = bounds.maxX() + 0.15;
         
+        // 확대/축소 및 이동 추적 (깜빡임 방지를 위해 애니메이션 종료 후 한 번만 상태 업데이트)
+        const currentZoom = map.getZoom();
+        if (currentZoom !== mapZoom) {
+            setMapZoom(currentZoom);
+        }
+        const currentCenter = map.getCenter();
+        const latDiff = Math.abs(currentCenter.y - mapCenter.lat);
+        const lngDiff = Math.abs(currentCenter.x - mapCenter.lng);
+        if (latDiff > 0.0001 || lngDiff > 0.0001) {
+            setMapCenter({ lat: currentCenter.y, lng: currentCenter.x });
+        }
+
         // 새로 보여야 할 폴리곤만 추가 (성능 최적화)
         if (geoCache[currentRenderedLevel]) {
            const existingIds = new Set();
@@ -717,9 +751,7 @@ function MainApp() {
               <NaverMap
                 ref={mapRef}
                 defaultCenter={mapCenter}
-                center={mapCenter}
-                zoom={mapZoom}
-                onZoomChanged={(z: number) => setMapZoom(z)}
+                defaultZoom={mapZoom}
               >
                 {markers.map((marker) => (
                   <Marker
