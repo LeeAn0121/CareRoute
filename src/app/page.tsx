@@ -55,6 +55,11 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
   return R * c;
 }
 
+
+// GeoJSON 밎 마커 캐시
+const geoCache: any = { sido: null, sigungu: null, dong: null };
+const labelCache: any = { sido: [], sigungu: [], dong: [] };
+
 function MainApp() {
   const handleMyLocation = () => {
     if (!navigator.geolocation) {
@@ -92,69 +97,101 @@ function MainApp() {
   const regionsLoaded = useRef(false);
   const regionLabelsRef = useRef<any[]>([]);
 
-  // Load Regions GeoJSON
+  // Semantic Zoom (시도 -> 시군구 -> 동)
   useEffect(() => {
-    if (showRegions && mapRef.current && window.naver && !regionsLoaded.current) {
-      regionsLoaded.current = true;
-      const map = mapRef.current;
-      fetch(`https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_municipalities_geo_simple.json`)
+    if (!mapRef.current || !window.naver) return;
+    const map = mapRef.current;
+
+    if (!showRegions) {
+      map.data.setStyle({ visible: false });
+      ['sido', 'sigungu', 'dong'].forEach(level => {
+        labelCache[level].forEach((m: any) => m.setMap(null));
+      });
+      return;
+    }
+
+    const level = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
+    const urlMap: any = {
+      sido: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_provinces_geo_simple.json',
+      sigungu: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_municipalities_geo_simple.json',
+      dong: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_submunicipalities_geo_simple.json'
+    };
+
+    const drawLevel = (lvl: string) => {
+      // 1. 기존 데이터 모두 지우기
+      map.data.getAllFeature().forEach((f: any) => map.data.removeFeature(f));
+      // 2. 다른 레벨 마커 숨기기
+      ['sido', 'sigungu', 'dong'].forEach(l => {
+        if (l !== lvl) labelCache[l].forEach((m: any) => m.setMap(null));
+      });
+
+      // 3. 새 데이터 그리기
+      map.data.addGeoJson(geoCache[lvl]);
+      map.data.setStyle({
+        fillColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
+        fillOpacity: 0.1,
+        strokeColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
+        strokeWeight: lvl === 'dong' ? 1 : 2,
+        strokeOpacity: 0.6,
+        visible: true
+      });
+
+      // 4. 현재 레벨 마커 보이기
+      labelCache[lvl].forEach((m: any) => m.setMap(map));
+    };
+
+    if (geoCache[level]) {
+      drawLevel(level);
+    } else {
+      fetch(urlMap[level])
         .then(r => r.json())
         .then(geojson => {
-          map.data.addGeoJson(geojson);
+          geoCache[level] = geojson;
           
-          // 이름 라벨 마커 생성 (시군구)
           if (geojson.features) {
             geojson.features.forEach((feature: any) => {
               const name = feature.properties?.name;
-              const coords = feature.geometry.coordinates;
+              const coords = feature.geometry?.coordinates;
               if (name && coords) {
-                // Polygon 중심점 대략 계산
                 let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+                let valid = false;
+                try {
+                  const poly = feature.geometry.type === 'MultiPolygon' ? coords[0][0] : coords[0];
+                  poly.forEach((coord: number[]) => {
+                    if (coord[1] < minLat) minLat = coord[1];
+                    if (coord[1] > maxLat) maxLat = coord[1];
+                    if (coord[0] < minLng) minLng = coord[0];
+                    if (coord[0] > maxLng) maxLng = coord[0];
+                    valid = true;
+                  });
+                } catch (e) {}
                 
-                // MultiPolygon or Polygon handling
-                const poly = feature.geometry.type === 'MultiPolygon' ? coords[0][0] : coords[0];
-                
-                poly.forEach((coord: number[]) => {
-                  if (coord[1] < minLat) minLat = coord[1];
-                  if (coord[1] > maxLat) maxLat = coord[1];
-                  if (coord[0] < minLng) minLng = coord[0];
-                  if (coord[0] > maxLng) maxLng = coord[0];
-                });
-                
-                const centerLat = (minLat + maxLat) / 2;
-                const centerLng = (minLng + maxLng) / 2;
-                
-                const marker = new window.naver.maps.Marker({
-                  position: new window.naver.maps.LatLng(centerLat, centerLng),
-                  map: map,
-                  icon: {
-                    content: `<div style="padding: 3px 8px; background: rgba(13, 148, 136, 0.9); color: white; border-radius: 12px; font-size: 12px; font-weight: bold; border: 1.5px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.2); white-space: nowrap;">${name}</div>`,
-                    anchor: new window.naver.maps.Point(20, 15)
-                  }
-                });
-                regionLabelsRef.current.push(marker);
+                if (valid) {
+                  const centerLat = (minLat + maxLat) / 2;
+                  const centerLng = (minLng + maxLng) / 2;
+                  const bg = level === 'dong' ? 'rgba(14, 165, 233, 0.85)' : (level === 'sigungu' ? 'rgba(13, 148, 136, 0.95)' : 'rgba(139, 92, 246, 0.95)');
+                  const fs = level === 'dong' ? '11px' : '13px';
+                  
+                  const marker = new window.naver.maps.Marker({
+                    position: new window.naver.maps.LatLng(centerLat, centerLng),
+                    icon: {
+                      content: `<div style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap;">${name}</div>`,
+                      anchor: new window.naver.maps.Point(20, 10)
+                    }
+                  });
+                  labelCache[level].push(marker);
+                }
               }
             });
           }
+          // 만약 로딩 중에 줌이 바뀌었으면 그리지 않음
+          const currentLevel = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
+          if (level === currentLevel && showRegions) {
+            drawLevel(level);
+          }
         });
-      map.data.setStyle((feature: any) => {
-        return {
-          fillColor: '#0d9488',
-          fillOpacity: 0.1,
-          strokeColor: '#0d9488',
-          strokeWeight: 2,
-          strokeOpacity: 0.6,
-          visible: true
-        };
-      });
-    } else if (mapRef.current && window.naver) {
-      mapRef.current.data.setStyle({ visible: showRegions });
-      // 토글 시 라벨 마커 보이기/숨기기
-      regionLabelsRef.current.forEach(marker => {
-        marker.setMap(showRegions ? mapRef.current : null);
-      });
     }
-  }, [showRegions]);
+  }, [mapZoom, showRegions]);
 
   useEffect(() => {
     if (selectedDong) {
