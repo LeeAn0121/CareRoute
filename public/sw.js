@@ -1,4 +1,4 @@
-const CACHE_NAME = 'careroute-store-v2';
+const CACHE_NAME = 'careroute-store-v3';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -16,17 +16,16 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const { request } = e;
 
-  // The Cache API only supports GET; let POST/PUT/etc (Supabase writes, etc.)
-  // pass straight through to the network untouched.
   if (request.method !== 'GET') {
     return;
   }
 
-  // Always go to the network for navigations (the HTML shell) so a new
-  // deploy's fresh chunk references are used instead of a stale cached shell.
-  // If the network is unreachable (spotty mobile signal), fall back to
-  // whatever shell is cached rather than resolving to nothing, which the
-  // browser renders as its own "page couldn't load" error.
+  // 데이터베이스 API (Supabase) 요청은 절대 캐시하지 않음 (네트워크 직행)
+  if (request.url.includes('supabase.co')) {
+    e.respondWith(fetch(request));
+    return;
+  }
+
   if (request.mode === 'navigate') {
     e.respondWith(
       fetch(request).catch(
@@ -37,14 +36,10 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Static assets (Next.js content-hashed chunks, images, etc.) are safe to
-  // cache-first since a new build ships new filenames.
   e.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
       return fetch(request).then((response) => {
-        // Only http(s) requests are cacheable; requests injected by browser
-        // extensions (chrome-extension://, etc.) must be skipped.
         if (response.ok && request.url.startsWith('http')) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
