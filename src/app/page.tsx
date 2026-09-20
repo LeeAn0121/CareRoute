@@ -283,6 +283,16 @@ function MainApp() {
   useEffect(() => { showRegionsRef.current = showRegions; }, [showRegions]);
 
   const idleListenerRegisteredRef = useRef(false);
+  // 디버그용: idle 이벤트가 실제로 몇 번 발생했는지, 그리고 지도 자체의
+  // 실제 줌 값(React state를 거치지 않고 직접 폴링)을 보여줘서 원인을 좁힌다.
+  const [debugIdleCount, setDebugIdleCount] = useState(0);
+  const [debugActualZoom, setDebugActualZoom] = useState<number | null>(null);
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (mapRef.current) setDebugActualZoom(mapRef.current.getZoom());
+    }, 500);
+    return () => clearInterval(id);
+  }, []);
 
   // 지도 이동/확대를 React 상태(mapZoom/mapCenter)와 항상 동기화하고, 켜져
   // 있으면 행정구역 폴리곤/라벨도 함께 갱신한다. showRegions 여부와 무관하게
@@ -295,6 +305,7 @@ function MainApp() {
     idleListenerRegisteredRef.current = true;
 
     window.naver.maps.Event.addListener(map, 'idle', () => {
+      setDebugIdleCount((c) => c + 1);
       setMapZoom(map.getZoom());
       const center = map.getCenter();
       setMapCenter({ lat: center.y, lng: center.x });
@@ -1139,7 +1150,7 @@ function MainApp() {
               문제 해결되면 지울 것. */}
           {activeTab === 'map' && (
             <div className="absolute top-[200px] left-4 z-40 bg-black/70 text-white text-[11px] font-mono px-2 py-1 rounded-md pointer-events-none">
-              zoom: {mapZoom} · clusterField: {clusterField ?? 'none'} · clusters: {markerClusters.length} · markers: {markers.length}
+              zoom(state): {mapZoom} · zoom(실제): {debugActualZoom} · idle횟수: {debugIdleCount} · cluster: {clusterField ?? 'none'} ({markerClusters.length})
             </div>
           )}
           {mapLoaded ? (
