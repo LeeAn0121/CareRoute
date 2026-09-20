@@ -475,9 +475,17 @@ function MainApp() {
     const standalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     setIsStandalone(standalone);
 
-    // Register Service Worker
+    // Register Service Worker and handle updates
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/CareRoute/sw.js').catch(console.error);
+      
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
     }
 
     const handleBeforeInstallPrompt = (e: any) => {
@@ -914,6 +922,27 @@ function MainApp() {
       </div>
 
       {/* Floating Action Button (Add Recipient) */}
+      {/* 캐시 강제 삭제 및 새로고침 버튼 (모바일용) */}
+      <Fab
+        size="small"
+        onClick={async () => {
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(key => caches.delete(key)));
+          }
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (let reg of regs) {
+              await reg.unregister();
+            }
+          }
+          window.location.href = window.location.pathname + '?t=' + Date.now();
+        }}
+        sx={{ position: 'absolute', top: 72, right: 16, zIndex: 40, bgcolor: '#ef4444', color: '#ffffff', borderRadius: 2, '&:hover': { bgcolor: '#dc2626' } }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path></svg>
+      </Fab>
+
       {activeTab === 'map' && (
         <>
           {/* 행정구역 토글 버튼 */}
