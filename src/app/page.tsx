@@ -1,25 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import 'leaflet/dist/leaflet.css';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-
-const customIcon = new L.Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-const RecenterMap = ({ lat, lng }: { lat: number, lng: number }) => {
-  const map = useMap();
-  map.setView([lat, lng], 15);
-  return null;
-};
-
+import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { Select, MenuItem, FormControl, Button, Fab, BottomNavigation, BottomNavigationAction, Paper, Typography, Card, CardContent, Drawer, Box, Chip, IconButton } from '@mui/material';
@@ -358,24 +339,42 @@ function MainApp() {
         
         {/* Map View */}
         <div className={`absolute inset-0 top-0 ${activeTab === 'map' ? 'block' : 'hidden'}`}>
-          
-          <MapContainer center={[mapCenter.lat, mapCenter.lng]} zoom={15} style={{ height: '100%', width: '100%', zIndex: 10 }}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <RecenterMap lat={mapCenter.lat} lng={mapCenter.lng} />
-            {markers.map((marker) => (
-              <Marker
-                key={marker.id}
-                position={[marker.lat, marker.lng]}
-                icon={customIcon}
-                eventHandlers={{ click: () => setSelectedRecipient(marker) }}
+          {mapLoaded ? (
+            <Container className="w-full h-full">
+              <NaverMap
+                defaultCenter={mapCenter}
+                center={mapCenter}
+                defaultZoom={15}
               >
-              </Marker>
-            ))}
-          </MapContainer>
-
+                {markers.map((marker) => (
+                  <Marker
+                    key={marker.id}
+                    position={{ lat: marker.lat, lng: marker.lng }}
+                    onClick={() => setSelectedRecipient(marker)}
+                    icon={{
+                      content: `
+                        <div class="relative flex items-center justify-center w-12 h-12 ${selectedRecipient?.id === marker.id ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
+                          <div class="absolute inset-0 bg-teal-500 rounded-full opacity-30 animate-ping"></div>
+                          <div class="relative bg-teal-600 text-white rounded-full p-2.5 shadow-[0_4px_12px_rgba(13,148,136,0.5)] border-2 border-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                          </div>
+                        </div>
+                      `,
+                      anchor: { x: 24, y: 24 }
+                    }}
+                  />
+                ))}
+              </NaverMap>
+            </Container>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 px-8 text-center pt-20">
+              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-sm mb-6">
+                <IconMapPin size={40} className="text-slate-300" />
+              </div>
+              <p className="font-extrabold text-xl text-slate-600 mb-3 tracking-tight">지도 연동 대기 중</p>
+              <p className="text-[15px] leading-relaxed">네이버 클라우드 서버 동기화가 지연되고 있습니다.<br/>(목록 탭은 지금 바로 정상 사용 가능합니다!)</p>
+            </div>
+          )}
         </div>
 
         {/* List View (Redesigned) */}
