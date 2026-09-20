@@ -71,6 +71,10 @@ function MainApp() {
       setMapZoom(17);
     }, (error) => {
       alert("위치 정보를 가져올 수 없습니다. GPS가 켜져 있는지 확인해주세요.");
+    }, {
+      enableHighAccuracy: false,
+      maximumAge: 60000,
+      timeout: 5000
     });
   };
 
@@ -194,14 +198,33 @@ function MainApp() {
   }, [mapZoom, showRegions]);
 
   useEffect(() => {
-    if (selectedDong) {
-      const firstElder = markers.find(m => m.dong === selectedDong);
-      if (firstElder) {
-        setMapCenter({ lat: firstElder.lat, lng: firstElder.lng });
-        setMapZoom(15);
+    if (!window.naver || !window.naver.maps || !window.naver.maps.Service) return;
+    
+    // 선택된 행정구역 이름 조합
+    let query = '';
+    const sidoName = sidos.find(s => s.code === selectedSido)?.name || '';
+    const sigunguName = sigungus.find(s => s.code === selectedSigungu)?.name || '';
+    const dongName = dongs.find(s => s.code === selectedDong)?.name || '';
+    
+    if (dongName) query = `${sidoName} ${sigunguName} ${dongName}`.trim();
+    else if (sigunguName) query = `${sidoName} ${sigunguName}`.trim();
+    else if (sidoName) query = sidoName;
+    
+    if (!query) return;
+
+    // 네이버 지오코딩으로 해당 구역 중심 좌표 찾기
+    // @ts-ignore
+    window.naver.maps.Service.geocode({ query }, function(status, response) {
+      // @ts-ignore
+      if (status === window.naver.maps.Service.Status.OK && response.v2.addresses.length > 0) {
+        const item = response.v2.addresses[0];
+        setMapCenter({ lat: parseFloat(item.y), lng: parseFloat(item.x) });
+        if (dongName) setMapZoom(15);
+        else if (sigunguName) setMapZoom(13);
+        else setMapZoom(10);
       }
-    }
-  }, [selectedDong]);
+    });
+  }, [selectedSido, selectedSigungu, selectedDong, sidos, sigungus, dongs]);
 
 
 
