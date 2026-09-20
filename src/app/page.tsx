@@ -59,6 +59,7 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
 // GeoJSON 밎 마커 캐시
 const geoCache: any = { sido: null, sigungu: null, dong: null };
 const labelCache: any = { sido: [], sigungu: [], dong: [] };
+let currentRenderedLevel = ''; // Track currently rendered level to prevent re-rendering
 
 function MainApp() {
   const handleMyLocation = () => {
@@ -108,13 +109,18 @@ function MainApp() {
 
     if (!showRegions) {
       map.data.setStyle({ visible: false });
-      ['sido', 'sigungu', 'dong'].forEach(level => {
-        labelCache[level].forEach((m: any) => m.setMap(null));
+      ['sido', 'sigungu', 'dong'].forEach(lvl => {
+        labelCache[lvl].forEach((m: any) => m.setMap(null));
       });
+      currentRenderedLevel = '';
       return;
     }
 
     const level = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
+    
+    // 🔥 Optimization: Don't re-render if the level hasn't changed!
+    if (currentRenderedLevel === level) return;
+    
     const urlMap: any = {
       sido: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_provinces_geo_simple.json',
       sigungu: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_municipalities_geo_simple.json',
@@ -122,14 +128,11 @@ function MainApp() {
     };
 
     const drawLevel = (lvl: string) => {
+      currentRenderedLevel = lvl;
       // 1. 기존 데이터 모두 지우기
       map.data.getAllFeature().forEach((f: any) => map.data.removeFeature(f));
-      // 2. 다른 레벨 마커 숨기기
-      ['sido', 'sigungu', 'dong'].forEach(l => {
-        if (l !== lvl) labelCache[l].forEach((m: any) => m.setMap(null));
-      });
-
-      // 3. 새 데이터 그리기
+      
+      // 2. 새 데이터 그리기
       map.data.addGeoJson(geoCache[lvl]);
       map.data.setStyle({
         fillColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
@@ -140,9 +143,33 @@ function MainApp() {
         visible: true
       });
 
-      // 4. 현재 레벨 마커 보이기
-      labelCache[lvl].forEach((m: any) => m.setMap(map));
+      // 3. 마커 렌더링 최적화 (현재 뷰포트 내의 마커만 표시)
+      const bounds = map.getBounds();
+      ['sido', 'sigungu', 'dong'].forEach(l => {
+        labelCache[l].forEach((m: any) => {
+          if (l === lvl && bounds.hasLatLng(m.getPosition())) {
+            if (!m.getMap()) m.setMap(map);
+          } else {
+            if (m.getMap()) m.setMap(null);
+          }
+        });
+      });
     };
+
+    // 지도 이동/확대 시 화면에 보이는 마커만 업데이트 (최적화)
+    if (!window.naver.maps.Event.hasListener(map, 'idle')) {
+      window.naver.maps.Event.addListener(map, 'idle', () => {
+        if (!showRegions || !currentRenderedLevel) return;
+        const bounds = map.getBounds();
+        labelCache[currentRenderedLevel].forEach((m: any) => {
+          if (bounds.hasLatLng(m.getPosition())) {
+            if (!m.getMap()) m.setMap(map);
+          } else {
+            if (m.getMap()) m.setMap(null);
+          }
+        });
+      });
+    }
 
     if (geoCache[level]) {
       drawLevel(level);
