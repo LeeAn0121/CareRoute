@@ -90,6 +90,7 @@ function MainApp() {
   const [showRegions, setShowRegions] = useState(false);
   const mapRef = useRef<any>(null);
   const regionsLoaded = useRef(false);
+  const regionLabelsRef = useRef<any[]>([]);
 
   // Load Regions GeoJSON
   useEffect(() => {
@@ -102,6 +103,27 @@ function MainApp() {
           .then(r => r.json())
           .then(geojson => {
             map.data.addGeoJson(geojson);
+            
+            // 이름 라벨 마커 생성
+            if (geojson.features) {
+              geojson.features.forEach((feature: any) => {
+                const name = feature.properties?.area1;
+                const bbox = feature.bbox;
+                if (name && bbox) {
+                  const centerLat = (bbox[1] + bbox[3]) / 2;
+                  const centerLng = (bbox[0] + bbox[2]) / 2;
+                  const marker = new window.naver.maps.Marker({
+                    position: new window.naver.maps.LatLng(centerLat, centerLng),
+                    map: map,
+                    icon: {
+                      content: `<div style="padding: 4px 10px; background: rgba(13, 148, 136, 0.95); color: white; border-radius: 20px; font-size: 14px; font-weight: bold; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); white-space: nowrap; transition: all 0.2s ease;">${name}</div>`,
+                      anchor: new window.naver.maps.Point(20, 15)
+                    }
+                  });
+                  regionLabelsRef.current.push(marker);
+                }
+              });
+            }
           });
       }
       map.data.setStyle((feature: any) => {
@@ -116,6 +138,10 @@ function MainApp() {
       });
     } else if (mapRef.current && window.naver) {
       mapRef.current.data.setStyle({ visible: showRegions });
+      // 토글 시 라벨 마커 보이기/숨기기
+      regionLabelsRef.current.forEach(marker => {
+        marker.setMap(showRegions ? mapRef.current : null);
+      });
     }
   }, [showRegions]);
 
