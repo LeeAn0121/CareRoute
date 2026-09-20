@@ -1436,10 +1436,19 @@ function MainApp() {
                   return (
                     <div
                       key={marker.id}
-                      className={`rounded-xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] bg-white p-4 flex gap-3 items-start ${completed ? 'opacity-50' : ''}`}
+                      onClick={() => setSelectedRecipient(marker)}
+                      className={`rounded-xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] bg-white p-4 flex gap-3 items-start cursor-pointer active:scale-[0.98] transition-transform ${completed ? 'opacity-50' : ''}`}
                     >
                       <div className="w-8 h-8 rounded-full bg-[#12203D] text-white text-sm font-extrabold flex items-center justify-center flex-shrink-0 mt-0.5">
                         {i + 1}
+                      </div>
+                      <div className="w-11 h-11 rounded-xl bg-[#EEF1F6] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {marker.photo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <IconUser size={20} color="#12203D" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -1451,7 +1460,7 @@ function MainApp() {
                         <p className="text-sm text-slate-500 font-medium mt-1 truncate">
                           {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
                         </p>
-                        <div className="flex gap-2 mt-3">
+                        <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
                           <Button
                             variant={completed ? 'ghost' : 'primary'}
                             startIcon={<IconCheck size={16} />}
@@ -1563,7 +1572,7 @@ function MainApp() {
       </button>
 
       {/* 어르신 상세 팝업 (지도 마커 클릭, 명단 보기 클릭 공용) */}
-      <Modal open={Boolean(selectedRecipient && activeTab === 'map')} onClose={() => setSelectedRecipient(null)}>
+      <Modal open={Boolean(selectedRecipient && (activeTab === 'map' || activeTab === 'route'))} onClose={() => setSelectedRecipient(null)}>
         {selectedRecipient && (
           <div>
             <div className="relative h-28 bg-gradient-to-br from-[#12203D] to-[#1A2F52]">
