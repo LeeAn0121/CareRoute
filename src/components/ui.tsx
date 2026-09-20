@@ -84,7 +84,7 @@ export function IconButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
-      className={`inline-flex items-center justify-center rounded-lg p-2 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none ${className}`}
+      className={`inline-flex items-center justify-center rounded-2xl p-2.5 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none ${className}`}
     >
       {children}
     </button>
@@ -178,7 +178,7 @@ export function TextField({
           required={required}
           disabled={disabled}
           placeholder={placeholder}
-          className="w-full rounded-xl border border-surface-border bg-surface px-3 py-2.5 text-[0.95rem] font-medium text-primary disabled:bg-surface-muted disabled:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
+          className="w-full rounded-2xl border border-surface-border/80 bg-surface px-4 py-3.5 text-[0.95rem] font-medium text-primary disabled:bg-surface-muted disabled:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
         />
         {endAdornment && (
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">{endAdornment}</div>
@@ -206,7 +206,7 @@ export function NativeSelect({
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className={`w-full rounded-xl bg-surface-muted px-3 py-3.5 text-[15px] font-black text-primary shadow-sm border border-surface-border disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer  ${className}`}
+      className={`w-full rounded-2xl bg-surface-muted/50 px-4 py-4 text-[15px] font-black text-primary shadow-sm border border-surface-border/50 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer  ${className}`}
     >
       {children}
     </select>
@@ -268,7 +268,7 @@ export function Modal({
                 }}
               >
                 <motion.div
-                  className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-2xl bg-surface shadow-2xl pointer-events-auto"
+                  className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-[32px] bg-surface shadow-2xl shadow-black/20 pointer-events-auto border border-surface-border/40"
                   initial={{ opacity: 0, scale: 0.96, y: 8 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, y: 4 }}
@@ -328,7 +328,7 @@ export function BottomSheet({
               }}
             >
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[90] rounded-t-2xl bg-surface shadow-2xl"
+                className="fixed inset-x-0 bottom-0 z-[90] rounded-t-[32px] bg-surface shadow-2xl shadow-black/30 border-t border-surface-border/40"
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}

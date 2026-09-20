@@ -1123,7 +1123,7 @@ function MainApp() {
         <div className="flex justify-start pointer-events-auto">
           <button 
             onClick={() => setShowRegionFilter(!showRegionFilter)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-surface/90 backdrop-blur-xl rounded-full shadow-md shadow-foreground/5 border border-surface-border/50 transition-all hover:scale-105 active:scale-95"
+            className="flex items-center gap-2 px-5 py-3 bg-surface/95 backdrop-blur-2xl rounded-full shadow-lg shadow-foreground/5 border border-surface-border/60 transition-all hover:scale-105 active:scale-95"
           >
             <IconMapPin size={18} className="text-primary" />
             <span className="text-[14px] font-black text-primary">
@@ -1290,7 +1290,7 @@ function MainApp() {
                 placeholder="이름 또는 주소 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-surface border border-surface-border rounded-xl py-3.5 pl-12 pr-10 text-[16px] shadow-sm font-semibold text-foreground/80 placeholder:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+                className="w-full bg-surface border border-surface-border/60 rounded-full py-4 pl-12 pr-10 shadow-sm text-[16px] shadow-sm font-semibold text-foreground/80 placeholder:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
               />
               <IconSearch size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/50" />
               {searchQuery && (
@@ -1305,7 +1305,7 @@ function MainApp() {
 
             {/* 뷰 모드 + 정렬 */}
             <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex bg-surface-muted p-1 rounded-xl shadow-sm border border-surface-border">
+              <div className="flex bg-surface-muted/80 p-1.5 rounded-full shadow-inner border border-surface-border/40">
                 <button onClick={() => setListViewMode('list')} className={`p-1.5 rounded-lg transition-colors ${listViewMode === 'list' ? 'bg-surface text-primary shadow-sm' : 'text-foreground/40 hover:text-foreground/70'}`}><IconList size={18} /></button>
                 <button onClick={() => setListViewMode('grid')} className={`p-1.5 rounded-lg transition-colors ${listViewMode === 'grid' ? 'bg-surface text-primary shadow-sm' : 'text-foreground/40 hover:text-foreground/70'}`}><IconLayoutGrid size={18} /></button>
                 <button onClick={() => setListViewMode('compact')} className={`p-1.5 rounded-lg transition-colors ${listViewMode === 'compact' ? 'bg-surface text-primary shadow-sm' : 'text-foreground/40 hover:text-foreground/70'}`}><IconListDetails size={18} /></button>
@@ -1313,7 +1313,7 @@ function MainApp() {
               <select
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
-                className="bg-surface border border-surface-border rounded-xl px-3 py-1.5 text-xs font-bold text-foreground/70 focus:outline-none"
+                className="bg-surface border border-surface-border/60 rounded-full px-4 py-2 text-[13px] font-bold text-foreground/80 focus:outline-none shadow-sm"
               >
                 <option value="time">서비스 시간순</option>
                 <option value="name">이름순</option>
@@ -1334,7 +1334,7 @@ function MainApp() {
                   <button
                     key={f.key}
                     onClick={() => setListFilter(f.key)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                    className={`px-4 py-2 rounded-full text-[13px] font-black whitespace-nowrap shadow-sm transition-all active:scale-95 ${
                       listFilter === f.key ? 'bg-primary text-white' : 'bg-surface text-foreground/60 border border-surface-border'
                     }`}
                   >
@@ -1394,7 +1394,7 @@ function MainApp() {
                     exit={{ opacity: 0, scale: 0.96 }}
                     transition={{ duration: 0.22, delay: Math.min(index, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
                     whileTap={{ scale: 0.98 }}
-                    className={`rounded-xl ${listViewMode === 'list' ? 'mb-2' : ''} border border-surface-border shadow-sm shadow-foreground/5 cursor-pointer bg-surface overflow-hidden flex flex-col`}
+                    className={`rounded-3xl ${listViewMode === 'list' ? 'mb-3' : ''} border border-surface-border/50 shadow-md shadow-foreground/5 cursor-pointer bg-surface overflow-hidden flex flex-col hover:shadow-lg transition-all`}
                     onClick={() => {
                       setMapCenter({ lat: marker.lat, lng: marker.lng });
                       setMapZoom(17);
@@ -1429,7 +1429,7 @@ function MainApp() {
                           </div>
                         </div>
 
-                        <div className="bg-surface-muted rounded-lg p-4 mb-5 flex gap-3 items-center">
+                        <div className="bg-surface-muted/50 rounded-2xl p-4 mb-5 flex gap-3 items-center border border-surface-border/30">
                           <IconMapPin size={22} color="#94a3b8" className="flex-shrink-0" />
                           <p className="font-semibold text-foreground/70 leading-snug">
                             {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
@@ -1437,10 +1437,10 @@ function MainApp() {
                         </div>
 
                         <div className="flex gap-2">
-                          <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} className="flex-1 py-3 text-sm border border-surface-border">
+                          <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} className="flex-1 py-3.5 text-[15px] font-bold rounded-2xl border border-surface-border/60 text-foreground/80">
                             수정
                           </Button>
-                          <Button variant="dark" startIcon={<IconNavigation size={18} />} onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }} className="flex-[2] py-3 text-sm">
+                          <Button variant="dark" startIcon={<IconNavigation size={18} />} onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }} className="flex-[2] py-3.5 text-[15px] font-black rounded-2xl shadow-md shadow-primary/20 hover:bg-primary/90 transition-colors">
                             길안내
                           </Button>
                         </div>
