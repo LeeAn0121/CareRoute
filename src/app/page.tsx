@@ -92,17 +92,33 @@ function MainApp() {
       setMapZoom(17);
     };
 
+    const describeError = (error: GeolocationPositionError) => {
+      if (error.code === error.PERMISSION_DENIED) {
+        return '위치 권한이 거부되어 있습니다. 브라우저(또는 기기 설정)에서 케어루트의 위치 접근을 허용해주세요.';
+      }
+      if (error.code === error.POSITION_UNAVAILABLE) {
+        return '현재 위치를 확인할 수 없습니다. GPS/Wi-Fi가 켜져 있는지, 실외인지 확인해주세요.';
+      }
+      return '위치 확인이 너무 오래 걸려 실패했습니다. 신호가 약한 곳일 수 있어요. 다시 시도해주세요.';
+    };
+
     // 정확도 우선으로 먼저 시도하고, 실패/타임아웃되면 더 관대한 조건으로
     // 한 번 더 재시도한다. (실내/건물 사이 등 GPS 신호가 약할 때 5초
     // 타임아웃 한 번에 바로 포기해서 '안 될 때가 많다'는 문제가 있었음)
+    // 단, 권한 거부는 재시도해도 절대 성공하지 않으므로 바로 안내하고 끝낸다.
     navigator.geolocation.getCurrentPosition(
       onSuccess,
-      () => {
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          setIsLocating(false);
+          alert(describeError(error));
+          return;
+        }
         navigator.geolocation.getCurrentPosition(
           onSuccess,
-          () => {
+          (error2) => {
             setIsLocating(false);
-            alert("위치 정보를 가져올 수 없습니다. GPS/위치 권한이 켜져 있는지 확인해주세요.");
+            alert(describeError(error2));
           },
           { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 },
         );
@@ -929,7 +945,7 @@ function MainApp() {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     if (!clientId) return;
     if (todayRoute.length === 0) {
-      alert('오늘 방문 예정인 어르신이 없어서 동기화할 일정이 없습니다.');
+      alert('오늘 방문 예정인 어르신이 없어서 동기화할 서비스 일정이 없습니다.');
       return;
     }
 
@@ -1232,7 +1248,7 @@ function MainApp() {
                   { key: 'today', label: '오늘 방문' },
                   { key: 'incomplete', label: '미완료' },
                   { key: 'completed', label: '완료' },
-                  { key: 'recurring', label: '반복 일정' },
+                  { key: 'recurring', label: '반복 서비스 일정' },
                 ] as const).map((f) => (
                   <button
                     key={f.key}
@@ -1250,7 +1266,7 @@ function MainApp() {
                 onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
                 className="flex-shrink-0 bg-white border border-slate-200 rounded-full px-2.5 py-1.5 text-xs font-bold text-slate-600 focus:outline-none"
               >
-                <option value="time">시간순</option>
+                <option value="time">서비스 시간순</option>
                 <option value="name">이름순</option>
                 <option value="distance">거리순</option>
               </select>
@@ -1325,7 +1341,7 @@ function MainApp() {
                               {marker.name} 어르신
                             </p>
                             <Chip icon={<IconClock size={14} color="#8A5A00" />} className="mt-1 bg-[#FDECC8] text-[#8A5A00]">
-                              {`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}`}
+                              {`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5) === '00:00' ? '서비스 시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}`}
                             </Chip>
                           </div>
                         </div>
@@ -1410,7 +1426,7 @@ function MainApp() {
                         <div className="flex items-center gap-2">
                           <p className={`font-black text-[#12203D] ${completed ? 'line-through' : ''}`}>{marker.name} 어르신</p>
                           <Chip icon={<IconClock size={12} color="#8A5A00" />} className="bg-[#FDECC8] text-[#8A5A00]">
-                            {marker.visit_time && marker.visit_time !== '00:00:00' ? marker.visit_time.substring(0, 5) : '시간 미정'}
+                            {marker.visit_time && marker.visit_time !== '00:00:00' ? marker.visit_time.substring(0, 5) : '서비스 시간 미정'}
                           </Chip>
                         </div>
                         <p className="text-sm text-slate-500 font-medium mt-1 truncate">
@@ -1537,7 +1553,7 @@ function MainApp() {
                   {selectedRecipient.name} 어르신
                 </p>
                 <Chip icon={<IconClock size={12} color="#475569" />} className="h-[22px] text-[11px] bg-slate-100 text-slate-600">
-                  {`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : selectedRecipient.visit_time.substring(0, 5)}`}
+                  {`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '서비스 시간 미정' : selectedRecipient.visit_time.substring(0, 5)}`}
                 </Chip>
               </div>
               <div className="flex gap-1 flex-shrink-0">

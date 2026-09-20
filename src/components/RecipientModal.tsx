@@ -364,13 +364,13 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
           </div>
 
           <TextField
-            label="방문 예정 시간 (선택)"
+            label="방문 예정 서비스 시간 (선택)"
             type="time"
             value={visitTime}
             onChange={(e) => setVisitTime(e.target.value)}
             disabled={isSubmitting}
             endAdornment={visitTime ? (
-              <IconButton onClick={() => setVisitTime('')} aria-label="방문 예정 시간 지우기">
+              <IconButton onClick={() => setVisitTime('')} aria-label="방문 예정 서비스 시간 지우기">
                 <IconX size={16} />
               </IconButton>
             ) : null}
