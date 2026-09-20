@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
-import { Select, MenuItem, FormControl, Button, Fab, BottomNavigation, BottomNavigationAction, Paper, Typography, Card, CardContent, Drawer, Box, Chip, IconButton } from '@mui/material';
+import { Select, MenuItem, FormControl, Button, Fab, BottomNavigation, BottomNavigationAction, Paper, Typography, Card, CardContent, Drawer, Box, Chip, IconButton, CircularProgress } from '@mui/material';
 import RecipientModal from '@/components/RecipientModal';
 
 interface RegCode {
@@ -76,16 +76,31 @@ function MainApp() {
       alert("GPS를 지원하지 않는 기기입니다.");
       return;
     }
-    navigator.geolocation.getCurrentPosition((position) => {
+    setIsLocating(true);
+
+    const onSuccess = (position: GeolocationPosition) => {
+      setIsLocating(false);
       setMapCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
       setMapZoom(17);
-    }, (error) => {
-      alert("위치 정보를 가져올 수 없습니다. GPS가 켜져 있는지 확인해주세요.");
-    }, {
-      enableHighAccuracy: false,
-      maximumAge: 60000,
-      timeout: 5000
-    });
+    };
+
+    // 정확도 우선으로 먼저 시도하고, 실패/타임아웃되면 더 관대한 조건으로
+    // 한 번 더 재시도한다. (실내/건물 사이 등 GPS 신호가 약할 때 5초
+    // 타임아웃 한 번에 바로 포기해서 '안 될 때가 많다'는 문제가 있었음)
+    navigator.geolocation.getCurrentPosition(
+      onSuccess,
+      () => {
+        navigator.geolocation.getCurrentPosition(
+          onSuccess,
+          () => {
+            setIsLocating(false);
+            alert("위치 정보를 가져올 수 없습니다. GPS/위치 권한이 켜져 있는지 확인해주세요.");
+          },
+          { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 },
+        );
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 },
+    );
   };
 
   const [sidos, setSidos] = useState<RegCode[]>([]);
@@ -106,6 +121,7 @@ function MainApp() {
   const [activeTab, setActiveTab] = useState<'map' | 'list'>('map');
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapZoom, setMapZoom] = useState(15);
+  const [isLocating, setIsLocating] = useState(false);
   const [showRegions, setShowRegions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const mapRef = useRef<any>(null);
@@ -1100,8 +1116,12 @@ function MainApp() {
             </Fab>
 
             {/* 내 위치 버튼 */}
-            <Fab size="small" onClick={handleMyLocation} sx={{ bgcolor: '#ffffff', borderRadius: 2, mt: 1 }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19 12h2"></path><path d="M3 12h2"></path><path d="M12 3v2"></path><path d="M12 19v2"></path><circle cx="12" cy="12" r="8"></circle></svg>
+            <Fab size="small" onClick={handleMyLocation} disabled={isLocating} sx={{ bgcolor: '#ffffff', borderRadius: 2, mt: 1 }}>
+              {isLocating ? (
+                <CircularProgress size={18} sx={{ color: '#0d9488' }} />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19 12h2"></path><path d="M3 12h2"></path><path d="M12 3v2"></path><path d="M12 19v2"></path><circle cx="12" cy="12" r="8"></circle></svg>
+              )}
             </Fab>
           </>
         )}
