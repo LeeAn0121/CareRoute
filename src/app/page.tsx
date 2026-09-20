@@ -1128,14 +1128,20 @@ function MainApp() {
                         onClick={() => setSelectedRecipient(marker)}
                         icon={{
                           content: `
-                            <div class="relative flex items-center justify-center ${isSelected ? 'scale-125 z-50' : 'scale-100'} transition-transform duration-300">
-                              ${isSelected ? '<div class="absolute -inset-2 bg-amber-400 rounded-full opacity-60 animate-ping"></div>' : ''}
-                              <div class="relative ${isSelected ? 'bg-amber-500' : 'bg-[#12203D]'} text-white rounded-full p-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.35)] border-2 border-white transition-colors duration-300">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            <div class="relative flex flex-col items-center ${isSelected ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
+                              <div class="relative w-11 h-11 flex items-center justify-center">
+                                ${isSelected ? '<div class="absolute -inset-1.5 bg-amber-400 rounded-full opacity-60 animate-ping"></div>' : ''}
+                                <div class="relative w-11 h-11 rounded-full overflow-hidden bg-[#12203D] flex items-center justify-center border-2 ${isSelected ? 'border-amber-400' : 'border-white'} shadow-[0_4px_16px_rgba(0,0,0,0.35)] transition-colors duration-300">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                  ${marker.photo_url ? `<img src="${marker.photo_url}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
+                                </div>
+                              </div>
+                              <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-amber-500 text-[#12203D]' : 'bg-white text-[#12203D]'} text-[11px] font-bold rounded-md shadow-sm border border-slate-200 whitespace-nowrap transition-colors duration-300">
+                                ${marker.name}
                               </div>
                             </div>
                           `,
-                          anchor: { x: 24, y: 24 }
+                          anchor: { x: 22, y: 22 }
                         }}
                       />
                     );
