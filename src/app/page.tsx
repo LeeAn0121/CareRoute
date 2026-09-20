@@ -326,8 +326,8 @@ function MainApp() {
   const fetchMarkers = () => {
     let query = supabase.from('recipients').select('*');
     if (selectedDong) query = query.eq('dong', selectedDong);
-    else if (selectedSigungu) query = query.eq('sigungu', selectedSigungu);
-    else if (selectedSido) query = query.eq('sido', selectedSido);
+    else if (selectedSigungu) query = query.like('dong', `${selectedSigungu.substring(0, 5)}%`);
+    else if (selectedSido) query = query.like('dong', `${selectedSido.substring(0, 2)}%`);
 
     query.then(({ data, error }) => {
       if (!error && data) setMarkers(data);
@@ -455,7 +455,11 @@ function MainApp() {
               <Select
                 native
                 value={selectedSido}
-                onChange={(e) => setSelectedSido(e.target.value)}
+                onChange={(e) => {
+                  setSelectedSido(e.target.value);
+                  setSelectedSigungu('');
+                  setSelectedDong('');
+                }}
                 sx={{ borderRadius: 1, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
               >
                 <option value="">시/도</option>
@@ -466,7 +470,10 @@ function MainApp() {
               <Select
                 native
                 value={selectedSigungu}
-                onChange={(e) => setSelectedSigungu(e.target.value)}
+                onChange={(e) => {
+                  setSelectedSigungu(e.target.value);
+                  setSelectedDong('');
+                }}
                 sx={{ borderRadius: 1, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
               >
                 <option value="">시/군/구</option>
