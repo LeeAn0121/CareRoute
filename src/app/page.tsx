@@ -501,7 +501,7 @@ function MainApp() {
   }, []);
 
   useEffect(() => {
-    if (!localStorage.getItem('careroute_tutorial_done')) {
+    if (!localStorage.getItem('careroute_tutorial_done_v2')) {
       setShowOnboarding(true);
     }
   }, []);
@@ -1108,15 +1108,7 @@ function MainApp() {
       {/* Floating Header */}
       {activeTab === 'map' && (
       <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col gap-3 mt-4 pointer-events-none">
-        <div className="flex justify-between items-start pointer-events-auto">
-          {/* Logo Pill */}
-          <div className="flex items-center gap-2.5 px-3 py-2 bg-surface/90 backdrop-blur-xl rounded-2xl shadow-lg shadow-foreground/10 border border-surface-border/50 transition-all hover:scale-105 cursor-default">
-            <span className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-inner border border-white/20">
-              <IconMapPin size={18} color="white" />
-            </span>
-            <h1 className="text-[17px] font-black text-primary tracking-tight pr-2">케어루트</h1>
-          </div>
-        </div>
+
 
         {/* Region Selectors - Floating Glassmorphism Island */}
         <div id="tour-header" className="flex gap-2 p-1.5 bg-surface/80 backdrop-blur-xl rounded-2xl shadow-lg shadow-foreground/10 border border-surface-border/50 pointer-events-auto">
@@ -1777,7 +1769,7 @@ function MainApp() {
       />
 
       {showOnboarding && <Tour onComplete={() => {
-        localStorage.setItem('careroute_tutorial_done', 'true');
+        localStorage.setItem('careroute_tutorial_done_v2', 'true');
         setShowOnboarding(false);
       }} />}
     </main>
