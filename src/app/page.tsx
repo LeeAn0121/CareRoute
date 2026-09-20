@@ -196,18 +196,15 @@ function MainApp() {
                 setSelectedSido(sido);
                 setSelectedSigungu('');
                 setSelectedDong('');
-                setMapZoom(11); // 군구 레벨로 줌인
               } else if (currentRenderedLevel === 'sigungu') {
                 setSelectedSido(sido);
                 // 약간의 딜레이를 주어 Sido가 먼저 세팅되게 함 (목록 갱신을 위해)
                 setTimeout(() => setSelectedSigungu(sigungu), 100);
                 setSelectedDong('');
-                setMapZoom(14); // 동 레벨로 줌인
               } else {
                 setSelectedSido(sido);
                 setTimeout(() => setSelectedSigungu(sigungu), 100);
                 setTimeout(() => setSelectedDong(dong), 200);
-                setMapZoom(15);
               }
             }
           }
@@ -328,17 +325,14 @@ function MainApp() {
                             setSelectedSido(sido);
                             setSelectedSigungu('');
                             setSelectedDong('');
-                            setMapZoom(11);
                           } else if (level === 'sigungu') {
                             setSelectedSido(sido);
                             setTimeout(() => setSelectedSigungu(sigungu), 100);
                             setSelectedDong('');
-                            setMapZoom(14);
                           } else {
                             setSelectedSido(sido);
                             setTimeout(() => setSelectedSigungu(sigungu), 100);
                             setTimeout(() => setSelectedDong(dong), 200);
-                            setMapZoom(15);
                           }
                         }
                       }
@@ -381,9 +375,10 @@ function MainApp() {
       if (status === window.naver.maps.Service.Status.OK && response.v2.addresses.length > 0) {
         const item = response.v2.addresses[0];
         setMapCenter({ lat: parseFloat(item.y), lng: parseFloat(item.x) });
+        // 하위 구역이 보이도록 줌 레벨 조정
         if (dongName) setMapZoom(15);
-        else if (sigunguName) setMapZoom(13);
-        else setMapZoom(10);
+        else if (sigunguName) setMapZoom(14); // 14부터 동이 보임
+        else setMapZoom(11); // 11부터 시군구가 보임
       }
     });
   }, [selectedSido, selectedSigungu, selectedDong, sidos, sigungus, dongs]);
