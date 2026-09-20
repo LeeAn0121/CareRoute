@@ -65,9 +65,14 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 
-// GeoJSON 밎 마커 캐시
+// GeoJSON 및 마커 캐시
 const geoCache: any = { sido: null, sigungu: null, dong: null };
-const labelCache: any = { sido: [], sigungu: [], dong: [] };
+// 라벨 마커는 화면에 보이는 것만 그때그때(lazy) 만들어서 재사용한다.
+// (동/읍/면은 전국 약 3,500개라 미리 다 만들면 메인 스레드가 멈춘다)
+const labelCache: any = { sido: new Map(), sigungu: new Map(), dong: new Map() };
+// 현재 map.data에 실제로 추가되어 있는 폴리곤의 feature 이름 집합.
+// idle(패닝)마다 map.data.getAllFeature()로 전수조사하지 않기 위해 직접 추적.
+const renderedFeatureKeys: any = { sido: new Set(), sigungu: new Set(), dong: new Set() };
 let currentRenderedLevel = ''; // Track currently rendered level to prevent re-rendering
 
 function MainApp() {
@@ -166,58 +171,114 @@ function MainApp() {
     }
 
     const level = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
-    
+
     // 🔥 Optimization: Don't re-render if the level hasn't changed!
     if (currentRenderedLevel === level) return;
-    
+
     const urlMap: any = {
       sido: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_provinces_geo_simple.json',
       sigungu: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_municipalities_geo_simple.json',
       dong: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_submunicipalities_geo_simple.json'
     };
 
-    const drawLevel = (lvl: string) => {
-      currentRenderedLevel = lvl;
-      // 1. 기존 데이터 모두 지우기
-      map.data.getAllFeature().forEach((f: any) => map.data.removeFeature(f));
-      
-      // 2. 새 데이터 그리기 (화면 근처 폴리곤만 필터링)
-      const bounds = map.getBounds();
-      // 약 10km 반경 (대략 0.1도) 여유 버퍼
+    const styleFor = (lvl: string) => ({
+      fillColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
+      fillOpacity: 0.1,
+      strokeColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
+      strokeWeight: lvl === 'dong' ? 1 : 2,
+      strokeOpacity: 0.6,
+      visible: true
+    });
+
+    // 폴리곤/라벨 클릭 시 공통으로 쓰는 로직 (중복 제거)
+    const handleRegionSelect = (lat: number, lng: number, lvl: string) => {
+      if (!window.naver.maps.Service) return;
+      // @ts-ignore
+      window.naver.maps.Service.reverseGeocode({
+        coords: new window.naver.maps.LatLng(lat, lng),
+        orders: [window.naver.maps.Service.OrderType.LEGAL_CODE].join(',')
+      }, function (status: any, response: any) {
+        if (status === 200 && response.v2.results.length > 0) {
+          const bcode = response.v2.results[0].code.id; // 10자리 법정동 코드
+          if (bcode && bcode.length === 10) {
+            const sido = bcode.substring(0, 2) + '00000000';
+            const sigungu = bcode.substring(0, 5) + '00000';
+            const dong = bcode;
+            if (lvl === 'sido') {
+              setSelectedSido(sido);
+              setSelectedSigungu('');
+              setSelectedDong('');
+            } else if (lvl === 'sigungu') {
+              setSelectedSido(sido);
+              setTimeout(() => setSelectedSigungu(sigungu), 100);
+              setSelectedDong('');
+            } else {
+              setSelectedSido(sido);
+              setTimeout(() => setSelectedSigungu(sigungu), 100);
+              setTimeout(() => setSelectedDong(dong), 200);
+            }
+          }
+        }
+      });
+    };
+
+    // 라벨 마커는 필요한 것만 그때그때 만들어서 재사용 (전국 데이터를 한 번에
+    // 다 만들면 동/읍/면 기준 약 3,500개 생성으로 메인 스레드가 멈춘다)
+    const ensureLabelMarker = (lvl: string, feature: any) => {
+      const name = feature.properties.name;
+      const cached = labelCache[lvl].get(name);
+      if (cached) return cached;
+
+      const centerLat = feature.properties._centerLat;
+      const centerLng = feature.properties._centerLng;
+      const bg = lvl === 'dong' ? 'rgba(14, 165, 233, 0.85)' : (lvl === 'sigungu' ? 'rgba(13, 148, 136, 0.95)' : 'rgba(139, 92, 246, 0.95)');
+      const fs = lvl === 'dong' ? '11px' : '13px';
+
+      const marker = new window.naver.maps.Marker({
+        position: new window.naver.maps.LatLng(centerLat, centerLng),
+        icon: {
+          content: `<div style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; cursor: pointer;">${name}</div>`,
+          anchor: new window.naver.maps.Point(20, 10)
+        }
+      });
+      window.naver.maps.Event.addListener(marker, 'click', () => handleRegionSelect(centerLat, centerLng, lvl));
+      labelCache[lvl].set(name, marker);
+      return marker;
+    };
+
+    const featuresInView = (lvl: string, bounds: any) => {
       const minLat = bounds.minY() - 0.15;
       const maxLat = bounds.maxY() + 0.15;
       const minLng = bounds.minX() - 0.15;
       const maxLng = bounds.maxX() + 0.15;
-      
-      const filteredFeatures = lvl === 'dong' ? geoCache[lvl].features.filter((f: any) => {
-         const lat = f.properties?._centerLat;
-         const lng = f.properties?._centerLng;
-         if (lat && lng) {
-            return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
-         }
-         return true;
-      }) : geoCache[lvl].features;
-      
-      const filteredGeoJson = { ...geoCache[lvl], features: filteredFeatures };
-      map.data.addGeoJson(filteredGeoJson);
-      map.data.setStyle({
-        fillColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
-        fillOpacity: 0.1,
-        strokeColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
-        strokeWeight: lvl === 'dong' ? 1 : 2,
-        strokeOpacity: 0.6,
-        visible: true
+      return geoCache[lvl].features.filter((f: any) => {
+        const lat = f.properties?._centerLat;
+        const lng = f.properties?._centerLng;
+        if (lat == null || lng == null) return false;
+        return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+      });
+    };
+
+    const drawLevel = (lvl: string) => {
+      currentRenderedLevel = lvl;
+      // 1. 기존 폴리곤/라벨 모두 지우기
+      map.data.getAllFeature().forEach((f: any) => map.data.removeFeature(f));
+      renderedFeatureKeys.sido.clear();
+      renderedFeatureKeys.sigungu.clear();
+      renderedFeatureKeys.dong.clear();
+      ['sido', 'sigungu', 'dong'].forEach(l => {
+        labelCache[l].forEach((m: any) => m.setMap(null));
       });
 
-      // 3. 마커 렌더링 최적화 (현재 뷰포트 내의 마커만 표시)
-      ['sido', 'sigungu', 'dong'].forEach(l => {
-        labelCache[l].forEach((m: any) => {
-          if (l === lvl && bounds.hasLatLng(m.getPosition())) {
-            if (!m.getMap()) m.setMap(map);
-          } else {
-            if (m.getMap()) m.setMap(null);
-          }
-        });
+      // 2. 뷰포트 근처 것만 그리기 (모든 레벨에 동일하게 적용)
+      const bounds = map.getBounds();
+      const visible = featuresInView(lvl, bounds);
+
+      map.data.addGeoJson({ type: 'FeatureCollection', features: visible });
+      map.data.setStyle(styleFor(lvl));
+      visible.forEach((f: any) => {
+        renderedFeatureKeys[lvl].add(f.properties.name);
+        ensureLabelMarker(lvl, f).setMap(map);
       });
     };
 
@@ -226,38 +287,8 @@ function MainApp() {
       window.naver.maps.Event.addListener(map.data, 'click', (e: any) => {
         const lat = e.feature.properties?._centerLat;
         const lng = e.feature.properties?._centerLng;
-        if (!lat || !lng || !window.naver.maps.Service) return;
-
-        // @ts-ignore
-        window.naver.maps.Service.reverseGeocode({
-          coords: new window.naver.maps.LatLng(lat, lng),
-          orders: [window.naver.maps.Service.OrderType.LEGAL_CODE].join(',')
-        }, function(status: any, response: any) {
-          if (status === 200 && response.v2.results.length > 0) {
-            const bcode = response.v2.results[0].code.id; // 10자리 법정동 코드
-            if (bcode && bcode.length === 10) {
-              const sido = bcode.substring(0, 2) + '00000000';
-              const sigungu = bcode.substring(0, 5) + '00000';
-              const dong = bcode;
-              
-              // 현재 보여지는 줌 레벨에 따라 드롭다운 세팅 다르게
-              if (currentRenderedLevel === 'sido') {
-                setSelectedSido(sido);
-                setSelectedSigungu('');
-                setSelectedDong('');
-              } else if (currentRenderedLevel === 'sigungu') {
-                setSelectedSido(sido);
-                // 약간의 딜레이를 주어 Sido가 먼저 세팅되게 함 (목록 갱신을 위해)
-                setTimeout(() => setSelectedSigungu(sigungu), 100);
-                setSelectedDong('');
-              } else {
-                setSelectedSido(sido);
-                setTimeout(() => setSelectedSigungu(sigungu), 100);
-                setTimeout(() => setSelectedDong(dong), 200);
-              }
-            }
-          }
-        });
+        if (!lat || !lng) return;
+        handleRegionSelect(lat, lng, currentRenderedLevel);
       });
     }
 
@@ -267,52 +298,30 @@ function MainApp() {
         // 항상 지도 상태를 동기화하여 수동 줌인/줌아웃 시에도 mapZoom 상태가 최신으로 유지되게 함
         const currentZoom = map.getZoom();
         setMapZoom(currentZoom);
-        
+
         const currentCenter = map.getCenter();
         setMapCenter({ lat: currentCenter.y, lng: currentCenter.x });
 
-        if (!showRegions || !currentRenderedLevel) return;
+        if (!showRegions || !currentRenderedLevel || !geoCache[currentRenderedLevel]) return;
+        const lvl = currentRenderedLevel;
         const bounds = map.getBounds();
-        
-        // 줌 레벨 변동 없이 패닝만 일어났을 때도 폴리곤 채우기
-        const minLat = bounds.minY() - 0.15;
-        const maxLat = bounds.maxY() + 0.15;
-        const minLng = bounds.minX() - 0.15;
-        const maxLng = bounds.maxX() + 0.15;
-        
 
+        // 새로 보여야 할 폴리곤/라벨만 추가 (map.data 전수조사 없이 직접
+        // 추적한 renderedFeatureKeys로 이미 그려진 것만 걸러낸다)
+        const visible = featuresInView(lvl, bounds);
+        const toAdd = visible.filter((f: any) => !renderedFeatureKeys[lvl].has(f.properties.name));
 
-        // 새로 보여야 할 폴리곤만 추가 (성능 최적화)
-        if (geoCache[currentRenderedLevel]) {
-           const existingIds = new Set();
-           map.data.getAllFeature().forEach((f: any) => {
-              if (f.getProperty('name')) existingIds.add(f.getProperty('name'));
-           });
-           
-           const featuresToAdd = currentRenderedLevel === 'dong' ? geoCache[currentRenderedLevel].features.filter((f: any) => {
-              const lat = f.properties?._centerLat;
-              const lng = f.properties?._centerLng;
-              if (lat && lng) {
-                 const inBounds = lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
-                 return inBounds && !existingIds.has(f.properties.name);
-              }
-              return false;
-           }) : [];
-           
-           if (featuresToAdd.length > 0) {
-              map.data.addGeoJson({ type: "FeatureCollection", features: featuresToAdd });
-              map.data.setStyle({
-                fillColor: currentRenderedLevel === 'dong' ? '#0ea5e9' : (currentRenderedLevel === 'sigungu' ? '#0d9488' : '#8b5cf6'),
-                fillOpacity: 0.1,
-                strokeColor: currentRenderedLevel === 'dong' ? '#0ea5e9' : (currentRenderedLevel === 'sigungu' ? '#0d9488' : '#8b5cf6'),
-                strokeWeight: currentRenderedLevel === 'dong' ? 1 : 2,
-                strokeOpacity: 0.6,
-                visible: true
-              });
-           }
+        if (toAdd.length > 0) {
+          map.data.addGeoJson({ type: 'FeatureCollection', features: toAdd });
+          map.data.setStyle(styleFor(lvl));
+          toAdd.forEach((f: any) => {
+            renderedFeatureKeys[lvl].add(f.properties.name);
+            ensureLabelMarker(lvl, f).setMap(map);
+          });
         }
-        
-        labelCache[currentRenderedLevel].forEach((m: any) => {
+
+        // 화면 밖으로 나간 라벨은 숨겨서(제거는 아님) 다시 들어오면 재사용
+        labelCache[lvl].forEach((m: any) => {
           if (bounds.hasLatLng(m.getPosition())) {
             if (!m.getMap()) m.setMap(map);
           } else {
@@ -327,81 +336,33 @@ function MainApp() {
       fetch(urlMap[level])
         .then(r => r.json())
         .then(geojson => {
-          geoCache[level] = geojson;
-          
+          // 마커는 만들지 않고 각 feature의 중심 좌표만 가볍게 미리 계산해둔다
+          // (실제 라벨 마커 생성은 drawLevel/idle 단계에서 화면에 보이는 것만 lazy하게)
           if (geojson.features) {
             geojson.features.forEach((feature: any) => {
-              const name = feature.properties?.name;
               const coords = feature.geometry?.coordinates;
-              if (name && coords) {
-                let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-                let valid = false;
-                try {
-                  const poly = feature.geometry.type === 'MultiPolygon' ? coords[0][0] : coords[0];
-                  poly.forEach((coord: number[]) => {
-                    if (coord[1] < minLat) minLat = coord[1];
-                    if (coord[1] > maxLat) maxLat = coord[1];
-                    if (coord[0] < minLng) minLng = coord[0];
-                    if (coord[0] > maxLng) maxLng = coord[0];
-                    valid = true;
-                  });
-                } catch (e) {}
-                
-                if (valid) {
-                  const centerLat = (minLat + maxLat) / 2;
-                  const centerLng = (minLng + maxLng) / 2;
-                  feature.properties._centerLat = centerLat;
-                  feature.properties._centerLng = centerLng;
-                  const bg = level === 'dong' ? 'rgba(14, 165, 233, 0.85)' : (level === 'sigungu' ? 'rgba(13, 148, 136, 0.95)' : 'rgba(139, 92, 246, 0.95)');
-                  const fs = level === 'dong' ? '11px' : '13px';
-                  
-                  const marker = new window.naver.maps.Marker({
-                    position: new window.naver.maps.LatLng(centerLat, centerLng),
-                    icon: {
-                      content: `<div style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; cursor: pointer;">${name}</div>`,
-                      anchor: new window.naver.maps.Point(20, 10)
-                    }
-                  });
-                  
-                  // 마커(라벨) 클릭 시에도 폴리곤 클릭과 동일하게 동작
-                  window.naver.maps.Event.addListener(marker, 'click', () => {
-                    // @ts-ignore
-                    if (!window.naver.maps.Service) return;
-                    // @ts-ignore
-                    window.naver.maps.Service.reverseGeocode({
-                      coords: new window.naver.maps.LatLng(centerLat, centerLng),
-                      orders: [window.naver.maps.Service.OrderType.LEGAL_CODE].join(',')
-                    }, function(status: any, response: any) {
-                      if (status === 200 && response.v2.results.length > 0) {
-                        const bcode = response.v2.results[0].code.id;
-                        if (bcode && bcode.length === 10) {
-                          const sido = bcode.substring(0, 2) + '00000000';
-                          const sigungu = bcode.substring(0, 5) + '00000';
-                          const dong = bcode;
-                          if (level === 'sido') {
-                            setSelectedSido(sido);
-                            setSelectedSigungu('');
-                            setSelectedDong('');
-                          } else if (level === 'sigungu') {
-                            setSelectedSido(sido);
-                            setTimeout(() => setSelectedSigungu(sigungu), 100);
-                            setSelectedDong('');
-                          } else {
-                            setSelectedSido(sido);
-                            setTimeout(() => setSelectedSigungu(sigungu), 100);
-                            setTimeout(() => setSelectedDong(dong), 200);
-                          }
-                        }
-                      }
-                    });
-                  });
-                  
-                  labelCache[level].push(marker);
-                }
+              if (!feature.properties?.name || !coords) return;
+              let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+              let valid = false;
+              try {
+                const poly = feature.geometry.type === 'MultiPolygon' ? coords[0][0] : coords[0];
+                poly.forEach((coord: number[]) => {
+                  if (coord[1] < minLat) minLat = coord[1];
+                  if (coord[1] > maxLat) maxLat = coord[1];
+                  if (coord[0] < minLng) minLng = coord[0];
+                  if (coord[0] > maxLng) maxLng = coord[0];
+                  valid = true;
+                });
+              } catch (e) {}
+              if (valid) {
+                feature.properties._centerLat = (minLat + maxLat) / 2;
+                feature.properties._centerLng = (minLng + maxLng) / 2;
               }
             });
           }
-          // 만약 로딩 중에 줌이 바뀌었으면 그리지 않음
+          geoCache[level] = geojson;
+
+          // 로딩 중에 줌이 바뀌었으면 그리지 않음
           const currentLevel = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
           if (level === currentLevel && showRegions) {
             drawLevel(level);
