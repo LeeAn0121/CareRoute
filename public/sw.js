@@ -73,7 +73,7 @@ self.addEventListener('push', (event) => {
       body: payload.body || '',
       icon: '/CareRoute/icon-192.png',
       badge: '/CareRoute/icon-192.png',
-      data: { url: payload.url || '/CareRoute/' },
+      data: { url: payload.url || '/CareRoute/', recipientId: payload.recipientId },
     }),
   );
 });
@@ -99,10 +99,15 @@ self.addEventListener('notificationclick', (event) => {
   }
 
   const url = event.notification.data?.url || '/CareRoute/';
+  const recipientId = event.notification.data?.recipientId;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       const existing = windowClients.find((c) => c.url.includes('/CareRoute/'));
-      if (existing) return existing.focus();
+      // 이미 앱이 열려있으면 새로고침 없이 메시지로 바로 해당 어르신에게 포커싱시킨다.
+      if (existing) {
+        if (recipientId) existing.postMessage({ type: 'FOCUS_RECIPIENT', id: recipientId });
+        return existing.focus();
+      }
       return clients.openWindow(url);
     }),
   );

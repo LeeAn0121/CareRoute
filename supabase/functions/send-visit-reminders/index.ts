@@ -71,11 +71,13 @@ Deno.serve(async () => {
   const subscriptions = await subRes.json();
 
   let sent = 0;
+  const errors: any[] = [];
   for (const recipient of due) {
     const payload = JSON.stringify({
       title: "케어루트 알림 🚨",
       body: `${recipient.name} 어르신 방문 예정 시간입니다! (${recipient.address})`,
-      url: "/CareRoute/",
+      url: `/CareRoute/?focus=${recipient.id}`,
+      recipientId: recipient.id,
     });
 
     for (const sub of subscriptions) {
@@ -95,6 +97,12 @@ Deno.serve(async () => {
         } else {
           console.error("push failed", sub.endpoint, err);
         }
+        errors.push({
+          endpoint: sub.endpoint.slice(0, 60),
+          statusCode: err?.statusCode,
+          message: err?.message || String(err),
+          body: err?.body,
+        });
       }
     }
 
@@ -105,7 +113,7 @@ Deno.serve(async () => {
     });
   }
 
-  return new Response(JSON.stringify({ sent, due: due.length }), {
+  return new Response(JSON.stringify({ sent, due: due.length, subscriptions: subscriptions.length, errors }), {
     headers: { "Content-Type": "application/json" },
   });
 });

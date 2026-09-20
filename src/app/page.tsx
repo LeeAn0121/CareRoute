@@ -646,6 +646,37 @@ function MainApp() {
     fetchMarkers();
   }, [selectedSido, selectedSigungu, selectedDong]);
 
+  // 방문 알림을 눌렀을 때 해당 어르신 위치로 포커싱 (명단 클릭과 동일한 효과).
+  // 현재 지역 필터에 안 걸릴 수도 있으니 필터를 해제하고 DB에서 직접 가져온다.
+  const focusRecipientById = async (id: string) => {
+    const { data, error } = await supabase.from('recipients').select('*').eq('id', id).single();
+    if (error || !data) return;
+    setSelectedSido('');
+    setSelectedSigungu('');
+    setSelectedDong('');
+    setMapCenter({ lat: data.lat, lng: data.lng });
+    setMapZoom(17);
+    setActiveTab('map');
+    setSelectedRecipient(data);
+  };
+
+  useEffect(() => {
+    const focusId = new URLSearchParams(window.location.search).get('focus');
+    if (focusId) {
+      focusRecipientById(focusId);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    if (!('serviceWorker' in navigator)) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'FOCUS_RECIPIENT' && event.data.id) {
+        focusRecipientById(event.data.id);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, []);
+
   const gpsInitRef = useRef(false);
   // 앱 실행 시 즉시 현재 위치로 이동 (초기 1회)
   useEffect(() => {
