@@ -133,6 +133,8 @@ function MainApp() {
   const [isOffline, setIsOffline] = useState(false);
   const [showRegions, setShowRegions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring'>('all');
+  const [sortMode, setSortMode] = useState<'time' | 'name' | 'distance'>('time');
   const mapRef = useRef<any>(null);
   const isAutoSelectRef = useRef(false);
   const regionsLoaded = useRef(false);
@@ -160,7 +162,153 @@ function MainApp() {
     }
   }, [mapCenter, mapZoom]);
 
-  // Semantic Zoom (시도 -> 시군구 -> 동)
+  // ---- 행정구역 표시 관련 헬퍼: 컴포넌트 레벨로 옮겨서 아래 두 effect가 공유 ----
+  const regionStyleFor = (lvl: string) => ({
+    fillColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
+    fillOpacity: 0.1,
+    strokeColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
+    strokeWeight: lvl === 'dong' ? 1 : 2,
+    strokeOpacity: 0.6,
+    visible: true
+  });
+
+  const regionFeaturesInView = (lvl: string, bounds: any) => {
+    const minLat = bounds.minY() - 0.15;
+    const maxLat = bounds.maxY() + 0.15;
+    const minLng = bounds.minX() - 0.15;
+    const maxLng = bounds.maxX() + 0.15;
+    return geoCache[lvl].features.filter((f: any) => {
+      const lat = f.properties?._centerLat;
+      const lng = f.properties?._centerLng;
+      if (lat == null || lng == null) return false;
+      return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+    });
+  };
+
+  // 폴리곤/라벨 클릭 시 공통으로 쓰는 로직 (중복 제거)
+  const handleRegionSelect = (lat: number, lng: number, lvl: string) => {
+    if (!window.naver?.maps?.Service) return;
+    // @ts-ignore
+    window.naver.maps.Service.reverseGeocode({
+      coords: new window.naver.maps.LatLng(lat, lng),
+      orders: [window.naver.maps.Service.OrderType.LEGAL_CODE].join(',')
+    }, function (status: any, response: any) {
+      if (status === 200 && response.v2.results.length > 0) {
+        const bcode = response.v2.results[0].code.id; // 10자리 법정동 코드
+        if (bcode && bcode.length === 10) {
+          const sido = bcode.substring(0, 2) + '00000000';
+          const sigungu = bcode.substring(0, 5) + '00000';
+          const dong = bcode;
+          if (lvl === 'sido') {
+            setSelectedSido(sido);
+            setSelectedSigungu('');
+            setSelectedDong('');
+          } else if (lvl === 'sigungu') {
+            setSelectedSido(sido);
+            setTimeout(() => setSelectedSigungu(sigungu), 100);
+            setSelectedDong('');
+          } else {
+            setSelectedSido(sido);
+            setTimeout(() => setSelectedSigungu(sigungu), 100);
+            setTimeout(() => setSelectedDong(dong), 200);
+          }
+        }
+      }
+    });
+  };
+
+  // 라벨 마커는 필요한 것만 그때그때 만들어서 재사용 (전국 데이터를 한 번에
+  // 다 만들면 동/읍/면 기준 약 3,500개 생성으로 메인 스레드가 멈춘다)
+  const ensureRegionLabelMarker = (lvl: string, feature: any) => {
+    const name = feature.properties.name;
+    const cached = labelCache[lvl].get(name);
+    if (cached) return cached;
+
+    const centerLat = feature.properties._centerLat;
+    const centerLng = feature.properties._centerLng;
+    const bg = lvl === 'dong' ? 'rgba(14, 165, 233, 0.85)' : (lvl === 'sigungu' ? 'rgba(13, 148, 136, 0.95)' : 'rgba(139, 92, 246, 0.95)');
+    const fs = lvl === 'dong' ? '11px' : '13px';
+
+    const marker = new window.naver.maps.Marker({
+      position: new window.naver.maps.LatLng(centerLat, centerLng),
+      icon: {
+        content: `<div style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; cursor: pointer;">${name}</div>`,
+        anchor: new window.naver.maps.Point(20, 10)
+      }
+    });
+    window.naver.maps.Event.addListener(marker, 'click', () => handleRegionSelect(centerLat, centerLng, lvl));
+    labelCache[lvl].set(name, marker);
+    return marker;
+  };
+
+  const drawRegionLevel = (map: any, lvl: string) => {
+    currentRenderedLevel = lvl;
+    map.data.getAllFeature().forEach((f: any) => map.data.removeFeature(f));
+    renderedFeatureKeys.sido.clear();
+    renderedFeatureKeys.sigungu.clear();
+    renderedFeatureKeys.dong.clear();
+    ['sido', 'sigungu', 'dong'].forEach(l => {
+      labelCache[l].forEach((m: any) => m.setMap(null));
+    });
+
+    const bounds = map.getBounds();
+    const visible = regionFeaturesInView(lvl, bounds);
+
+    map.data.addGeoJson({ type: 'FeatureCollection', features: visible });
+    map.data.setStyle(regionStyleFor(lvl));
+    visible.forEach((f: any) => {
+      renderedFeatureKeys[lvl].add(f.properties.name);
+      ensureRegionLabelMarker(lvl, f).setMap(map);
+    });
+  };
+
+  // showRegions는 아래 "항상 켜져있는" idle 리스너 안에서 최신 값을 읽어야 하니 ref로도 보관
+  const showRegionsRef = useRef(showRegions);
+  useEffect(() => { showRegionsRef.current = showRegions; }, [showRegions]);
+
+  const idleListenerRegisteredRef = useRef(false);
+
+  // 지도 이동/확대를 React 상태(mapZoom/mapCenter)와 항상 동기화하고, 켜져
+  // 있으면 행정구역 폴리곤/라벨도 함께 갱신한다. showRegions 여부와 무관하게
+  // 항상 등록해야 한다 — 예전엔 이 리스너가 showRegions가 켜져 있을 때만
+  // 등록되는 effect 안에 있어서, 꺼둔 채로 확대/축소하면 mapZoom 상태가 전혀
+  // 갱신되지 않아 마커 클러스터링이 줌 레벨에 반응하지 않는 버그가 있었다.
+  useEffect(() => {
+    if (!mapRef.current || !window.naver || idleListenerRegisteredRef.current) return;
+    const map = mapRef.current;
+    idleListenerRegisteredRef.current = true;
+
+    window.naver.maps.Event.addListener(map, 'idle', () => {
+      setMapZoom(map.getZoom());
+      const center = map.getCenter();
+      setMapCenter({ lat: center.y, lng: center.x });
+
+      if (!showRegionsRef.current || !currentRenderedLevel || !geoCache[currentRenderedLevel]) return;
+      const lvl = currentRenderedLevel;
+      const bounds = map.getBounds();
+      const visible = regionFeaturesInView(lvl, bounds);
+      const toAdd = visible.filter((f: any) => !renderedFeatureKeys[lvl].has(f.properties.name));
+
+      if (toAdd.length > 0) {
+        map.data.addGeoJson({ type: 'FeatureCollection', features: toAdd });
+        map.data.setStyle(regionStyleFor(lvl));
+        toAdd.forEach((f: any) => {
+          renderedFeatureKeys[lvl].add(f.properties.name);
+          ensureRegionLabelMarker(lvl, f).setMap(map);
+        });
+      }
+
+      labelCache[lvl].forEach((m: any) => {
+        if (bounds.hasLatLng(m.getPosition())) {
+          if (!m.getMap()) m.setMap(map);
+        } else {
+          if (m.getMap()) m.setMap(null);
+        }
+      });
+    });
+  }, [mapLoaded]);
+
+  // Semantic Zoom (시도 -> 시군구 -> 동): 어떤 레벨을 그릴지 결정하고 데이터를 로드
   useEffect(() => {
     if (!mapRef.current || !window.naver) return;
     const map = mapRef.current;
@@ -185,107 +333,6 @@ function MainApp() {
       dong: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_submunicipalities_geo_simple.json'
     };
 
-    const styleFor = (lvl: string) => ({
-      fillColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
-      fillOpacity: 0.1,
-      strokeColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
-      strokeWeight: lvl === 'dong' ? 1 : 2,
-      strokeOpacity: 0.6,
-      visible: true
-    });
-
-    // 폴리곤/라벨 클릭 시 공통으로 쓰는 로직 (중복 제거)
-    const handleRegionSelect = (lat: number, lng: number, lvl: string) => {
-      if (!window.naver.maps.Service) return;
-      // @ts-ignore
-      window.naver.maps.Service.reverseGeocode({
-        coords: new window.naver.maps.LatLng(lat, lng),
-        orders: [window.naver.maps.Service.OrderType.LEGAL_CODE].join(',')
-      }, function (status: any, response: any) {
-        if (status === 200 && response.v2.results.length > 0) {
-          const bcode = response.v2.results[0].code.id; // 10자리 법정동 코드
-          if (bcode && bcode.length === 10) {
-            const sido = bcode.substring(0, 2) + '00000000';
-            const sigungu = bcode.substring(0, 5) + '00000';
-            const dong = bcode;
-            if (lvl === 'sido') {
-              setSelectedSido(sido);
-              setSelectedSigungu('');
-              setSelectedDong('');
-            } else if (lvl === 'sigungu') {
-              setSelectedSido(sido);
-              setTimeout(() => setSelectedSigungu(sigungu), 100);
-              setSelectedDong('');
-            } else {
-              setSelectedSido(sido);
-              setTimeout(() => setSelectedSigungu(sigungu), 100);
-              setTimeout(() => setSelectedDong(dong), 200);
-            }
-          }
-        }
-      });
-    };
-
-    // 라벨 마커는 필요한 것만 그때그때 만들어서 재사용 (전국 데이터를 한 번에
-    // 다 만들면 동/읍/면 기준 약 3,500개 생성으로 메인 스레드가 멈춘다)
-    const ensureLabelMarker = (lvl: string, feature: any) => {
-      const name = feature.properties.name;
-      const cached = labelCache[lvl].get(name);
-      if (cached) return cached;
-
-      const centerLat = feature.properties._centerLat;
-      const centerLng = feature.properties._centerLng;
-      const bg = lvl === 'dong' ? 'rgba(14, 165, 233, 0.85)' : (lvl === 'sigungu' ? 'rgba(13, 148, 136, 0.95)' : 'rgba(139, 92, 246, 0.95)');
-      const fs = lvl === 'dong' ? '11px' : '13px';
-
-      const marker = new window.naver.maps.Marker({
-        position: new window.naver.maps.LatLng(centerLat, centerLng),
-        icon: {
-          content: `<div style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; cursor: pointer;">${name}</div>`,
-          anchor: new window.naver.maps.Point(20, 10)
-        }
-      });
-      window.naver.maps.Event.addListener(marker, 'click', () => handleRegionSelect(centerLat, centerLng, lvl));
-      labelCache[lvl].set(name, marker);
-      return marker;
-    };
-
-    const featuresInView = (lvl: string, bounds: any) => {
-      const minLat = bounds.minY() - 0.15;
-      const maxLat = bounds.maxY() + 0.15;
-      const minLng = bounds.minX() - 0.15;
-      const maxLng = bounds.maxX() + 0.15;
-      return geoCache[lvl].features.filter((f: any) => {
-        const lat = f.properties?._centerLat;
-        const lng = f.properties?._centerLng;
-        if (lat == null || lng == null) return false;
-        return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
-      });
-    };
-
-    const drawLevel = (lvl: string) => {
-      currentRenderedLevel = lvl;
-      // 1. 기존 폴리곤/라벨 모두 지우기
-      map.data.getAllFeature().forEach((f: any) => map.data.removeFeature(f));
-      renderedFeatureKeys.sido.clear();
-      renderedFeatureKeys.sigungu.clear();
-      renderedFeatureKeys.dong.clear();
-      ['sido', 'sigungu', 'dong'].forEach(l => {
-        labelCache[l].forEach((m: any) => m.setMap(null));
-      });
-
-      // 2. 뷰포트 근처 것만 그리기 (모든 레벨에 동일하게 적용)
-      const bounds = map.getBounds();
-      const visible = featuresInView(lvl, bounds);
-
-      map.data.addGeoJson({ type: 'FeatureCollection', features: visible });
-      map.data.setStyle(styleFor(lvl));
-      visible.forEach((f: any) => {
-        renderedFeatureKeys[lvl].add(f.properties.name);
-        ensureLabelMarker(lvl, f).setMap(map);
-      });
-    };
-
     // 폴리곤 클릭 시 해당 구역으로 드롭다운 자동 필터링 (Reverse Geocoding)
     if (!window.naver.maps.Event.hasListener(map.data, 'click')) {
       window.naver.maps.Event.addListener(map.data, 'click', (e: any) => {
@@ -296,46 +343,8 @@ function MainApp() {
       });
     }
 
-    // 지도 이동/확대 시 상태 동기화 및 마커/폴리곤 업데이트
-    window.naver.maps.Event.clearListeners(map, 'idle');
-    window.naver.maps.Event.addListener(map, 'idle', () => {
-        // 항상 지도 상태를 동기화하여 수동 줌인/줌아웃 시에도 mapZoom 상태가 최신으로 유지되게 함
-        const currentZoom = map.getZoom();
-        setMapZoom(currentZoom);
-
-        const currentCenter = map.getCenter();
-        setMapCenter({ lat: currentCenter.y, lng: currentCenter.x });
-
-        if (!showRegions || !currentRenderedLevel || !geoCache[currentRenderedLevel]) return;
-        const lvl = currentRenderedLevel;
-        const bounds = map.getBounds();
-
-        // 새로 보여야 할 폴리곤/라벨만 추가 (map.data 전수조사 없이 직접
-        // 추적한 renderedFeatureKeys로 이미 그려진 것만 걸러낸다)
-        const visible = featuresInView(lvl, bounds);
-        const toAdd = visible.filter((f: any) => !renderedFeatureKeys[lvl].has(f.properties.name));
-
-        if (toAdd.length > 0) {
-          map.data.addGeoJson({ type: 'FeatureCollection', features: toAdd });
-          map.data.setStyle(styleFor(lvl));
-          toAdd.forEach((f: any) => {
-            renderedFeatureKeys[lvl].add(f.properties.name);
-            ensureLabelMarker(lvl, f).setMap(map);
-          });
-        }
-
-        // 화면 밖으로 나간 라벨은 숨겨서(제거는 아님) 다시 들어오면 재사용
-        labelCache[lvl].forEach((m: any) => {
-          if (bounds.hasLatLng(m.getPosition())) {
-            if (!m.getMap()) m.setMap(map);
-          } else {
-            if (m.getMap()) m.setMap(null);
-          }
-        });
-      });
-
     if (geoCache[level]) {
-      drawLevel(level);
+      drawRegionLevel(map, level);
     } else {
       fetch(urlMap[level])
         .then(r => r.json())
@@ -369,7 +378,7 @@ function MainApp() {
           // 로딩 중에 줌이 바뀌었으면 그리지 않음
           const currentLevel = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
           if (level === currentLevel && showRegions) {
-            drawLevel(level);
+            drawRegionLevel(map, level);
           }
         });
     }
@@ -1196,23 +1205,55 @@ function MainApp() {
           <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-[#FBFAF7]">
             
             {/* 검색바 */}
-            <div className="mb-5 relative">
-              <input 
+            <div className="mb-3 relative">
+              <input
                 type="text"
-                placeholder="어르신 이름 검색..."
+                placeholder="이름 또는 주소 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl py-3.5 pl-12 pr-10 text-[16px] shadow-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all"
               />
               <IconSearch size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
               {searchQuery && (
-                <button 
+                <button
                   onClick={() => setSearchQuery('')}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-slate-100 p-1 rounded-full"
                 >
                   <IconX size={16} />
                 </button>
               )}
+            </div>
+
+            {/* 필터 칩 + 정렬 */}
+            <div className="flex items-center justify-between gap-2 mb-5">
+              <div className="flex gap-1.5 overflow-x-auto">
+                {([
+                  { key: 'all', label: '전체' },
+                  { key: 'today', label: '오늘 방문' },
+                  { key: 'incomplete', label: '미완료' },
+                  { key: 'completed', label: '완료' },
+                  { key: 'recurring', label: '반복 일정' },
+                ] as const).map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => setListFilter(f.key)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                      listFilter === f.key ? 'bg-[#12203D] text-white' : 'bg-white text-slate-500 border border-slate-200'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
+                className="flex-shrink-0 bg-white border border-slate-200 rounded-full px-2.5 py-1.5 text-xs font-bold text-slate-600 focus:outline-none"
+              >
+                <option value="time">시간순</option>
+                <option value="name">이름순</option>
+                <option value="distance">거리순</option>
+              </select>
             </div>
 
             {(markers.length === 0) ? (
@@ -1226,14 +1267,30 @@ function MainApp() {
               <div className="space-y-4">
                 {(() => {
                   const filteredMarkers = markers
-                    .filter(marker => marker.name.includes(searchQuery))
-                    .sort((a,b) => a.visit_time.localeCompare(b.visit_time));
-                  
+                    .filter((marker) => {
+                      const q = searchQuery.trim();
+                      if (q && !marker.name.includes(q) && !marker.address.includes(q)) return false;
+                      if (listFilter === 'today' && !isScheduledToday(marker)) return false;
+                      if (listFilter === 'incomplete' && isCompletedToday(marker)) return false;
+                      if (listFilter === 'completed' && !isCompletedToday(marker)) return false;
+                      if (listFilter === 'recurring' && !marker.recurring_weekdays) return false;
+                      return true;
+                    })
+                    .sort((a, b) => {
+                      if (sortMode === 'name') return a.name.localeCompare(b.name, 'ko');
+                      if (sortMode === 'distance') {
+                        const da = getDistanceFromLatLonInKm(mapCenter.lat, mapCenter.lng, a.lat, a.lng);
+                        const db = getDistanceFromLatLonInKm(mapCenter.lat, mapCenter.lng, b.lat, b.lng);
+                        return da - db;
+                      }
+                      return a.visit_time.localeCompare(b.visit_time);
+                    });
+
                   if (filteredMarkers.length === 0) {
                     return (
                       <div className="flex flex-col items-center justify-center text-slate-400 mt-12 bg-white rounded-xl py-12 shadow-sm border border-slate-100">
                         <IconSearch size={40} className="text-slate-200 mb-4" />
-                        <p className="font-bold text-lg text-slate-500">'{searchQuery}' 검색 결과가 없습니다.</p>
+                        <p className="font-bold text-lg text-slate-500">조건에 맞는 어르신이 없습니다.</p>
                       </div>
                     );
                   }
