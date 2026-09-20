@@ -156,7 +156,8 @@ function MainApp() {
   const [showRegions, setShowRegions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring'>('all');
-  const [sortMode, setSortMode] = useState<'time' | 'name' | 'distance'>('time');
+  const [showRegionFilter, setShowRegionFilter] = useState(false);
+  const [sortMode, setSortMode] = useState<'time' | 'name' | 'distance'>('name');
   const mapRef = useRef<any>(null);
   const isAutoSelectRef = useRef(false);
   const regionsLoaded = useRef(false);
@@ -1114,7 +1115,25 @@ function MainApp() {
 
         <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
         {/* Region Selectors - Floating Glassmorphism Island */}
-        <div id="tour-header" className="flex gap-2 p-1.5 bg-surface/80 backdrop-blur-xl rounded-2xl shadow-lg shadow-foreground/10 border border-surface-border/50 pointer-events-auto">
+        
+        {/* Region Filter Toggle Button */}
+        <div className="flex justify-start pointer-events-auto">
+          <button 
+            onClick={() => setShowRegionFilter(!showRegionFilter)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-surface/90 backdrop-blur-xl rounded-full shadow-md shadow-foreground/5 border border-surface-border/50 transition-all hover:scale-105 active:scale-95"
+          >
+            <IconMapPin size={18} className="text-primary" />
+            <span className="text-[14px] font-black text-primary">
+              {selectedSido ? `${sidos.find(s=>s.code===selectedSido)?.name || ''} ${sigungus.find(s=>s.code===selectedSigungu)?.name?.split(' ').pop() || ''} ${dongs.find(s=>s.code===selectedDong)?.name?.split(' ').pop() || ''}`.trim() : '전체 지역 (검색하려면 탭하세요)'}
+            </span>
+            <IconSearch size={16} className="text-foreground/50 ml-1" />
+          </button>
+        </div>
+
+        {/* Region Selectors - Floating Glassmorphism Island */}
+        {showRegionFilter && (
+        <div id="tour-header" className="flex gap-2 p-1.5 bg-surface/90 backdrop-blur-2xl rounded-2xl shadow-xl shadow-foreground/10 border border-surface-border/50 pointer-events-auto animate-in fade-in slide-in-from-top-2">
+
           <NativeSelect
             className="flex-1 !bg-surface !shadow-none !border !border-surface-border/60 !rounded-xl !py-2.5 !px-3 !text-[13px] hover:!border-primary/50 transition-colors"
             value={selectedSido}
@@ -1149,6 +1168,7 @@ function MainApp() {
             {dongs.map(dong => <option key={dong.code} value={dong.code}>{dong.name.split(' ').pop()}</option>)}
           </NativeSelect>
         </div>
+        )}
       </header>
       )}
 

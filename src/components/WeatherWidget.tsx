@@ -20,8 +20,9 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
         const { x, y } = dfs_xy_conv("toXY", lat, lng);
         const { base_date, base_time } = getBaseDateTime();
         
-        // Using the user's provided API Key and the API Hub endpoint.
-        const url = `https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtNcst?pageNo=1&numOfRows=10&dataType=JSON&base_date=\${base_date}&base_time=\${base_time}&nx=\${x}&ny=\${y}&authKey=CTl9VmD0R7O5fVZg9DezwQ`;
+        // Proxy API to bypass CORS
+        const targetUrl = `https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtNcst?pageNo=1&numOfRows=10&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=${x}&ny=${y}&authKey=CTl9VmD0R7O5fVZg9DezwQ`;
+        const url = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
         
         const res = await fetch(url);
         const data = await res.json();
@@ -30,8 +31,8 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
           const items = data.response.body.items.item;
           
           let temp = "";
-          let pty = ""; // 0: 없음, 1: 비, 2: 비/눈, 3: 눈, 5: 빗방울, 6: 빗방울눈날림, 7: 눈날림
-          let rn1 = ""; // 1시간 강수량
+          let pty = ""; 
+          let rn1 = ""; 
           
           items.forEach((item: any) => {
             if (item.category === "T1H") temp = item.obsrValue;
@@ -57,7 +58,6 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
 
   if (loading || !weather) return null;
 
-  // Determine icon and description
   let emoji = "☀️";
   let desc = "맑음";
   
@@ -65,14 +65,12 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
   else if (weather.pty === "2" || weather.pty === "6") { emoji = "🌨️"; desc = "비/눈"; }
   else if (weather.pty === "3" || weather.pty === "7") { emoji = "❄️"; desc = "눈"; }
   else {
-    // If not raining/snowing, assume sunny/cloudy (getUltraSrtNcst doesn't give sky condition directly, only PTY. 
-    // SKY is in getUltraSrtFcst. For simplicity, we just say "맑음/구름" or "현재 기온".)
     emoji = "🌡️";
     desc = "기온";
   }
 
   return (
-    <div className="fixed top-[env(safe-area-inset-top,0px)] right-4 mt-20 z-[30] pointer-events-auto">
+    <div className="fixed top-[env(safe-area-inset-top,0px)] right-4 mt-20 z-[40] pointer-events-auto animate-in fade-in slide-in-from-right-4">
       <div className="flex items-center gap-2 px-3 py-2 bg-surface/90 backdrop-blur-xl rounded-2xl shadow-lg shadow-foreground/10 border border-surface-border/50 transition-all hover:scale-105 cursor-default">
         <span className="text-lg">{emoji}</span>
         <div className="flex flex-col">
