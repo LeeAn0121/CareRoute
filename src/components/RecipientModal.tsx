@@ -94,7 +94,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !address || !bcode || !visitDate) {
+    if (!name || !address || !bcode) {
       alert('모든 필수 항목을 입력해주세요.');
       return;
     }
@@ -170,7 +170,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         dong: bcode,
         lat: coords.lat,
         lng: coords.lng,
-        visit_time: visitTime ? `${visitTime}:00` : '',
+        visit_time: visitTime ? `${visitTime}:00` : null,
         notes: visitDate
       };
 
@@ -246,11 +246,10 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             />
 
             <TextField
-              label="방문 예정일"
+              label="방문 예정일 (선택)"
               type="date"
               variant="outlined"
               fullWidth
-              required
               value={visitDate}
               onChange={(e) => setVisitDate(e.target.value)}
               disabled={isSubmitting}
