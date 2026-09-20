@@ -521,6 +521,27 @@ function MainApp() {
           
           setMapCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
           setMapZoom(15); // 주변 동네가 보이도록 줌인
+
+          // 내 위치의 행정구역으로 드롭다운 자동 세팅 (Reverse Geocoding)
+          if (window.naver && window.naver.maps && window.naver.maps.Service) {
+            // @ts-ignore
+            window.naver.maps.Service.reverseGeocode({
+              coords: new window.naver.maps.LatLng(position.coords.latitude, position.coords.longitude),
+              orders: [window.naver.maps.Service.OrderType.LEGAL_CODE].join(',')
+            }, function(status: any, response: any) {
+              if (status === 200 && response.v2.results.length > 0) {
+                const bcode = response.v2.results[0].code.id;
+                if (bcode && bcode.length === 10) {
+                  const sido = bcode.substring(0, 2) + '00000000';
+                  const sigungu = bcode.substring(0, 5) + '00000';
+                  const dong = bcode;
+                  setSelectedSido(sido);
+                  setTimeout(() => setSelectedSigungu(sigungu), 200);
+                  setTimeout(() => setSelectedDong(dong), 400);
+                }
+              }
+            });
+          }
         },
         (error) => {
           console.warn('초기 위치 정보를 가져올 수 없습니다.', error);
