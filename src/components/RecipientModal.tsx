@@ -59,7 +59,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setAddress(recipientToEdit.address);
         setDetailAddress('');
         setBcode(recipientToEdit.dong);
-        setVisitTime(recipientToEdit.visit_time.substring(0, 5));
+        setVisitTime(recipientToEdit.visit_time ? recipientToEdit.visit_time.substring(0, 5) : '');
         setVisitDate(recipientToEdit.notes || '');
       } else {
         setName('');

@@ -477,7 +477,7 @@ function MainApp() {
                             </Typography>
                             <Chip 
                               icon={<IconClock size={14} />} 
-                              label={`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5)} 방문`} 
+                              label={`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time ? marker.visit_time.substring(0, 5) : '미정'} 방문`} 
                               size="small" 
                               sx={{ mt: 0.5, bgcolor: '#ccfbf1', color: '#0f766e', fontWeight: 800, borderRadius: 1.5, '& .MuiChip-icon': { color: '#0f766e' } }} 
                             />
@@ -565,12 +565,20 @@ function MainApp() {
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
               <Box>
-                <Typography variant="h5" component="div" sx={{ fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px' }}>
-                  {selectedRecipient.name} 어르신
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  <Typography variant="h5" component="div" sx={{ fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px' }}>
+                    {selectedRecipient.name} 어르신
+                  </Typography>
+                  <IconButton onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} size="small" sx={{ bgcolor: '#f8fafc' }}>
+                    <IconPencil size={18} />
+                  </IconButton>
+                  <IconButton onClick={() => handleDelete(selectedRecipient.id)} size="small" sx={{ bgcolor: '#fef2f2', color: '#ef4444' }}>
+                    <IconTrash size={18} />
+                  </IconButton>
+                </Box>
                 <Chip 
                   icon={<IconClock size={16} />} 
-                  label={`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5)} 방문 예정`} 
+                  label={`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time ? selectedRecipient.visit_time.substring(0, 5) : '미정'} 방문 예정`} 
                   color="primary" 
                   variant="outlined" 
                   size="small" 
