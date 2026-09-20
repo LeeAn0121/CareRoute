@@ -511,6 +511,25 @@ function MainApp() {
     fetchMarkers();
   }, [selectedSido, selectedSigungu, selectedDong]);
 
+  // 앱 실행 시 즉시 현재 위치로 이동 (초기 1회)
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // 사용자가 이미 다른 곳을 클릭해서 이동 중이라면 방해하지 않음
+          if (selectedSido || selectedSigungu || selectedDong) return;
+          
+          setMapCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
+          setMapZoom(15); // 주변 동네가 보이도록 줌인
+        },
+        (error) => {
+          console.warn('초기 위치 정보를 가져올 수 없습니다.', error);
+        },
+        { enableHighAccuracy: false, maximumAge: 60000, timeout: 5000 }
+      );
+    }
+  }, []);
+
   useEffect(() => {
     fetch('https://grpc-proxy-server-mkvo6j4wsq-du.a.run.app/v1/regcodes?regcode_pattern=*00000000')
       .then(res => res.json())
