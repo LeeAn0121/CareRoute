@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
 import Tour from '@/components/Tour';
@@ -146,6 +146,7 @@ function MainApp() {
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   
   const [activeTab, setActiveTab] = useState<'map' | 'list' | 'route' | 'settings'>('map');
+  const [listViewMode, setListViewMode] = useState<'list' | 'grid' | 'compact'>('list');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapZoom, setMapZoom] = useState(15);
@@ -1262,9 +1263,27 @@ function MainApp() {
               )}
             </div>
 
-            {/* 필터 칩 + 정렬 */}
-            <div className="flex items-center justify-between gap-2 mb-5">
-              <div className="flex gap-1.5 overflow-x-auto">
+            {/* 뷰 모드 + 정렬 */}
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex bg-surface-muted p-1 rounded-xl shadow-sm border border-surface-border">
+                <button onClick={() => setListViewMode('list')} className={`p-1.5 rounded-lg transition-colors ${listViewMode === 'list' ? 'bg-surface text-primary shadow-sm' : 'text-foreground/40 hover:text-foreground/70'}`}><IconList size={18} /></button>
+                <button onClick={() => setListViewMode('grid')} className={`p-1.5 rounded-lg transition-colors ${listViewMode === 'grid' ? 'bg-surface text-primary shadow-sm' : 'text-foreground/40 hover:text-foreground/70'}`}><IconLayoutGrid size={18} /></button>
+                <button onClick={() => setListViewMode('compact')} className={`p-1.5 rounded-lg transition-colors ${listViewMode === 'compact' ? 'bg-surface text-primary shadow-sm' : 'text-foreground/40 hover:text-foreground/70'}`}><IconListDetails size={18} /></button>
+              </div>
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
+                className="bg-surface border border-surface-border rounded-xl px-3 py-1.5 text-xs font-bold text-foreground/70 focus:outline-none"
+              >
+                <option value="time">서비스 시간순</option>
+                <option value="name">이름순</option>
+                <option value="distance">거리순</option>
+              </select>
+            </div>
+
+            {/* 필터 칩 */}
+            <div className="flex items-center gap-2 mb-5">
+              <div className="flex gap-1.5 overflow-x-auto pb-1">
                 {([
                   { key: 'all', label: '전체' },
                   { key: 'today', label: '오늘 방문' },
@@ -1283,15 +1302,6 @@ function MainApp() {
                   </button>
                 ))}
               </div>
-              <select
-                value={sortMode}
-                onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
-                className="flex-shrink-0 bg-surface border border-surface-border rounded-full px-2.5 py-1.5 text-xs font-bold text-foreground/70 focus:outline-none"
-              >
-                <option value="time">서비스 시간순</option>
-                <option value="name">이름순</option>
-                <option value="distance">거리순</option>
-              </select>
             </div>
 
             {(markers.length === 0) ? (
@@ -1302,7 +1312,7 @@ function MainApp() {
                 <p className="font-bold text-lg text-foreground/60">이 지역엔 등록된 어르신이 없습니다.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className={listViewMode === 'grid' ? "grid grid-cols-2 gap-3" : "space-y-4"}>
                 {(() => {
                   const filteredMarkers = markers
                     .filter((marker) => {
@@ -1344,67 +1354,109 @@ function MainApp() {
                     exit={{ opacity: 0, scale: 0.96 }}
                     transition={{ duration: 0.22, delay: Math.min(index, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
                     whileTap={{ scale: 0.98 }}
-                    className="rounded-xl mb-2 border border-surface-border shadow-[0_4px_20px_rgba(0,0,0,0.03)] cursor-pointer bg-surface"
+                    className={`rounded-xl ${listViewMode === 'list' ? 'mb-2' : ''} border border-surface-border shadow-[0_4px_20px_rgba(0,0,0,0.03)] cursor-pointer bg-surface overflow-hidden flex flex-col`}
                     onClick={() => {
                       setMapCenter({ lat: marker.lat, lng: marker.lng });
-                      setMapZoom(17); // Zoom in deeply
-                      setActiveTab('map'); // Switch to map tab
-                      // 어떤 어르신 위치로 포커싱된 건지 확실히 보이도록 해당
-                      // 마커를 선택 상태로 만든다 (마커가 앰버색으로 바뀌며
-                      // 핑 애니메이션 + 하단 상세 시트가 함께 뜸).
+                      setMapZoom(17);
+                      setActiveTab('map');
                       setSelectedRecipient(marker);
                     }}
                   >
-                    <div className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex gap-4 items-center">
-                          <div className="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {listViewMode === 'list' && (
+                      <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex gap-4 items-center">
+                            <div className="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                              {marker.photo_url ? (
+                                <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <IconUser size={28} color='var(--primary)' />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-lg font-black text-primary tracking-tight">
+                                {marker.name} 어르신
+                              </p>
+                              <Chip icon={<IconClock size={14} color="#8A5A00" />} className="mt-1 bg-accent/20 text-foreground/80 font-bold">
+                                {`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}`}
+                              </Chip>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+                            <IconButton onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} className={isCompletedToday(marker) ? 'bg-[#4C7A6B] text-white' : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'} aria-label="완료">
+                              <IconCheck size={18} />
+                            </IconButton>
+                          </div>
+                        </div>
+
+                        <div className="bg-surface-muted rounded-lg p-4 mb-5 flex gap-3 items-center">
+                          <IconMapPin size={22} color="#94a3b8" className="flex-shrink-0" />
+                          <p className="font-semibold text-foreground/70 leading-snug">
+                            {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
+                          </p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} className="flex-1 py-3 text-sm border border-surface-border">
+                            수정
+                          </Button>
+                          <Button variant="dark" startIcon={<IconNavigation size={18} />} onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }} className="flex-[2] py-3 text-sm">
+                            길안내
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {listViewMode === 'grid' && (
+                      <div className="p-4 flex flex-col h-full">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="w-12 h-12 bg-primary/5 rounded-full flex items-center justify-center overflow-hidden">
                             {marker.photo_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
                               <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                             ) : (
-                              <IconUser size={28} color='var(--primary)' />
+                              <IconUser size={24} color='var(--primary)' />
                             )}
                           </div>
-                          <div>
-                            <p className="text-lg font-black text-primary tracking-tight">
-                              {marker.name} 어르신
-                            </p>
-                            <Chip icon={<IconClock size={14} color="#8A5A00" />} className="mt-1 bg-accent/20 text-foreground/80 font-bold">
-                              {`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5) === '00:00' ? '서비스 시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}`}
-                            </Chip>
-                          </div>
+                          <button onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isCompletedToday(marker) ? 'bg-[#4C7A6B] text-white' : 'bg-surface-muted text-foreground/40 hover:bg-surface-border'}`}>
+                            <IconCheck size={16} />
+                          </button>
                         </div>
-                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                          <IconButton onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} className={isCompletedToday(marker) ? 'bg-[#4C7A6B] text-white' : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'} aria-label="오늘 방문 완료 체크">
-                            <IconCheck size={18} />
-                          </IconButton>
-                          <IconButton onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} className="bg-surface-muted text-foreground/60 hover:bg-surface-border">
-                            <IconPencil size={18} />
-                          </IconButton>
-                          <IconButton onClick={(e) => { e.stopPropagation(); handleDelete(marker.id); }} className="bg-red-50 text-red-500 hover:bg-red-200">
-                            <IconTrash size={18} />
-                          </IconButton>
-                        </div>
-                      </div>
-
-                      <div className="bg-surface-muted rounded-lg p-4 mb-5 flex gap-3 items-center">
-                        <IconMapPin size={22} color="#94a3b8" className="flex-shrink-0" />
-                        <p className="font-semibold text-foreground/70 leading-snug">
-                          {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
+                        <p className="text-lg font-black text-primary tracking-tight truncate">{marker.name}</p>
+                        <p className="text-xs font-semibold text-accent mb-2 truncate">
+                          {marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5)}
                         </p>
+                        <p className="text-xs text-foreground/60 font-medium line-clamp-2 mb-4 flex-1">
+                          {marker.address}
+                        </p>
+                        <Button variant="dark" onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }} className="py-2 text-xs w-full mt-auto">
+                          길안내
+                        </Button>
                       </div>
+                    )}
 
-                      <Button
-                        fullWidth
-                        variant="dark"
-                        startIcon={<IconNavigation size={18} />}
-                        onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }}
-                        className="py-3 text-[1.05rem]"
-                      >
-                        길안내 시작
-                      </Button>
-                    </div>
+                    {listViewMode === 'compact' && (
+                      <div className="p-3 flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary/5 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {marker.photo_url ? (
+                            <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <IconUser size={20} color='var(--primary)' />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-black text-primary truncate">{marker.name}</p>
+                            {isCompletedToday(marker) && <IconCheck size={14} className="text-[#4C7A6B]" />}
+                          </div>
+                          <p className="text-xs text-foreground/50 font-semibold truncate">
+                            {marker.visit_time.substring(0, 5) === '00:00' ? '미정' : marker.visit_time.substring(0, 5)} · {marker.address}
+                          </p>
+                        </div>
+                        <button onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }} className="p-2 bg-surface-muted text-foreground/60 rounded-full hover:bg-surface-border transition-colors flex-shrink-0">
+                          <IconNavigation size={18} />
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                     ))}
                   </AnimatePresence>
