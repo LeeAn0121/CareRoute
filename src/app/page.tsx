@@ -493,10 +493,13 @@ function MainApp() {
       const json = subscription.toJSON();
       if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return;
 
-      await supabase.from('push_subscriptions').upsert(
+      const { error } = await supabase.from('push_subscriptions').upsert(
         { endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
-        { onConflict: 'endpoint' },
+        { onConflict: 'endpoint' }
       );
+      if (error) {
+        console.warn('푸시 구독 저장 실패 (Supabase RLS 확인 필요):', error.message);
+      }
     };
 
     setupPush().catch((err) => console.warn('Push 구독 설정 실패:', err));
