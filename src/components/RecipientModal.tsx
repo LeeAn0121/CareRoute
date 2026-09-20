@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { DaumPostcodeEmbed } from 'react-daum-postcode';
 import { IconX, IconSearch, IconCamera, IconUser } from '@tabler/icons-react';
+import { motion } from 'motion/react';
 import { Button, IconButton, Modal, TextField } from './ui';
 
 interface Recipient {
@@ -235,42 +236,47 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="flex flex-col gap-4 px-5 py-3">
+        <div className="flex flex-col gap-5 px-5 py-3">
           <div className="flex justify-center">
             <div className="relative">
               <button
                 type="button"
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isSubmitting}
-                className="w-24 h-24 rounded-full overflow-hidden bg-[#EEF1F6] flex items-center justify-center border border-slate-200"
+                className="w-24 h-24 rounded-full overflow-hidden bg-[#EEF1F6] flex items-center justify-center border-2 border-dashed border-slate-300 transition-colors hover:border-amber-400"
                 aria-label="사진 선택"
               >
                 {photoPreview ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photoPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <IconUser size={40} color="#94a3b8" />
+                  <div className="flex flex-col items-center gap-1 text-slate-400">
+                    <IconUser size={32} />
+                    <span className="text-[11px] font-bold">사진 추가</span>
+                  </div>
                 )}
               </button>
-              <button
+              <motion.button
                 type="button"
+                whileTap={{ scale: 0.9 }}
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isSubmitting}
-                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#12203D] text-white flex items-center justify-center border-2 border-white"
+                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#F5A524] text-[#12203D] flex items-center justify-center border-2 border-white shadow-sm"
                 aria-label="사진 촬영/선택"
               >
                 <IconCamera size={16} />
-              </button>
+              </motion.button>
               {photoPreview && (
-                <button
+                <motion.button
                   type="button"
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => { setPhotoFile(null); setExistingPhotoUrl(null); if (photoInputRef.current) photoInputRef.current.value = ''; }}
                   disabled={isSubmitting}
                   className="absolute top-0 right-0 w-6 h-6 rounded-full bg-white text-red-500 shadow flex items-center justify-center"
                   aria-label="사진 제거"
                 >
                   <IconX size={14} />
-                </button>
+                </motion.button>
               )}
               <input
                 ref={photoInputRef}
@@ -283,98 +289,110 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             </div>
           </div>
 
-          <TextField
-            label="성함"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => {
-              // 신규 등록 시 성함을 입력하고 다음 항목으로 넘어가면
-              // 바로 주소 검색을 띄워 한 번에 이어서 입력할 수 있게 한다.
-              if (!recipientToEdit && name.trim() && !address) {
-                handleSearchAddress();
-              }
-            }}
-            disabled={isSubmitting}
-          />
-
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
-              <TextField label="기본 주소" required value={address} disabled />
-            </div>
-            <Button
-              type="button"
-              onClick={handleSearchAddress}
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-extrabold text-slate-400 tracking-wide">기본 정보</p>
+            <TextField
+              label="성함"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => {
+                // 신규 등록 시 성함을 입력하고 다음 항목으로 넘어가면
+                // 바로 주소 검색을 띄워 한 번에 이어서 입력할 수 있게 한다.
+                if (!recipientToEdit && name.trim() && !address) {
+                  handleSearchAddress();
+                }
+              }}
               disabled={isSubmitting}
-              startIcon={<IconSearch size={18} />}
-              className="mb-[1px]"
-            >
-              검색
-            </Button>
-          </div>
+            />
 
-          <TextField
-            label="상세 주소 (선택)"
-            value={detailAddress}
-            onChange={(e) => setDetailAddress(e.target.value)}
-            disabled={isSubmitting}
-            inputRef={detailAddressRef}
-          />
-
-          <TextField
-            label="방문 예정일 (선택)"
-            type="date"
-            value={visitDate}
-            onChange={(e) => setVisitDate(e.target.value)}
-            disabled={isSubmitting}
-            endAdornment={visitDate ? (
-              <IconButton onClick={() => setVisitDate('')} aria-label="방문 예정일 지우기">
-                <IconX size={16} />
-              </IconButton>
-            ) : null}
-          />
-
-          <div>
-            <span className="block text-sm font-bold text-slate-600 mb-1">반복 요일 (선택)</span>
-            <div className="flex gap-1.5">
-              {WEEKDAY_LABELS.map((label, day) => {
-                const active = recurringDays.includes(day);
-                return (
-                  <button
-                    key={day}
-                    type="button"
-                    disabled={isSubmitting}
-                    onClick={() => {
-                      setRecurringDays((prev) =>
-                        prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-                      );
-                    }}
-                    className={`w-9 h-9 rounded-full text-sm font-bold transition ${
-                      active ? 'bg-[#F5A524] text-[#12203D]' : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <TextField label="기본 주소" required value={address} disabled />
+              </div>
+              <Button
+                type="button"
+                onClick={handleSearchAddress}
+                disabled={isSubmitting}
+                startIcon={<IconSearch size={18} />}
+                className="mb-[1px]"
+              >
+                검색
+              </Button>
             </div>
-            {recurringDays.length > 0 && (
-              <p className="text-xs text-slate-400 mt-1.5">매주 {recurringDays.slice().sort().map((d) => WEEKDAY_LABELS[d]).join(', ')}요일마다 방문 예정에 자동으로 포함됩니다.</p>
-            )}
+
+            <TextField
+              label="상세 주소 (선택)"
+              value={detailAddress}
+              onChange={(e) => setDetailAddress(e.target.value)}
+              disabled={isSubmitting}
+              inputRef={detailAddressRef}
+            />
           </div>
 
-          <TextField
-            label="방문 예정 서비스 시간 (선택)"
-            type="time"
-            value={visitTime}
-            onChange={(e) => setVisitTime(e.target.value)}
-            disabled={isSubmitting}
-            endAdornment={visitTime ? (
-              <IconButton onClick={() => setVisitTime('')} aria-label="방문 예정 서비스 시간 지우기">
-                <IconX size={16} />
-              </IconButton>
-            ) : null}
-          />
+          <div className="h-px bg-slate-100" />
+
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-extrabold text-slate-400 tracking-wide">방문 일정</p>
+            <TextField
+              label="방문 예정일 (선택)"
+              type="date"
+              value={visitDate}
+              onChange={(e) => setVisitDate(e.target.value)}
+              disabled={isSubmitting}
+              endAdornment={visitDate ? (
+                <IconButton onClick={() => setVisitDate('')} aria-label="방문 예정일 지우기">
+                  <IconX size={16} />
+                </IconButton>
+              ) : null}
+            />
+
+            <div>
+              <span className="block text-sm font-bold text-slate-600 mb-1">반복 요일 (선택)</span>
+              <div className="flex gap-1.5">
+                {WEEKDAY_LABELS.map((label, day) => {
+                  const active = recurringDays.includes(day);
+                  return (
+                    <motion.button
+                      key={day}
+                      type="button"
+                      whileTap={{ scale: 0.88 }}
+                      disabled={isSubmitting}
+                      onClick={() => {
+                        setRecurringDays((prev) =>
+                          prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+                        );
+                      }}
+                      animate={{
+                        backgroundColor: active ? '#F5A524' : '#F1F5F9',
+                        color: active ? '#12203D' : '#64748B',
+                      }}
+                      transition={{ duration: 0.15 }}
+                      className="w-9 h-9 rounded-full text-sm font-bold"
+                    >
+                      {label}
+                    </motion.button>
+                  );
+                })}
+              </div>
+              {recurringDays.length > 0 && (
+                <p className="text-xs text-slate-400 mt-1.5">매주 {recurringDays.slice().sort().map((d) => WEEKDAY_LABELS[d]).join(', ')}요일마다 방문 예정에 자동으로 포함됩니다.</p>
+              )}
+            </div>
+
+            <TextField
+              label="방문 예정 서비스 시간 (선택)"
+              type="time"
+              value={visitTime}
+              onChange={(e) => setVisitTime(e.target.value)}
+              disabled={isSubmitting}
+              endAdornment={visitTime ? (
+                <IconButton onClick={() => setVisitTime('')} aria-label="방문 예정 서비스 시간 지우기">
+                  <IconX size={16} />
+                </IconButton>
+              ) : null}
+            />
+          </div>
         </div>
 
         <div className="px-5 pb-5 pt-2">
