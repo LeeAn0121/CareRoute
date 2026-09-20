@@ -65,6 +65,9 @@ jobs:
           # Web Push 공개키. 비밀키가 아니라 클라이언트에 그대로 노출되는 값이라
           # secrets가 아니라 여기 값 그대로 둠.
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: "BPegA5pFU2R882Bm50_Wmu4avnLbxZTZuda8VYPsYoGjTOalKuEonRlvzaJmOqgfg5cgyYW6t0lbtm5EHy3NAGQ"
+          # Google OAuth 클라이언트 ID. 웹 클라이언트 ID는 공개 노출을 전제로
+          # 설계돼있고(허용된 오리진으로 접근 제한), 비밀키가 아님.
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: "658968672618-3po6j9j4ffrtkcjiap110s5k4oic1qh6.apps.googleusercontent.com"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

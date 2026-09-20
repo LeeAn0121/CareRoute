@@ -885,6 +885,102 @@ function MainApp() {
     return route;
   }, [markers, mapCenter]);
 
+  // Google 캘린더 동기화: Google Identity Services(GIS)로 액세스 토큰만 받아서
+  // Calendar REST API를 직접 호출한다 (무거운 gapi 클라이언트 라이브러리 불필요).
+  const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
+
+  const loadGoogleScript = () => new Promise<void>((resolve, reject) => {
+    if (window.google?.accounts?.oauth2) return resolve();
+    const existing = document.getElementById('google-identity-script');
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = 'google-identity-script';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Google 스크립트 로딩 실패'));
+    document.body.appendChild(script);
+  });
+
+  const handleSyncToCalendar = async () => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) return;
+    if (todayRoute.length === 0) {
+      alert('오늘 방문 예정인 어르신이 없어서 동기화할 일정이 없습니다.');
+      return;
+    }
+
+    setIsSyncingCalendar(true);
+    try {
+      await loadGoogleScript();
+
+      const accessToken: string = await new Promise((resolve, reject) => {
+        const tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'https://www.googleapis.com/auth/calendar.events',
+          callback: (resp: any) => {
+            if (resp.error) reject(new Error(resp.error));
+            else resolve(resp.access_token);
+          },
+        });
+        tokenClient.requestAccessToken();
+      });
+
+      const ymd = todayYMD();
+      const authHeaders = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
+
+      // 같은 날짜로 이미 동기화한 이벤트가 있으면 지우고 새로 만들어서
+      // 여러 번 눌러도 중복 생성되지 않게 한다.
+      const existingRes = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?privateExtendedProperty=${encodeURIComponent(`careRouteDate=${ymd}`)}`,
+        { headers: authHeaders },
+      );
+      const existing = await existingRes.json();
+      for (const ev of existing.items || []) {
+        await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${ev.id}`, {
+          method: 'DELETE',
+          headers: authHeaders,
+        });
+      }
+
+      for (const marker of todayRoute) {
+        const hasTime = marker.visit_time && marker.visit_time !== '00:00:00';
+        const body: any = {
+          summary: `${marker.name} 어르신 방문`,
+          location: `${marker.address}${marker.detail_address ? ` ${marker.detail_address}` : ''}`,
+          extendedProperties: { private: { careRouteDate: ymd, careRouteRecipientId: marker.id } },
+        };
+        if (hasTime) {
+          const startDateTime = `${ymd}T${marker.visit_time}`;
+          const [h, m, s] = marker.visit_time.split(':').map(Number);
+          const endDate = new Date(`${ymd}T${marker.visit_time}`);
+          endDate.setMinutes(endDate.getMinutes() + 30);
+          const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+          body.start = { dateTime: startDateTime, timeZone: 'Asia/Seoul' };
+          body.end = { dateTime: `${ymd}T${endTime}`, timeZone: 'Asia/Seoul' };
+        } else {
+          body.start = { date: ymd };
+          body.end = { date: ymd };
+        }
+
+        await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify(body),
+        });
+      }
+
+      alert(`오늘의 경로 ${todayRoute.length}건을 구글 캘린더에 동기화했습니다.`);
+    } catch (err: any) {
+      console.error(err);
+      alert('구글 캘린더 동기화에 실패했습니다: ' + (err?.message || err));
+    } finally {
+      setIsSyncingCalendar(false);
+    }
+  };
+
   return (
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-[#FBFAF7] font-sans">
       
@@ -1186,11 +1282,23 @@ function MainApp() {
             최근접 삽입 휴리스틱으로 방문 순서를 매겨 보여준다. */}
         {activeTab === 'route' && (
           <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-[#FBFAF7]">
-            <div className="mb-4">
-              <p className="text-lg font-black text-[#12203D]">오늘의 방문 순서</p>
-              <p className="text-sm text-slate-400 font-semibold">
-                직선거리 기준 추천 순서예요 · 총 {todayRoute.length}곳
-              </p>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-lg font-black text-[#12203D]">오늘의 방문 순서</p>
+                <p className="text-sm text-slate-400 font-semibold">
+                  직선거리 기준 추천 순서예요 · 총 {todayRoute.length}곳
+                </p>
+              </div>
+              {todayRoute.length > 0 && (
+                <Button
+                  variant="ghost"
+                  loading={isSyncingCalendar}
+                  onClick={handleSyncToCalendar}
+                  className="py-2 text-sm whitespace-nowrap"
+                >
+                  구글 캘린더 동기화
+                </Button>
+              )}
             </div>
 
             {todayRoute.length === 0 ? (
