@@ -4,7 +4,7 @@ import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
-import Onboarding from '@/components/Onboarding';
+import Tour from '@/components/Tour';
 import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/components/ui';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -1104,7 +1104,7 @@ function MainApp() {
       )}
 
       {/* Floating Header */}
-      <header className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
+      <header id="tour-header" className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
         <div className="p-4 pb-5 bg-white rounded-b-3xl shadow-[0_8px_24px_rgba(18,32,61,0.08)]">
           <h1 className="flex items-center gap-3 mb-4 text-2xl font-black text-[#12203D] tracking-tight">
             <span className="w-9 h-9 bg-[#12203D] rounded-lg flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)]">
@@ -1505,6 +1505,7 @@ function MainApp() {
       {/* 우측 플로팅 버튼 스택: 헤더 높이(+노치 안전영역)만큼 아래에서 시작해서
           헤더의 시/도·군/구·동 select와 겹치지 않게 한 줄로 쌓는다. */}
       <div
+        id="tour-add-button"
         className="absolute right-4 z-40 flex flex-col gap-2"
         style={{ top: 'calc(env(safe-area-inset-top, 0px) + 132px)' }}
       >
@@ -1651,7 +1652,7 @@ function MainApp() {
 
       {/* Redesigned Bottom Navigation */}
       <div className="absolute bottom-0 left-0 right-0 z-50 rounded-t-2xl overflow-hidden shadow-[0_-10px_40px_rgba(0,0,0,0.08)] bg-white">
-        <div className="flex h-20 pb-[env(safe-area-inset-bottom)]">
+        <div id="tour-bottom-nav" className="flex h-20 pb-[env(safe-area-inset-bottom)]">
           {([
             { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
             { key: 'list' as const, label: '명단 보기', Icon: IconList },
@@ -1687,11 +1688,10 @@ function MainApp() {
         recipientToEdit={editingRecipient}
       />
 
-      <AnimatePresence>
-        {showOnboarding && (
-          <Onboarding onComplete={() => setShowOnboarding(false)} />
-        )}
-      </AnimatePresence>
+      {showOnboarding && <Tour onComplete={() => {
+        localStorage.setItem('careroute_tutorial_done', 'true');
+        setShowOnboarding(false);
+      }} />}
     </main>
   );
 }
