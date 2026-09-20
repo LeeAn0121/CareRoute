@@ -503,7 +503,7 @@ function MainApp() {
                             </Typography>
                             <Chip 
                               icon={<IconClock size={14} />} 
-                              label={`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time ? marker.visit_time.substring(0, 5) : '미정'} 방문`} 
+                              label={`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}`} 
                               size="small" 
                               sx={{ mt: 0.5, bgcolor: '#ccfbf1', color: '#0f766e', fontWeight: 800, borderRadius: 1.5, '& .MuiChip-icon': { color: '#0f766e' } }} 
                             />
@@ -604,7 +604,7 @@ function MainApp() {
                 </Box>
                 <Chip 
                   icon={<IconClock size={16} />} 
-                  label={`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time ? selectedRecipient.visit_time.substring(0, 5) : '미정'} 방문 예정`} 
+                  label={`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : selectedRecipient.visit_time.substring(0, 5) + ' 방문'}`} 
                   color="primary" 
                   variant="outlined" 
                   size="small" 
