@@ -1135,6 +1135,13 @@ function MainApp() {
         
         {/* Map View */}
         <div className={`absolute inset-0 top-0 ${activeTab === 'map' ? 'block' : 'hidden'}`}>
+          {/* 임시 디버그 표시: 클러스터링이 줌에 반응 안 하는 문제 진단용.
+              문제 해결되면 지울 것. */}
+          {activeTab === 'map' && (
+            <div className="absolute top-[200px] left-4 z-40 bg-black/70 text-white text-[11px] font-mono px-2 py-1 rounded-md pointer-events-none">
+              zoom: {mapZoom} · clusterField: {clusterField ?? 'none'} · clusters: {markerClusters.length} · markers: {markers.length}
+            </div>
+          )}
           {mapLoaded ? (
             <Container className="w-full h-full">
               <NaverMap
