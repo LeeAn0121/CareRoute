@@ -23,7 +23,7 @@ type ButtonVariant = 'primary' | 'dark' | 'ghost' | 'danger-ghost' | 'plain';
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-primary shadow-sm hover:brightness-95',
-  dark: 'bg-primary text-white shadow-sm hover:bg-[#1A2F52]',
+  dark: 'bg-primary text-white shadow-sm hover:bg-primary/80',
   ghost: 'bg-surface-muted text-foreground/70 hover:bg-surface-border',
   'danger-ghost': 'bg-red-50 text-red-600 hover:bg-red-100',
   plain: 'bg-surface text-primary border border-surface-border hover:bg-surface-muted',

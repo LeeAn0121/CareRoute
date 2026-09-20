@@ -1038,7 +1038,7 @@ function MainApp() {
   };
 
   return (
-    <main className="flex-1 flex flex-col h-[100dvh] relative bg-[#FBFAF7] font-sans">
+    <main className="flex-1 flex flex-col h-[100dvh] relative bg-background font-sans">
       
       {/* PWA Install Banner */}
       {(!isStandalone && !installDismissed && (showInstallPrompt || isIOS)) && (
@@ -1077,7 +1077,7 @@ function MainApp() {
       {/* 오프라인 안내: 서버 연결에 실패하면 마지막으로 저장해둔 명단을 대신
           보여주는데, 그게 최신 데이터가 아닐 수 있다는 걸 알려준다. */}
       {isOffline && (
-        <div className="absolute top-4 left-4 right-4 z-[60] bg-amber-500 text-primary p-3 rounded-2xl shadow-xl flex items-center gap-2 animate-fade-in-down">
+        <div className="absolute top-4 left-4 right-4 z-[60] bg-accent text-primary p-3 rounded-2xl shadow-xl flex items-center gap-2 animate-fade-in-down">
           <IconDownload size={18} className="flex-shrink-0" />
           <p className="text-sm font-bold">오프라인 상태입니다. 마지막으로 저장된 명단을 보여주고 있어요.</p>
         </div>
@@ -1177,13 +1177,13 @@ function MainApp() {
                           content: `
                             <div class="relative flex flex-col items-center ${isSelected ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
                               <div class="relative w-11 h-11 flex items-center justify-center">
-                                ${isSelected ? '<div class="absolute -inset-1.5 bg-amber-400 rounded-full opacity-60 animate-ping"></div>' : ''}
-                                <div class="relative w-11 h-11 rounded-full overflow-hidden bg-primary flex items-center justify-center border-2 ${isSelected ? 'border-amber-400' : 'border-white'} shadow-[0_4px_16px_rgba(0,0,0,0.35)] transition-colors duration-300">
+                                ${isSelected ? '<div class="absolute -inset-1.5 bg-accent rounded-full opacity-60 animate-ping"></div>' : ''}
+                                <div class="relative w-11 h-11 rounded-full overflow-hidden bg-primary flex items-center justify-center border-2 ${isSelected ? 'border-accent' : 'border-white'} shadow-[0_4px_16px_rgba(0,0,0,0.35)] transition-colors duration-300">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                   ${marker.photo_url ? `<img src="${marker.photo_url}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
                                 </div>
                               </div>
-                              <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-amber-500 text-primary' : 'bg-surface text-primary'} text-[11px] font-bold rounded-md shadow-sm border border-surface-border whitespace-nowrap transition-colors duration-300">
+                              <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-accent text-primary' : 'bg-surface text-primary'} text-[11px] font-bold rounded-md shadow-sm border border-surface-border whitespace-nowrap transition-colors duration-300">
                                 ${marker.name}
                               </div>
                             </div>
@@ -1227,7 +1227,7 @@ function MainApp() {
             <div className="w-full h-full flex flex-col items-center justify-center bg-surface-muted text-foreground/50 px-8 text-center pt-20">
               <div className="relative w-24 h-24 flex items-center justify-center mb-6">
                 <div className="absolute inset-0 rounded-full border-4 border-amber-100"></div>
-                <div className="absolute inset-0 rounded-full border-4 border-amber-400 border-t-transparent animate-spin"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
                 <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center shadow-sm">
                   <IconMapPin size={28} className="text-primary" />
                 </div>
@@ -1240,7 +1240,7 @@ function MainApp() {
 
         {/* List View (Redesigned) */}
         {activeTab === 'list' && (
-          <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-[#FBFAF7]">
+          <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-background">
             
             {/* 검색바 */}
             <div className="mb-3 relative">
@@ -1249,7 +1249,7 @@ function MainApp() {
                 placeholder="이름 또는 주소 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-surface border border-surface-border rounded-xl py-3.5 pl-12 pr-10 text-[16px] shadow-sm font-semibold text-foreground/80 placeholder:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all"
+                className="w-full bg-surface border border-surface-border rounded-xl py-3.5 pl-12 pr-10 text-[16px] shadow-sm font-semibold text-foreground/80 placeholder:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
               />
               <IconSearch size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/50" />
               {searchQuery && (
@@ -1358,7 +1358,7 @@ function MainApp() {
                     <div className="p-6">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex gap-4 items-center">
-                          <div className="w-14 h-14 bg-[#EEF1F6] rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          <div className="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
                             {marker.photo_url ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
@@ -1370,7 +1370,7 @@ function MainApp() {
                             <p className="text-lg font-black text-primary tracking-tight">
                               {marker.name} 어르신
                             </p>
-                            <Chip icon={<IconClock size={14} color="#8A5A00" />} className="mt-1 bg-[#FDECC8] text-[#8A5A00]">
+                            <Chip icon={<IconClock size={14} color="#8A5A00" />} className="mt-1 bg-accent/20 text-foreground/80 font-bold">
                               {`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5) === '00:00' ? '서비스 시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}`}
                             </Chip>
                           </div>
@@ -1418,7 +1418,7 @@ function MainApp() {
         {/* 오늘의 경로: 오늘 방문 예정(날짜 지정 또는 반복 요일)인 곳만 모아
             최근접 삽입 휴리스틱으로 방문 순서를 매겨 보여준다. */}
         {activeTab === 'route' && (
-          <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-[#FBFAF7]">
+          <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-background">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-lg font-black text-primary">오늘의 방문 순서</p>
@@ -1456,7 +1456,7 @@ function MainApp() {
                       <div className="w-8 h-8 rounded-full bg-primary text-white text-sm font-extrabold flex items-center justify-center flex-shrink-0 mt-0.5">
                         {i + 1}
                       </div>
-                      <div className="w-11 h-11 rounded-xl bg-[#EEF1F6] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <div className="w-11 h-11 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {marker.photo_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
@@ -1467,7 +1467,7 @@ function MainApp() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className={`font-black text-primary ${completed ? 'line-through' : ''}`}>{marker.name} 어르신</p>
-                          <Chip icon={<IconClock size={12} color="#8A5A00" />} className="bg-[#FDECC8] text-[#8A5A00]">
+                          <Chip icon={<IconClock size={12} color="#8A5A00" />} className="bg-accent/20 text-foreground/80 font-bold">
                             {marker.visit_time && marker.visit_time !== '00:00:00' ? marker.visit_time.substring(0, 5) : '서비스 시간 미정'}
                           </Chip>
                         </div>
@@ -1607,7 +1607,7 @@ function MainApp() {
               >
                 <IconX size={18} />
               </IconButton>
-              <div className="absolute left-5 -bottom-12 w-24 h-24 rounded-2xl bg-[#EEF1F6] border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
+              <div className="absolute left-5 -bottom-12 w-24 h-24 rounded-2xl bg-primary/5 border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
                 {selectedRecipient.photo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={selectedRecipient.photo_url} alt="" className="w-full h-full object-cover" />
@@ -1622,7 +1622,7 @@ function MainApp() {
                   <p className="text-xl font-black text-primary tracking-tight truncate">
                     {selectedRecipient.name} 어르신
                   </p>
-                  <Chip icon={<IconClock size={12} color="#8A5A00" />} className="mt-1.5 bg-[#FDECC8] text-[#8A5A00]">
+                  <Chip icon={<IconClock size={12} color="#8A5A00" />} className="mt-1.5 bg-accent/20 text-foreground/80 font-bold">
                     {`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '서비스 시간 미정' : selectedRecipient.visit_time.substring(0, 5) + ' 방문'}`}
                   </Chip>
                 </div>

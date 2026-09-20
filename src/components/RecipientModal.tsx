@@ -243,7 +243,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                 type="button"
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isSubmitting}
-                className="w-24 h-24 rounded-full overflow-hidden bg-[#EEF1F6] flex items-center justify-center border-2 border-dashed border-slate-300 transition-colors hover:border-amber-400"
+                className="w-24 h-24 rounded-full overflow-hidden bg-primary/5 flex items-center justify-center border-2 border-dashed border-slate-300 transition-colors hover:border-amber-400"
                 aria-label="사진 선택"
               >
                 {photoPreview ? (
