@@ -300,40 +300,47 @@ function MainApp() {
   // 등록되는 effect 안에 있어서, 꺼둔 채로 확대/축소하면 mapZoom 상태가 전혀
   // 갱신되지 않아 마커 클러스터링이 줌 레벨에 반응하지 않는 버그가 있었다.
   useEffect(() => {
-    if (!mapRef.current || !window.naver || idleListenerRegisteredRef.current) return;
-    const map = mapRef.current;
-    idleListenerRegisteredRef.current = true;
+    // effect가 한 번만 도는 타이밍에 mapRef.current가 아직 준비 안 됐을 가능성을
+    // 완전히 없애기 위해, 폴링해서 준비되는 즉시 등록한다 (아래서 실제로 검증된
+    // 줌 폴링과 동일한 패턴 — 한 번뿐인 effect 타이밍에 의존하지 않는다).
+    const id = setInterval(() => {
+      if (!mapRef.current || !window.naver?.maps?.Event || idleListenerRegisteredRef.current) return;
+      idleListenerRegisteredRef.current = true;
+      clearInterval(id);
 
-    window.naver.maps.Event.addListener(map, 'idle', () => {
-      setDebugIdleCount((c) => c + 1);
-      setMapZoom(map.getZoom());
-      const center = map.getCenter();
-      setMapCenter({ lat: center.y, lng: center.x });
+      const map = mapRef.current;
+      window.naver.maps.Event.addListener(map, 'idle', () => {
+        setDebugIdleCount((c) => c + 1);
+        setMapZoom(map.getZoom());
+        const center = map.getCenter();
+        setMapCenter({ lat: center.y, lng: center.x });
 
-      if (!showRegionsRef.current || !currentRenderedLevel || !geoCache[currentRenderedLevel]) return;
-      const lvl = currentRenderedLevel;
-      const bounds = map.getBounds();
-      const visible = regionFeaturesInView(lvl, bounds);
-      const toAdd = visible.filter((f: any) => !renderedFeatureKeys[lvl].has(f.properties.name));
+        if (!showRegionsRef.current || !currentRenderedLevel || !geoCache[currentRenderedLevel]) return;
+        const lvl = currentRenderedLevel;
+        const bounds = map.getBounds();
+        const visible = regionFeaturesInView(lvl, bounds);
+        const toAdd = visible.filter((f: any) => !renderedFeatureKeys[lvl].has(f.properties.name));
 
-      if (toAdd.length > 0) {
-        map.data.addGeoJson({ type: 'FeatureCollection', features: toAdd });
-        map.data.setStyle(regionStyleFor(lvl));
-        toAdd.forEach((f: any) => {
-          renderedFeatureKeys[lvl].add(f.properties.name);
-          ensureRegionLabelMarker(lvl, f).setMap(map);
-        });
-      }
-
-      labelCache[lvl].forEach((m: any) => {
-        if (bounds.hasLatLng(m.getPosition())) {
-          if (!m.getMap()) m.setMap(map);
-        } else {
-          if (m.getMap()) m.setMap(null);
+        if (toAdd.length > 0) {
+          map.data.addGeoJson({ type: 'FeatureCollection', features: toAdd });
+          map.data.setStyle(regionStyleFor(lvl));
+          toAdd.forEach((f: any) => {
+            renderedFeatureKeys[lvl].add(f.properties.name);
+            ensureRegionLabelMarker(lvl, f).setMap(map);
+          });
         }
+
+        labelCache[lvl].forEach((m: any) => {
+          if (bounds.hasLatLng(m.getPosition())) {
+            if (!m.getMap()) m.setMap(map);
+          } else {
+            if (m.getMap()) m.setMap(null);
+          }
+        });
       });
-    });
-  }, [mapLoaded]);
+    }, 300);
+    return () => clearInterval(id);
+  }, []);
 
   // Semantic Zoom (시도 -> 시군구 -> 동): 어떤 레벨을 그릴지 결정하고 데이터를 로드
   useEffect(() => {
