@@ -95,8 +95,12 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !address || !bcode) {
-      alert('모든 필수 항목을 입력해주세요.');
+    if (!name || !address) {
+      alert('이름과 주소를 입력해주세요.');
+      return;
+    }
+    if (!bcode) {
+      alert('구형 데이터입니다. [주소 검색] 버튼을 눌러 주소를 다시 한 번만 선택해주세요!');
       return;
     }
 
