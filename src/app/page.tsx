@@ -139,7 +139,7 @@ function MainApp() {
     let attempts = 0;
     const checkMap = setInterval(() => {
       attempts++;
-      if (typeof window !== 'undefined' && window.naver && window.naver.maps && window.naver.maps.Map) {
+      if (typeof window !== 'undefined' && window.naver && window.naver.maps && window.naver.maps.LatLngBounds && window.naver.maps.Map) {
         setMapLoaded(true);
         clearInterval(checkMap);
       }
