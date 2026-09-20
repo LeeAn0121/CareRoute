@@ -199,7 +199,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   };
 
   return (
-    <Dialog open={isOpen} onClose={!isSubmitting ? onClose : undefined} fullWidth maxWidth="sm" sx={{ '& .MuiDialog-paper': { borderRadius: 4, p: 1 } }}>
+    <Dialog open={isOpen} onClose={!isSubmitting ? onClose : undefined} fullWidth maxWidth="sm" sx={{ '& .MuiDialog-paper': { borderRadius: 1.5, p: 1 } }}>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>
           {recipientToEdit ? '어르신 정보 수정' : '새 어르신 등록'}
@@ -329,7 +329,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         onClose={() => setIsAddressSearchOpen(false)}
         fullWidth
         maxWidth="sm"
-        sx={{ '& .MuiDialog-paper': { borderRadius: 4 } }}
+        sx={{ '& .MuiDialog-paper': { borderRadius: 1.5 } }}
       >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h6" sx={{ fontWeight: 800 }}>주소 검색</Typography>

@@ -8,14 +8,28 @@ const theme = createTheme({
   },
   palette: {
     primary: {
-      main: '#0d9488', // teal-600
+      main: '#F5A524', // amber — 저장/등록/CTA 액션 컬러
+      contrastText: '#12203D',
+    },
+    secondary: {
+      main: '#12203D', // 잉크 네이비 — 구조(헤더/내비/텍스트)
+    },
+    success: {
+      main: '#4C7A6B', // 세이지 그린
+    },
+    error: {
+      main: '#D8493C',
     },
     background: {
-      default: '#f8fafc',
+      default: '#FBFAF7', // 페이퍼 화이트
+    },
+    text: {
+      primary: '#12203D',
+      secondary: '#5B6B82',
     },
   },
   shape: {
-    borderRadius: 4,
+    borderRadius: 2,
   },
 });
 

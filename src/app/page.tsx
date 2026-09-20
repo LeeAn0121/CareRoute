@@ -775,28 +775,28 @@ function MainApp() {
   }, [markers, clusterField]);
 
   return (
-    <main className="flex-1 flex flex-col h-[100dvh] relative bg-slate-50 font-sans">
+    <main className="flex-1 flex flex-col h-[100dvh] relative bg-[#FBFAF7] font-sans">
       
       {/* PWA Install Banner */}
       {(!isStandalone && (showInstallPrompt || isIOS)) && (
-        <div className="absolute top-4 left-4 right-4 z-[60] bg-teal-600 text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-fade-in-down">
+        <div className="absolute top-4 left-4 right-4 z-[60] bg-[#12203D] text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-fade-in-down">
           <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-2 rounded-xl">
+            <div className="bg-white/10 p-2 rounded-xl">
               <IconDownload size={20} className="text-white" />
             </div>
             <div>
               <p className="font-bold text-sm">앱으로 설치하기</p>
-              <p className="text-xs text-teal-100">바탕화면에서 바로 실행하세요</p>
+              <p className="text-xs text-slate-300">바탕화면에서 바로 실행하세요</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={handleInstallClick}
-              className="px-4 py-2 bg-white text-teal-700 font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform"
+              className="px-4 py-2 bg-[#F5A524] text-[#12203D] font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform"
             >
               설치
             </button>
-            <button onClick={() => { setShowInstallPrompt(false); setIsIOS(false); }} className="p-2 text-teal-200">
+            <button onClick={() => { setShowInstallPrompt(false); setIsIOS(false); }} className="p-2 text-slate-400">
               <IconX size={20} />
             </button>
           </div>
@@ -827,8 +827,8 @@ function MainApp() {
       {/* Floating Header */}
       <header className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
         <Paper elevation={0} sx={{ p: 2, borderRadius: 0, borderBottom: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
-          <Typography variant="h5" component="div" sx={{ fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, letterSpacing: '-0.5px' }}>
-            <Box component="span" sx={{ width: 36, height: 36, bgcolor: '#0d9488', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3)' }}>
+          <Typography variant="h5" component="div" sx={{ fontWeight: 900, color: '#12203D', display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, letterSpacing: '-0.5px' }}>
+            <Box component="span" sx={{ width: 36, height: 36, bgcolor: '#12203D', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3)' }}>
               <IconMapPin size={20} color="white" />
             </Box>
             케어루트
@@ -904,7 +904,7 @@ function MainApp() {
                           content: `
                             <div class="relative flex items-center justify-center ${isSelected ? 'scale-125 z-50' : 'scale-100'} transition-transform duration-300">
                               ${isSelected ? '<div class="absolute -inset-2 bg-amber-400 rounded-full opacity-60 animate-ping"></div>' : ''}
-                              <div class="relative ${isSelected ? 'bg-amber-500' : 'bg-teal-600'} text-white rounded-full p-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.35)] border-2 border-white transition-colors duration-300">
+                              <div class="relative ${isSelected ? 'bg-amber-500' : 'bg-[#12203D]'} text-white rounded-full p-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.35)] border-2 border-white transition-colors duration-300">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                               </div>
                             </div>
@@ -932,7 +932,7 @@ function MainApp() {
                       }}
                       icon={{
                         content: `
-                          <div class="flex items-center justify-center rounded-full bg-teal-700 text-white font-extrabold border-2 border-white shadow-[0_4px_16px_rgba(0,0,0,0.35)] cursor-pointer"
+                          <div class="flex items-center justify-center rounded-full bg-[#12203D] text-white font-extrabold border-2 border-white shadow-[0_4px_16px_rgba(0,0,0,0.35)] cursor-pointer"
                                style="width:${size}px;height:${size}px;font-size:${size >= 46 ? 16 : 14}px;">
                             ${cluster.length}
                           </div>
@@ -947,10 +947,10 @@ function MainApp() {
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 px-8 text-center pt-20">
               <div className="relative w-24 h-24 flex items-center justify-center mb-6">
-                <div className="absolute inset-0 rounded-full border-4 border-teal-100"></div>
-                <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-amber-100"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-amber-400 border-t-transparent animate-spin"></div>
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm">
-                  <IconMapPin size={28} className="text-teal-500" />
+                  <IconMapPin size={28} className="text-[#12203D]" />
                 </div>
               </div>
               <p className="font-extrabold text-xl text-slate-600 mb-3 tracking-tight">지도 연동 대기 중</p>
@@ -961,7 +961,7 @@ function MainApp() {
 
         {/* List View (Redesigned) */}
         {activeTab === 'list' && (
-          <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-slate-50">
+          <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-[#FBFAF7]">
             
             {/* 검색바 */}
             <div className="mb-5 relative">
@@ -970,7 +970,7 @@ function MainApp() {
                 placeholder="어르신 이름 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-10 text-[16px] shadow-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                className="w-full bg-white border border-slate-200 rounded-xl py-3.5 pl-12 pr-10 text-[16px] shadow-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all"
               />
               <IconSearch size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
               {searchQuery && (
@@ -999,7 +999,7 @@ function MainApp() {
                   
                   if (filteredMarkers.length === 0) {
                     return (
-                      <div className="flex flex-col items-center justify-center text-slate-400 mt-12 bg-white rounded-3xl py-12 shadow-sm border border-slate-100">
+                      <div className="flex flex-col items-center justify-center text-slate-400 mt-12 bg-white rounded-xl py-12 shadow-sm border border-slate-100">
                         <IconSearch size={40} className="text-slate-200 mb-4" />
                         <p className="font-bold text-lg text-slate-500">'{searchQuery}' 검색 결과가 없습니다.</p>
                       </div>
@@ -1011,7 +1011,7 @@ function MainApp() {
                     key={marker.id} 
                     elevation={0} 
                     sx={{ 
-                      borderRadius: 4, 
+                      borderRadius: 1.5, 
                       mb: 2, 
                       border: '1px solid #f1f5f9', 
                       boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
@@ -1032,18 +1032,18 @@ function MainApp() {
                     <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                          <Box sx={{ width: 56, height: 56, bgcolor: '#f0fdfa', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <IconUser size={28} color="#0d9488" />
+                          <Box sx={{ width: 56, height: 56, bgcolor: '#EEF1F6', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <IconUser size={28} color="#12203D" />
                           </Box>
                           <Box>
-                            <Typography variant="h6" component="div" sx={{ fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px' }}>
+                            <Typography variant="h6" component="div" sx={{ fontWeight: 900, color: '#12203D', letterSpacing: '-0.5px' }}>
                               {marker.name} 어르신
                             </Typography>
-                            <Chip 
-                              icon={<IconClock size={14} />} 
-                              label={`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}`} 
-                              size="small" 
-                              sx={{ mt: 0.5, bgcolor: '#ccfbf1', color: '#0f766e', fontWeight: 800, borderRadius: 1.5, '& .MuiChip-icon': { color: '#0f766e' } }} 
+                            <Chip
+                              icon={<IconClock size={14} />}
+                              label={`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}`}
+                              size="small"
+                              sx={{ mt: 0.5, bgcolor: '#FDECC8', color: '#8A5A00', fontWeight: 800, borderRadius: 1.5, '& .MuiChip-icon': { color: '#8A5A00' } }}
                             />
                           </Box>
                         </Box>
@@ -1057,7 +1057,7 @@ function MainApp() {
                         </Box>
                       </Box>
                       
-                      <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2, borderRadius: 3, mb: 2.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                      <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2, borderRadius: 1, mb: 2.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
                         <IconMapPin size={22} color="#94a3b8" style={{ flexShrink: 0 }} />
                         <Typography variant="body1" sx={{ fontWeight: 600, color: '#475569', lineHeight: 1.4 }}>
                           {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
@@ -1070,7 +1070,7 @@ function MainApp() {
                         size="large"
                         startIcon={<IconNavigation />}
                         onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }}
-                        sx={{ py: 1.5, borderRadius: 3, fontSize: '1.05rem', fontWeight: 800, bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' }, boxShadow: '0 4px 14px rgba(15,23,42,0.2)' }}
+                        sx={{ py: 1.5, borderRadius: 1, fontSize: '1.05rem', fontWeight: 800, bgcolor: '#12203D', '&:hover': { bgcolor: '#1A2F52' }, boxShadow: '0 4px 14px rgba(18,32,61,0.25)' }}
                       >
                         길안내 시작
                       </Button>
@@ -1117,7 +1117,7 @@ function MainApp() {
             <Fab
               size="small"
               onClick={() => setShowRegions(!showRegions)}
-              sx={{ bgcolor: showRegions ? '#0d9488' : '#ffffff', color: showRegions ? '#ffffff' : '#475569', borderRadius: 2 }}
+              sx={{ bgcolor: showRegions ? '#12203D' : '#ffffff', color: showRegions ? '#ffffff' : '#475569', borderRadius: 2 }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
             </Fab>
@@ -1133,9 +1133,9 @@ function MainApp() {
             {/* 내 위치 버튼 */}
             <Fab size="small" onClick={handleMyLocation} disabled={isLocating} sx={{ bgcolor: '#ffffff', borderRadius: 2, mt: 1 }}>
               {isLocating ? (
-                <CircularProgress size={18} sx={{ color: '#0d9488' }} />
+                <CircularProgress size={18} sx={{ color: '#12203D' }} />
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19 12h2"></path><path d="M3 12h2"></path><path d="M12 3v2"></path><path d="M12 19v2"></path><circle cx="12" cy="12" r="8"></circle></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#12203D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19 12h2"></path><path d="M3 12h2"></path><path d="M12 3v2"></path><path d="M12 19v2"></path><circle cx="12" cy="12" r="8"></circle></svg>
               )}
             </Fab>
           </>
@@ -1146,7 +1146,7 @@ function MainApp() {
         color="primary" 
         aria-label="어르신 추가" 
         onClick={() => { setEditingRecipient(null); setIsModalOpen(true); }}
-        sx={{ position: 'absolute', bottom: 100, right: 24, zIndex: 40, width: 56, height: 56, borderRadius: 3, boxShadow: '0 4px 12px rgba(13,148,136,0.3)' }}
+        sx={{ position: 'absolute', bottom: 100, right: 24, zIndex: 40, width: 56, height: 56, borderRadius: 2, boxShadow: '0 4px 14px rgba(245,165,36,0.45)' }}
       >
         <IconPlus size={32} strokeWidth={2.5} />
       </Fab>
@@ -1163,7 +1163,7 @@ function MainApp() {
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                <Typography variant="subtitle1" component="div" sx={{ fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                <Typography variant="subtitle1" component="div" sx={{ fontWeight: 800, color: '#12203D', whiteSpace: 'nowrap' }}>
                   {selectedRecipient.name} 어르신
                 </Typography>
                 <Chip
@@ -1194,7 +1194,7 @@ function MainApp() {
               fullWidth
               startIcon={<IconNavigation size={18} />}
               onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address)}
-              sx={{ py: 1, borderRadius: 2, fontSize: '0.95rem', fontWeight: 700, bgcolor: '#0f172a', boxShadow: 'none', '&:hover': { bgcolor: '#1e293b' } }}
+              sx={{ py: 1, borderRadius: 2, fontSize: '0.95rem', fontWeight: 700, bgcolor: '#12203D', boxShadow: 'none', '&:hover': { bgcolor: '#1A2F52' } }}
             >
               길안내 시작
             </Button>
@@ -1203,7 +1203,7 @@ function MainApp() {
       </Drawer>
 
       {/* Redesigned Bottom Navigation */}
-      <Paper sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 50, borderRadius: '32px 32px 0 0', overflow: 'hidden', boxShadow: '0 -10px 40px rgba(0,0,0,0.08)' }} elevation={8}>
+      <Paper sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 50, borderRadius: '16px 16px 0 0', overflow: 'hidden', boxShadow: '0 -10px 40px rgba(0,0,0,0.08)' }} elevation={8}>
         <BottomNavigation
           showLabels
           value={activeTab}
@@ -1214,13 +1214,13 @@ function MainApp() {
             label="지도 보기" 
             value="map" 
             icon={<IconMapPin size={26} strokeWidth={activeTab === 'map' ? 2.5 : 2} />} 
-            sx={{ '&.Mui-selected': { color: '#0d9488', fontWeight: 800 } }}
+            sx={{ '&.Mui-selected': { color: '#12203D', fontWeight: 800 } }}
           />
           <BottomNavigationAction 
             label="명단 보기" 
             value="list" 
             icon={<IconList size={26} strokeWidth={activeTab === 'list' ? 2.5 : 2} />} 
-            sx={{ '&.Mui-selected': { color: '#0d9488', fontWeight: 800 } }}
+            sx={{ '&.Mui-selected': { color: '#12203D', fontWeight: 800 } }}
           />
         </BottomNavigation>
       </Paper>
