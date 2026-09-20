@@ -22,10 +22,12 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
         
         // Proxy API to bypass CORS
         const targetUrl = `https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtNcst?pageNo=1&numOfRows=10&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=${x}&ny=${y}&authKey=CTl9VmD0R7O5fVZg9DezwQ`;
-        const url = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+        const url = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
         
         const res = await fetch(url);
-        const data = await res.json();
+        const proxyData = await res.json();
+        if (!proxyData.contents) throw new Error("No contents from proxy");
+        const data = JSON.parse(proxyData.contents);
         
         if (data?.response?.header?.resultCode === "00") {
           const items = data.response.body.items.item;
