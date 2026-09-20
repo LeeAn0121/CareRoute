@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
@@ -73,6 +73,39 @@ function MainApp() {
   
   const [activeTab, setActiveTab] = useState<'map' | 'list'>('map');
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapZoom, setMapZoom] = useState(15);
+  const [showRegions, setShowRegions] = useState(false);
+  const mapRef = useRef<any>(null);
+  const regionsLoaded = useRef(false);
+
+  // Load Regions GeoJSON
+  useEffect(() => {
+    if (showRegions && mapRef.current && window.naver && !regionsLoaded.current) {
+      regionsLoaded.current = true;
+      const map = mapRef.current;
+      for (let i = 1; i < 18; i++) {
+        let keyword = i.toString().padStart(2, '0');
+        fetch(`https://navermaps.github.io/maps.js.ncp/docs/data/region${keyword}.json`)
+          .then(r => r.json())
+          .then(geojson => {
+            map.data.addGeoJson(geojson);
+          });
+      }
+      map.data.setStyle((feature: any) => {
+        return {
+          fillColor: '#0d9488',
+          fillOpacity: 0.1,
+          strokeColor: '#0d9488',
+          strokeWeight: 2,
+          strokeOpacity: 0.6,
+          visible: true
+        };
+      });
+    } else if (mapRef.current && window.naver) {
+      mapRef.current.data.setStyle({ visible: showRegions });
+    }
+  }, [showRegions]);
+
 
   // PWA Install State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -342,9 +375,11 @@ function MainApp() {
           {mapLoaded ? (
             <Container className="w-full h-full">
               <NaverMap
+                ref={mapRef}
                 defaultCenter={mapCenter}
                 center={mapCenter}
-                defaultZoom={15}
+                zoom={mapZoom}
+                onZoomChanged={(z: number) => setMapZoom(z)}
               >
                 {markers.map((marker) => (
                   <Marker
@@ -390,7 +425,17 @@ function MainApp() {
             ) : (
               <div className="space-y-4">
                 {markers.sort((a,b) => a.visit_time.localeCompare(b.visit_time)).map((marker) => (
-                  <Card key={marker.id} elevation={0} sx={{ borderRadius: 1, mb: 2, border: '1px solid #e2e8f0' }}>
+                  <Card 
+                    key={marker.id} 
+                    elevation={0} 
+                    sx={{ borderRadius: 1, mb: 2, border: '1px solid #e2e8f0', cursor: 'pointer' }}
+                    onClick={() => {
+                      setMapCenter({ lat: marker.lat, lng: marker.lng });
+                      setMapZoom(17); // Zoom in deeply
+                      setActiveTab('map'); // Switch to map tab
+                      setSelectedRecipient(marker);
+                    }}
+                  >
                     <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -446,6 +491,25 @@ function MainApp() {
       </div>
 
       {/* Floating Action Button (Add Recipient) */}
+      {/* 행정구역 토글 버튼 */}
+      <Fab
+        size="small"
+        onClick={() => setShowRegions(!showRegions)}
+        sx={{ position: 'absolute', top: 120, right: 16, zIndex: 40, bgcolor: showRegions ? '#0d9488' : '#ffffff', color: showRegions ? '#ffffff' : '#475569', borderRadius: 2 }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </Fab>
+
+      {/* 확대/축소 버튼 */}
+      <div className="absolute top-[180px] right-4 z-40 flex flex-col gap-2">
+        <Fab size="small" onClick={() => setMapZoom(prev => Math.min(prev + 1, 21))} sx={{ bgcolor: '#ffffff', borderRadius: 2 }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </Fab>
+        <Fab size="small" onClick={() => setMapZoom(prev => Math.max(prev - 1, 6))} sx={{ bgcolor: '#ffffff', borderRadius: 2 }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </Fab>
+      </div>
+
       <Fab 
         color="primary" 
         aria-label="어르신 추가" 
