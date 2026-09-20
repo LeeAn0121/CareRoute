@@ -29,6 +29,15 @@ export const metadata: Metadata = {
   title: "CareRoute",
   description: "어르신 방문 요양 경로 안내 서비스",
   manifest: "/CareRoute/manifest.json",
+  icons: {
+    icon: [
+      { url: "/CareRoute/favicon.svg", type: "image/svg+xml" },
+      { url: "/CareRoute/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/CareRoute/favicon-16.png", sizes: "16x16", type: "image/png" },
+    ],
+    shortcut: "/CareRoute/favicon.ico",
+    apple: "/CareRoute/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
