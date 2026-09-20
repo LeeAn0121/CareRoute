@@ -783,8 +783,12 @@ function MainApp() {
             </Container>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400 px-8 text-center pt-20">
-              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-sm mb-6">
-                <IconMapPin size={40} className="text-slate-300" />
+              <div className="relative w-24 h-24 flex items-center justify-center mb-6">
+                <div className="absolute inset-0 rounded-full border-4 border-teal-100"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin"></div>
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm">
+                  <IconMapPin size={28} className="text-teal-500" />
+                </div>
               </div>
               <p className="font-extrabold text-xl text-slate-600 mb-3 tracking-tight">지도 연동 대기 중</p>
               <p className="text-[15px] leading-relaxed">네이버 클라우드 서버 동기화가 지연되고 있습니다.<br/>(목록 탭은 지금 바로 정상 사용 가능합니다!)</p>
