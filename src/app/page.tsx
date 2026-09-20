@@ -476,8 +476,7 @@ function MainApp() {
   const handleDelete = async (id: string) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       await supabase.from('recipients').delete().eq('id', id);
-      fetchMarkers();
-      if (selectedRecipient?.id === id) setSelectedRecipient(null);
+      window.location.reload();
     }
   };
 
@@ -826,7 +825,7 @@ function MainApp() {
         onClose={() => setIsModalOpen(false)} 
         onSuccess={() => {
           setIsModalOpen(false);
-          fetchMarkers();
+          window.location.reload(); // 강제 새로고침
         }}
         recipientToEdit={editingRecipient}
       />
