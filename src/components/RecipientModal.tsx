@@ -59,7 +59,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setName(recipientToEdit.name);
         setAddress(recipientToEdit.address);
         setDetailAddress('');
-        setBcode(recipientToEdit.dong);
+        setBcode('');
         setVisitTime((recipientToEdit.visit_time && recipientToEdit.visit_time.substring(0, 5) !== '00:00') ? recipientToEdit.visit_time.substring(0, 5) : '');
         setVisitDate(recipientToEdit.notes || '');
       } else {
@@ -170,9 +170,6 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       const recipientData = {
         name,
         address: finalAddress,
-        sido: bcode.substring(0, 2) + '00000000',
-        sigungu: bcode.substring(0, 5) + '00000',
-        dong: bcode,
         lat: coords.lat,
         lng: coords.lng,
         visit_time: visitTime ? `${visitTime}:00` : '00:00:00',

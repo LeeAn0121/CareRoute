@@ -517,22 +517,18 @@ function MainApp() {
   const fetchMarkers = () => {
     let query = supabase.from('recipients').select('*');
     
-    // 과거 데이터(dong 코드가 없는 데이터) 호환성을 위해 address 문자열 검색 병행
+    // DB에 dong, sigungu 컬럼이 존재하지 않으므로 오직 address.ilike 로만 필터링합니다.
     if (selectedDong) {
       const dongName = dongs.find(d => d.code === selectedDong)?.name.split(' ').pop();
-      if (dongName) query = query.or(`dong.eq.${selectedDong},address.ilike.%${dongName}%`);
-      else query = query.eq('dong', selectedDong);
+      if (dongName) query = query.ilike('address', `%${dongName}%`);
     } 
     else if (selectedSigungu) {
       const sigName = sigungus.find(s => s.code === selectedSigungu)?.name.split(' ').pop();
-      if (sigName) query = query.or(`dong.ilike.${selectedSigungu.substring(0, 5)}%,address.ilike.%${sigName}%`);
-      else query = query.like('dong', `${selectedSigungu.substring(0, 5)}%`);
+      if (sigName) query = query.ilike('address', `%${sigName}%`);
     } 
     else if (selectedSido) {
       const sidoName = sidos.find(s => s.code === selectedSido)?.name;
-      // 서울특별시 -> 서울 등 축약명 대비 앞 2글자만 사용
-      if (sidoName) query = query.or(`dong.ilike.${selectedSido.substring(0, 2)}%,address.ilike.%${sidoName.substring(0, 2)}%`);
-      else query = query.like('dong', `${selectedSido.substring(0, 2)}%`);
+      if (sidoName) query = query.ilike('address', `%${sidoName.substring(0, 2)}%`);
     }
 
     query.then(({ data, error }) => {
