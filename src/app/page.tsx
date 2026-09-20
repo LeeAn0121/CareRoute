@@ -56,6 +56,19 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
 }
 
 function MainApp() {
+  const handleMyLocation = () => {
+    if (!navigator.geolocation) {
+      alert("GPS를 지원하지 않는 기기입니다.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition((position) => {
+      setMapCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
+      setMapZoom(17);
+    }, (error) => {
+      alert("위치 정보를 가져올 수 없습니다. GPS가 켜져 있는지 확인해주세요.");
+    });
+  };
+
   const [sidos, setSidos] = useState<RegCode[]>([]);
   const [sigungus, setSigungus] = useState<RegCode[]>([]);
   const [dongs, setDongs] = useState<RegCode[]>([]);
@@ -105,6 +118,17 @@ function MainApp() {
       mapRef.current.data.setStyle({ visible: showRegions });
     }
   }, [showRegions]);
+
+  useEffect(() => {
+    if (selectedDong) {
+      const firstElder = markers.find(m => m.dong === selectedDong);
+      if (firstElder) {
+        setMapCenter({ lat: firstElder.lat, lng: firstElder.lng });
+        setMapZoom(15);
+      }
+    }
+  }, [selectedDong]);
+
 
 
   // PWA Install State
@@ -388,10 +412,15 @@ function MainApp() {
                     onClick={() => setSelectedRecipient(marker)}
                     icon={{
                       content: `
-                        <div class="relative flex items-center justify-center w-12 h-12 ${selectedRecipient?.id === marker.id ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
-                          <div class="absolute inset-0 bg-teal-500 rounded-full opacity-30 animate-ping"></div>
-                          <div class="relative bg-teal-600 text-white rounded-full p-2.5 shadow-[0_4px_12px_rgba(13,148,136,0.5)] border-2 border-white">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <div class="relative flex flex-col items-center justify-center ${selectedRecipient?.id === marker.id ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
+                          <div class="relative flex items-center justify-center w-12 h-12">
+                            <div class="absolute inset-0 bg-teal-500 rounded-full opacity-30 animate-ping"></div>
+                            <div class="relative bg-teal-600 text-white rounded-full p-2.5 shadow-[0_4px_12px_rgba(13,148,136,0.5)] border-2 border-white">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            </div>
+                          </div>
+                          <div class="mt-1 px-2 py-0.5 bg-white text-slate-700 text-xs font-bold rounded-md shadow-sm border border-slate-200 whitespace-nowrap">
+                            ${marker.name} 어르신
                           </div>
                         </div>
                       `,
@@ -507,6 +536,11 @@ function MainApp() {
         </Fab>
         <Fab size="small" onClick={() => setMapZoom(prev => Math.max(prev - 1, 6))} sx={{ bgcolor: '#ffffff', borderRadius: 2 }}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </Fab>
+        
+        {/* 내 위치 버튼 */}
+        <Fab size="small" onClick={handleMyLocation} sx={{ bgcolor: '#ffffff', borderRadius: 2, mt: 1 }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19 12h2"></path><path d="M3 12h2"></path><path d="M12 3v2"></path><path d="M12 19v2"></path><circle cx="12" cy="12" r="8"></circle></svg>
         </Fab>
       </div>
 
