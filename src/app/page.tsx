@@ -1107,50 +1107,52 @@ function MainApp() {
 
       {/* Floating Header */}
       {activeTab === 'map' && (
-      <header className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
-        <div id="tour-header" className="p-4 pb-5 bg-surface rounded-b-3xl shadow-lg shadow-primary/5">
-          <h1 className="flex items-center gap-3 mb-4 text-2xl font-black text-primary tracking-tight">
-            <span className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-inner border-t border-white/20">
-              <IconMapPin size={20} color="white" />
+      <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col gap-3 mt-4 pointer-events-none">
+        <div className="flex justify-between items-start pointer-events-auto">
+          {/* Logo Pill */}
+          <div className="flex items-center gap-2.5 px-3 py-2 bg-surface/90 backdrop-blur-xl rounded-2xl shadow-lg shadow-foreground/10 border border-surface-border/50 transition-all hover:scale-105 cursor-default">
+            <span className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-inner border border-white/20">
+              <IconMapPin size={18} color="white" />
             </span>
-            케어루트
-          </h1>
-
-          <div className="flex gap-2">
-            <NativeSelect
-              className="bg-surface-muted"
-              value={selectedSido}
-              onChange={(e) => {
-                setSelectedSido(e.target.value);
-                setSelectedSigungu('');
-                setSelectedDong('');
-              }}
-            >
-              <option value="">시/도</option>
-              {sidos.map(sido => <option key={sido.code} value={sido.code}>{sido.name}</option>)}
-            </NativeSelect>
-            <NativeSelect
-              className="bg-surface-muted"
-              value={selectedSigungu}
-              disabled={!selectedSido}
-              onChange={(e) => {
-                setSelectedSigungu(e.target.value);
-                setSelectedDong('');
-              }}
-            >
-              <option value="">군/구</option>
-              {sigungus.map(sig => <option key={sig.code} value={sig.code}>{sig.name.split(' ').pop()}</option>)}
-            </NativeSelect>
-            <NativeSelect
-              className="bg-surface-muted"
-              value={selectedDong}
-              disabled={!selectedSigungu}
-              onChange={(e) => setSelectedDong(e.target.value)}
-            >
-              <option value="">동/읍/면</option>
-              {dongs.map(dong => <option key={dong.code} value={dong.code}>{dong.name.split(' ').pop()}</option>)}
-            </NativeSelect>
+            <h1 className="text-[17px] font-black text-primary tracking-tight pr-2">케어루트</h1>
           </div>
+        </div>
+
+        {/* Region Selectors - Floating Glassmorphism Island */}
+        <div id="tour-header" className="flex gap-2 p-1.5 bg-surface/80 backdrop-blur-xl rounded-2xl shadow-lg shadow-foreground/10 border border-surface-border/50 pointer-events-auto">
+          <NativeSelect
+            className="flex-1 !bg-surface !shadow-none !border !border-surface-border/60 !rounded-xl !py-2.5 !px-3 !text-[13px] hover:!border-primary/50 transition-colors"
+            value={selectedSido}
+            onChange={(e) => {
+              setSelectedSido(e.target.value);
+              setSelectedSigungu('');
+              setSelectedDong('');
+            }}
+          >
+            <option value="">시/도</option>
+            {sidos.map(sido => <option key={sido.code} value={sido.code}>{sido.name}</option>)}
+          </NativeSelect>
+          <NativeSelect
+            className="flex-1 !bg-surface !shadow-none !border !border-surface-border/60 !rounded-xl !py-2.5 !px-3 !text-[13px] hover:!border-primary/50 transition-colors"
+            value={selectedSigungu}
+            disabled={!selectedSido}
+            onChange={(e) => {
+              setSelectedSigungu(e.target.value);
+              setSelectedDong('');
+            }}
+          >
+            <option value="">군/구</option>
+            {sigungus.map(sig => <option key={sig.code} value={sig.code}>{sig.name.split(' ').pop()}</option>)}
+          </NativeSelect>
+          <NativeSelect
+            className="flex-1 !bg-surface !shadow-none !border !border-surface-border/60 !rounded-xl !py-2.5 !px-3 !text-[13px] hover:!border-primary/50 transition-colors"
+            value={selectedDong}
+            disabled={!selectedSigungu}
+            onChange={(e) => setSelectedDong(e.target.value)}
+          >
+            <option value="">동/읍/면</option>
+            {dongs.map(dong => <option key={dong.code} value={dong.code}>{dong.name.split(' ').pop()}</option>)}
+          </NativeSelect>
         </div>
       </header>
       )}

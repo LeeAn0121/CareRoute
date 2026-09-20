@@ -206,7 +206,7 @@ export function NativeSelect({
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className={`w-full rounded-lg bg-surface-muted px-2.5 py-2 text-sm font-bold text-primary shadow-sm disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-400 ${className}`}
+      className={`w-full rounded-xl bg-surface-muted px-3 py-3.5 text-[15px] font-black text-primary shadow-sm border border-surface-border disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer  ${className}`}
     >
       {children}
     </select>

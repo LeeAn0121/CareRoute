@@ -47,8 +47,8 @@
   --background: #000000;
   --foreground: #FFFFFF;
   --surface: #1C1C1E;
-  --surface-muted: #2C2C2E;
-  --surface-border: #38383A;
+  --surface-muted: #27272A;
+  --surface-border: #3F3F46;
 }
 
 /* Dark Mode Color Adjustments */
@@ -108,7 +108,7 @@ body {
 
 /* Naver Map Dark Mode Simulation */
 .dark #react-naver-map {
-  filter: invert(98%) hue-rotate(180deg) brightness(85%) contrast(90%);
+  filter: invert(98%) hue-rotate(180deg) brightness(95%) contrast(100%);
   background-color: #000000 !important;
 }
 
