@@ -1095,7 +1095,7 @@ function MainApp() {
 
       {/* Floating Header */}
       <header className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
-        <div className="p-4 border-b border-slate-200 bg-white">
+        <div className="p-4 pb-5 bg-white rounded-b-3xl shadow-[0_8px_24px_rgba(18,32,61,0.08)]">
           <h1 className="flex items-center gap-3 mb-4 text-2xl font-black text-[#12203D] tracking-tight">
             <span className="w-9 h-9 bg-[#12203D] rounded-lg flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)]">
               <IconMapPin size={20} color="white" />
@@ -1105,6 +1105,7 @@ function MainApp() {
 
           <div className="flex gap-2">
             <NativeSelect
+              className="bg-slate-100"
               value={selectedSido}
               onChange={(e) => {
                 setSelectedSido(e.target.value);
@@ -1116,6 +1117,7 @@ function MainApp() {
               {sidos.map(sido => <option key={sido.code} value={sido.code}>{sido.name}</option>)}
             </NativeSelect>
             <NativeSelect
+              className="bg-slate-100"
               value={selectedSigungu}
               disabled={!selectedSido}
               onChange={(e) => {
@@ -1127,6 +1129,7 @@ function MainApp() {
               {sigungus.map(sig => <option key={sig.code} value={sig.code}>{sig.name.split(' ').pop()}</option>)}
             </NativeSelect>
             <NativeSelect
+              className="bg-slate-100"
               value={selectedDong}
               disabled={!selectedSigungu}
               onChange={(e) => setSelectedDong(e.target.value)}
@@ -1197,7 +1200,7 @@ function MainApp() {
                       }}
                       icon={{
                         content: `
-                          <div class="flex items-center justify-center rounded-full bg-[#12203D] text-white font-extrabold border-2 border-white shadow-[0_4px_16px_rgba(0,0,0,0.35)] cursor-pointer"
+                          <div class="flex items-center justify-center rounded-full bg-[#F5A524] text-[#12203D] font-extrabold border-2 border-white shadow-[0_4px_16px_rgba(245,165,36,0.5)] cursor-pointer"
                                style="width:${size}px;height:${size}px;font-size:${size >= 46 ? 16 : 14}px;">
                             ${cluster.length}
                           </div>
