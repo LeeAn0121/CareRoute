@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { Select, MenuItem, FormControl, Button, Fab, BottomNavigation, BottomNavigationAction, Paper, Typography, Card, CardContent, Drawer, Box, Chip, IconButton } from '@mui/material';
 import RecipientModal from '@/components/RecipientModal';
@@ -98,6 +98,7 @@ function MainApp() {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapZoom, setMapZoom] = useState(15);
   const [showRegions, setShowRegions] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const mapRef = useRef<any>(null);
   const regionsLoaded = useRef(false);
   const regionLabelsRef = useRef<any[]>([]);
@@ -803,8 +804,29 @@ function MainApp() {
         {/* List View (Redesigned) */}
         {activeTab === 'list' && (
           <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-slate-50">
-            {markers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400 mt-20">
+            
+            {/* 검색바 */}
+            <div className="mb-5 relative">
+              <input 
+                type="text"
+                placeholder="어르신 이름 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-10 text-[16px] shadow-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+              />
+              <IconSearch size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-slate-100 p-1 rounded-full"
+                >
+                  <IconX size={16} />
+                </button>
+              )}
+            </div>
+
+            {(markers.length === 0) ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 mt-16">
                 <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
                   <IconUser size={32} className="text-slate-300" />
                 </div>
@@ -812,11 +834,33 @@ function MainApp() {
               </div>
             ) : (
               <div className="space-y-4">
-                {markers.sort((a,b) => a.visit_time.localeCompare(b.visit_time)).map((marker) => (
+                {(() => {
+                  const filteredMarkers = markers
+                    .filter(marker => marker.name.includes(searchQuery))
+                    .sort((a,b) => a.visit_time.localeCompare(b.visit_time));
+                  
+                  if (filteredMarkers.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center text-slate-400 mt-12 bg-white rounded-3xl py-12 shadow-sm border border-slate-100">
+                        <IconSearch size={40} className="text-slate-200 mb-4" />
+                        <p className="font-bold text-lg text-slate-500">'{searchQuery}' 검색 결과가 없습니다.</p>
+                      </div>
+                    );
+                  }
+
+                  return filteredMarkers.map((marker) => (
                   <Card 
                     key={marker.id} 
                     elevation={0} 
-                    sx={{ borderRadius: 1, mb: 2, border: '1px solid #e2e8f0', cursor: 'pointer' }}
+                    sx={{ 
+                      borderRadius: 4, 
+                      mb: 2, 
+                      border: '1px solid #f1f5f9', 
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                      transition: 'all 0.2s',
+                      cursor: 'pointer',
+                      '&:active': { transform: 'scale(0.98)' }
+                    }}
                     onClick={() => {
                       setMapCenter({ lat: marker.lat, lng: marker.lng });
                       setMapZoom(17); // Zoom in deeply
@@ -842,19 +886,19 @@ function MainApp() {
                             />
                           </Box>
                         </Box>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <IconButton onClick={() => { setEditingRecipient(marker); setIsModalOpen(true); }} size="small" sx={{ bgcolor: '#f8fafc' }}>
+                        <Box sx={{ display: 'flex', gap: 1 }} onClick={(e) => e.stopPropagation()}>
+                          <IconButton onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} size="small" sx={{ bgcolor: '#f8fafc', color: '#64748b', '&:hover': { bgcolor: '#e2e8f0' } }}>
                             <IconPencil size={18} />
                           </IconButton>
-                          <IconButton onClick={() => handleDelete(marker.id)} size="small" sx={{ bgcolor: '#fef2f2', color: '#ef4444' }}>
+                          <IconButton onClick={(e) => { e.stopPropagation(); handleDelete(marker.id); }} size="small" sx={{ bgcolor: '#fef2f2', color: '#ef4444', '&:hover': { bgcolor: '#fecaca' } }}>
                             <IconTrash size={18} />
                           </IconButton>
                         </Box>
                       </Box>
                       
-                      <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2, borderRadius: 1, mb: 2.5, display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-                        <IconMapPin size={20} color="#94a3b8" style={{ marginTop: 2, flexShrink: 0 }} />
-                        <Typography variant="body1" sx={{ fontWeight: 600, color: '#475569', lineHeight: 1.5 }}>
+                      <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2, borderRadius: 3, mb: 2.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                        <IconMapPin size={22} color="#94a3b8" style={{ flexShrink: 0 }} />
+                        <Typography variant="body1" sx={{ fontWeight: 600, color: '#475569', lineHeight: 1.4 }}>
                           {marker.address}
                         </Typography>
                       </Paper>
@@ -864,14 +908,14 @@ function MainApp() {
                         fullWidth
                         size="large"
                         startIcon={<IconNavigation />}
-                        onClick={() => handleDirections(marker.lat, marker.lng, marker.address)}
-                        sx={{ py: 1.5, borderRadius: 1, fontSize: '1.05rem', fontWeight: 800, bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' }, boxShadow: '0 4px 14px rgba(15,23,42,0.2)' }}
+                        onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }}
+                        sx={{ py: 1.5, borderRadius: 3, fontSize: '1.05rem', fontWeight: 800, bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' }, boxShadow: '0 4px 14px rgba(15,23,42,0.2)' }}
                       >
                         길안내 시작
                       </Button>
                     </CardContent>
                   </Card>
-                ))}
+                ))})()}
               </div>
             )}
           </div>
