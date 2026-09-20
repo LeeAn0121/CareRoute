@@ -412,7 +412,23 @@ function MainApp() {
     else if (selectedSido) query = query.like('dong', `${selectedSido.substring(0, 2)}%`);
 
     query.then(({ data, error }) => {
-      if (!error && data) setMarkers(data);
+      if (!error && data) {
+        // 중복 좌표 분산 처리 (같은 집에 여러 어르신이 있을 경우 마커가 겹치는 현상 방지)
+        const offsetData = data.map((marker, index) => {
+          const overlappingCount = data.filter((m, i) => i < index && m.lat === marker.lat && m.lng === marker.lng).length;
+          if (overlappingCount > 0) {
+            const angle = overlappingCount * (Math.PI / 3); // 60 degrees apart
+            const distance = 0.00015; // 대략 15m 오프셋
+            return {
+              ...marker,
+              lat: marker.lat + (Math.sin(angle) * distance),
+              lng: marker.lng + (Math.cos(angle) * distance)
+            };
+          }
+          return marker;
+        });
+        setMarkers(offsetData);
+      }
     });
   };
 
