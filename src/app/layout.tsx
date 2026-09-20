@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import ThemeRegistry from './ThemeRegistry';
 import Providers from "@/components/Providers";
 
 const geistSans = Geist({
@@ -57,10 +56,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         
         <link rel="stylesheet" as="style" crossOrigin="anonymous" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   </head>
-      <body className="min-h-full flex flex-col bg-gray-50" suppressHydrationWarning>
-        <Providers>
-          <ThemeRegistry>{children}</ThemeRegistry>
-        </Providers>
+      <body className="min-h-full flex flex-col bg-[#FBFAF7]" suppressHydrationWarning>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

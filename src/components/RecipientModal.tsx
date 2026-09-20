@@ -3,25 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { DaumPostcodeEmbed } from 'react-daum-postcode';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Button,
-  Box,
-  Typography,
-  IconButton,
-  InputAdornment,
-  CircularProgress
-} from '@mui/material';
-import { IconX, IconSearch, IconMapPin } from '@tabler/icons-react';
-
-interface RegCode {
-  code: string;
-  name: string;
-}
+import { IconX, IconSearch } from '@tabler/icons-react';
+import { Button, IconButton, Modal, TextField } from './ui';
 
 interface Recipient {
   id: string;
@@ -141,10 +124,10 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       };
 
       let coords = { lat: 37.5665, lng: 126.9780 }; // Default fallback
-      
+
       // If editing and address is identical to the original base address, keep old coords
       const isAddressUnchanged = recipientToEdit && recipientToEdit.address.startsWith(address);
-      
+
       if (isAddressUnchanged) {
         coords = { lat: recipientToEdit!.lat, lng: recipientToEdit!.lng };
       } else {
@@ -199,145 +182,105 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   };
 
   return (
-    <Dialog open={isOpen} onClose={!isSubmitting ? onClose : undefined} fullWidth maxWidth="sm" sx={{ '& .MuiDialog-paper': { borderRadius: 1.5, p: 1 } }}>
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+    <Modal
+      open={isOpen}
+      onClose={() => { if (!isSubmitting && !isAddressSearchOpen) onClose(); }}
+      closeOnBackdrop={!isSubmitting && !isAddressSearchOpen}
+    >
+      <div className="flex items-center justify-between px-5 pt-5 pb-2">
+        <h2 className="text-lg font-extrabold text-[#12203D]">
           {recipientToEdit ? '어르신 정보 수정' : '새 어르신 등록'}
-        </Typography>
-        <IconButton type="button" onClick={onClose} disabled={isSubmitting}>
-          <IconX />
+        </h2>
+        <IconButton onClick={onClose} disabled={isSubmitting} className="hover:bg-slate-100" aria-label="닫기">
+          <IconX size={20} />
         </IconButton>
-      </DialogTitle>
+      </div>
 
-      <Box component="form" onSubmit={handleSubmit}>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
-            <TextField
-              label="성함"
-              variant="outlined"
-              fullWidth
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => {
-                // 신규 등록 시 성함을 입력하고 다음 항목으로 넘어가면
-                // 바로 주소 검색을 띄워 한 번에 이어서 입력할 수 있게 한다.
-                if (!recipientToEdit && name.trim() && !address) {
-                  handleSearchAddress();
-                }
-              }}
-              disabled={isSubmitting}
-            />
-
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <TextField
-                label="기본 주소"
-                variant="outlined"
-                fullWidth
-                required
-                value={address}
-                disabled
-              />
-              <Button
-                type="button"
-                variant="contained"
-                color="primary"
-                onClick={handleSearchAddress}
-                disabled={isSubmitting}
-                sx={{ borderRadius: 3, px: 3, boxShadow: 'none' }}
-                startIcon={<IconSearch size={18} />}
-              >
-                검색
-              </Button>
-            </Box>
-
-            <TextField
-              label="상세 주소 (선택)"
-              variant="outlined"
-              fullWidth
-              value={detailAddress}
-              onChange={(e) => setDetailAddress(e.target.value)}
-              disabled={isSubmitting}
-              inputRef={detailAddressRef}
-            />
-
-            <TextField
-              label="방문 예정일 (선택)"
-              type="date"
-              variant="outlined"
-              fullWidth
-              value={visitDate}
-              onChange={(e) => setVisitDate(e.target.value)}
-              disabled={isSubmitting}
-              slotProps={{ 
-                inputLabel: { shrink: true },
-                input: {
-                  endAdornment: visitDate ? (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setVisitDate('')} edge="end">
-                        <IconX size={16} />
-                      </IconButton>
-                    </InputAdornment>
-                  ) : null
-                }
-              }}
-            />
-
-            <TextField
-              label="방문 예정 시간 (선택)"
-              type="time"
-              variant="outlined"
-              fullWidth
-              value={visitTime}
-              onChange={(e) => setVisitTime(e.target.value)}
-              disabled={isSubmitting}
-              slotProps={{ 
-                inputLabel: { shrink: true },
-                input: {
-                  endAdornment: visitTime ? (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setVisitTime('')} edge="end">
-                        <IconX size={16} />
-                      </IconButton>
-                    </InputAdornment>
-                  ) : null
-                }
-              }}
-            />
-          </Box>
-        </DialogContent>
-
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
-            size="large"
+      <form onSubmit={handleSubmit}>
+        <div className="flex flex-col gap-4 px-5 py-3">
+          <TextField
+            label="성함"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => {
+              // 신규 등록 시 성함을 입력하고 다음 항목으로 넘어가면
+              // 바로 주소 검색을 띄워 한 번에 이어서 입력할 수 있게 한다.
+              if (!recipientToEdit && name.trim() && !address) {
+                handleSearchAddress();
+              }
+            }}
             disabled={isSubmitting}
-            sx={{ borderRadius: 3, py: 1.5, fontSize: '1.1rem', fontWeight: 700, boxShadow: 'none' }}
-          >
-            {isSubmitting ? <CircularProgress size={24} color="inherit" /> : '저장하기'}
+          />
+
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <TextField label="기본 주소" required value={address} disabled />
+            </div>
+            <Button
+              type="button"
+              onClick={handleSearchAddress}
+              disabled={isSubmitting}
+              startIcon={<IconSearch size={18} />}
+              className="mb-[1px]"
+            >
+              검색
+            </Button>
+          </div>
+
+          <TextField
+            label="상세 주소 (선택)"
+            value={detailAddress}
+            onChange={(e) => setDetailAddress(e.target.value)}
+            disabled={isSubmitting}
+            inputRef={detailAddressRef}
+          />
+
+          <TextField
+            label="방문 예정일 (선택)"
+            type="date"
+            value={visitDate}
+            onChange={(e) => setVisitDate(e.target.value)}
+            disabled={isSubmitting}
+            endAdornment={visitDate ? (
+              <IconButton onClick={() => setVisitDate('')} aria-label="방문 예정일 지우기">
+                <IconX size={16} />
+              </IconButton>
+            ) : null}
+          />
+
+          <TextField
+            label="방문 예정 시간 (선택)"
+            type="time"
+            value={visitTime}
+            onChange={(e) => setVisitTime(e.target.value)}
+            disabled={isSubmitting}
+            endAdornment={visitTime ? (
+              <IconButton onClick={() => setVisitTime('')} aria-label="방문 예정 시간 지우기">
+                <IconX size={16} />
+              </IconButton>
+            ) : null}
+          />
+        </div>
+
+        <div className="px-5 pb-5 pt-2">
+          <Button type="submit" fullWidth loading={isSubmitting} className="py-3 text-base">
+            저장하기
           </Button>
-        </DialogActions>
-      </Box>
+        </div>
+      </form>
 
       {/* 주소 검색: window.open 팝업 대신 다이얼로그에 임베드해서 연다.
           PWA를 홈 화면에 설치해 standalone 모드로 실행 중이면 팝업창이
           열리지 않거나 opener와의 콜백 연결이 끊기는 경우가 흔하기 때문. */}
-      <Dialog
-        open={isAddressSearchOpen}
-        onClose={() => setIsAddressSearchOpen(false)}
-        fullWidth
-        maxWidth="sm"
-        sx={{ '& .MuiDialog-paper': { borderRadius: 1.5 } }}
-      >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6" sx={{ fontWeight: 800 }}>주소 검색</Typography>
-          <IconButton onClick={() => setIsAddressSearchOpen(false)}>
-            <IconX />
+      <Modal open={isAddressSearchOpen} onClose={() => setIsAddressSearchOpen(false)}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-2">
+          <h2 className="text-lg font-extrabold text-[#12203D]">주소 검색</h2>
+          <IconButton onClick={() => setIsAddressSearchOpen(false)} aria-label="닫기">
+            <IconX size={20} />
           </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ p: 0, height: 500 }}>
+        </div>
+        <div style={{ height: 500 }}>
           {isAddressSearchOpen && (
             <DaumPostcodeEmbed
               scriptUrl="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
@@ -346,8 +289,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
               style={{ width: '100%', height: '100%' }}
             />
           )}
-        </DialogContent>
-      </Dialog>
-    </Dialog>
+        </div>
+      </Modal>
+    </Modal>
   );
 }

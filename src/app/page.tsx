@@ -3,8 +3,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
-import { Select, MenuItem, FormControl, Button, Fab, BottomNavigation, BottomNavigationAction, Paper, Typography, Card, CardContent, Drawer, Box, Chip, IconButton, CircularProgress } from '@mui/material';
 import RecipientModal from '@/components/RecipientModal';
+import { Button, IconButton, NativeSelect, Chip, BottomSheet, Spinner } from '@/components/ui';
 
 interface RegCode {
   code: string;
@@ -826,57 +826,47 @@ function MainApp() {
 
       {/* Floating Header */}
       <header className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 0, borderBottom: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
-          <Typography variant="h5" component="div" sx={{ fontWeight: 900, color: '#12203D', display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, letterSpacing: '-0.5px' }}>
-            <Box component="span" sx={{ width: 36, height: 36, bgcolor: '#12203D', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3)' }}>
+        <div className="p-4 border-b border-slate-200 bg-white">
+          <h1 className="flex items-center gap-3 mb-4 text-2xl font-black text-[#12203D] tracking-tight">
+            <span className="w-9 h-9 bg-[#12203D] rounded-lg flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)]">
               <IconMapPin size={20} color="white" />
-            </Box>
+            </span>
             케어루트
-          </Typography>
-          
+          </h1>
+
           <div className="flex gap-2">
-            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 1 }}>
-              <Select
-                native
-                value={selectedSido}
-                onChange={(e) => {
-                  setSelectedSido(e.target.value);
-                  setSelectedSigungu('');
-                  setSelectedDong('');
-                }}
-                sx={{ borderRadius: 1, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
-              >
-                <option value="">시/도</option>
-                {sidos.map(sido => <option key={sido.code} value={sido.code}>{sido.name}</option>)}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 1 }} disabled={!selectedSido}>
-              <Select
-                native
-                value={selectedSigungu}
-                onChange={(e) => {
-                  setSelectedSigungu(e.target.value);
-                  setSelectedDong('');
-                }}
-                sx={{ borderRadius: 1, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
-              >
-                <option value="">군/구</option>
-                {sigungus.map(sig => <option key={sig.code} value={sig.code}>{sig.name.split(' ').pop()}</option>)}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ flex: 1, bgcolor: '#f8fafc', borderRadius: 1 }} disabled={!selectedSigungu}>
-              <Select
-                native
-                value={selectedDong}
-                onChange={(e) => setSelectedDong(e.target.value)}
-                sx={{ borderRadius: 1, fontWeight: 700, fontSize: '14px', '& fieldset': { border: 'none' }, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
-              >
-                <option value="">동/읍/면</option>
-                {dongs.map(dong => <option key={dong.code} value={dong.code}>{dong.name.split(' ').pop()}</option>)}
-              </Select>
-            </FormControl>
+            <NativeSelect
+              value={selectedSido}
+              onChange={(e) => {
+                setSelectedSido(e.target.value);
+                setSelectedSigungu('');
+                setSelectedDong('');
+              }}
+            >
+              <option value="">시/도</option>
+              {sidos.map(sido => <option key={sido.code} value={sido.code}>{sido.name}</option>)}
+            </NativeSelect>
+            <NativeSelect
+              value={selectedSigungu}
+              disabled={!selectedSido}
+              onChange={(e) => {
+                setSelectedSigungu(e.target.value);
+                setSelectedDong('');
+              }}
+            >
+              <option value="">군/구</option>
+              {sigungus.map(sig => <option key={sig.code} value={sig.code}>{sig.name.split(' ').pop()}</option>)}
+            </NativeSelect>
+            <NativeSelect
+              value={selectedDong}
+              disabled={!selectedSigungu}
+              onChange={(e) => setSelectedDong(e.target.value)}
+            >
+              <option value="">동/읍/면</option>
+              {dongs.map(dong => <option key={dong.code} value={dong.code}>{dong.name.split(' ').pop()}</option>)}
+            </NativeSelect>
           </div>
-        </Paper>
+        </div>
       </header>
 
       {/* Main Content Area */}
@@ -1007,18 +997,9 @@ function MainApp() {
                   }
 
                   return filteredMarkers.map((marker) => (
-                  <Card 
-                    key={marker.id} 
-                    elevation={0} 
-                    sx={{ 
-                      borderRadius: 1.5, 
-                      mb: 2, 
-                      border: '1px solid #f1f5f9', 
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-                      transition: 'all 0.2s',
-                      cursor: 'pointer',
-                      '&:active': { transform: 'scale(0.98)' }
-                    }}
+                  <div
+                    key={marker.id}
+                    className="rounded-xl mb-2 border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-transform cursor-pointer active:scale-[0.98] bg-white"
                     onClick={() => {
                       setMapCenter({ lat: marker.lat, lng: marker.lng });
                       setMapZoom(17); // Zoom in deeply
@@ -1029,53 +1010,49 @@ function MainApp() {
                       setSelectedRecipient(marker);
                     }}
                   >
-                    <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                          <Box sx={{ width: 56, height: 56, bgcolor: '#EEF1F6', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex gap-4 items-center">
+                          <div className="w-14 h-14 bg-[#EEF1F6] rounded-2xl flex items-center justify-center flex-shrink-0">
                             <IconUser size={28} color="#12203D" />
-                          </Box>
-                          <Box>
-                            <Typography variant="h6" component="div" sx={{ fontWeight: 900, color: '#12203D', letterSpacing: '-0.5px' }}>
+                          </div>
+                          <div>
+                            <p className="text-lg font-black text-[#12203D] tracking-tight">
                               {marker.name} 어르신
-                            </Typography>
-                            <Chip
-                              icon={<IconClock size={14} />}
-                              label={`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}`}
-                              size="small"
-                              sx={{ mt: 0.5, bgcolor: '#FDECC8', color: '#8A5A00', fontWeight: 800, borderRadius: 1.5, '& .MuiChip-icon': { color: '#8A5A00' } }}
-                            />
-                          </Box>
-                        </Box>
-                        <Box sx={{ display: 'flex', gap: 1 }} onClick={(e) => e.stopPropagation()}>
-                          <IconButton onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} size="small" sx={{ bgcolor: '#f8fafc', color: '#64748b', '&:hover': { bgcolor: '#e2e8f0' } }}>
+                            </p>
+                            <Chip icon={<IconClock size={14} color="#8A5A00" />} className="mt-1 bg-[#FDECC8] text-[#8A5A00]">
+                              {`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}`}
+                            </Chip>
+                          </div>
+                        </div>
+                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                          <IconButton onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} className="bg-slate-50 text-slate-500 hover:bg-slate-200">
                             <IconPencil size={18} />
                           </IconButton>
-                          <IconButton onClick={(e) => { e.stopPropagation(); handleDelete(marker.id); }} size="small" sx={{ bgcolor: '#fef2f2', color: '#ef4444', '&:hover': { bgcolor: '#fecaca' } }}>
+                          <IconButton onClick={(e) => { e.stopPropagation(); handleDelete(marker.id); }} className="bg-red-50 text-red-500 hover:bg-red-200">
                             <IconTrash size={18} />
                           </IconButton>
-                        </Box>
-                      </Box>
-                      
-                      <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2, borderRadius: 1, mb: 2.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
-                        <IconMapPin size={22} color="#94a3b8" style={{ flexShrink: 0 }} />
-                        <Typography variant="body1" sx={{ fontWeight: 600, color: '#475569', lineHeight: 1.4 }}>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 rounded-lg p-4 mb-5 flex gap-3 items-center">
+                        <IconMapPin size={22} color="#94a3b8" className="flex-shrink-0" />
+                        <p className="font-semibold text-slate-600 leading-snug">
                           {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
-                        </Typography>
-                      </Paper>
+                        </p>
+                      </div>
 
                       <Button
-                        variant="contained"
                         fullWidth
-                        size="large"
-                        startIcon={<IconNavigation />}
+                        variant="dark"
+                        startIcon={<IconNavigation size={18} />}
                         onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }}
-                        sx={{ py: 1.5, borderRadius: 1, fontSize: '1.05rem', fontWeight: 800, bgcolor: '#12203D', '&:hover': { bgcolor: '#1A2F52' }, boxShadow: '0 4px 14px rgba(18,32,61,0.25)' }}
+                        className="py-3 text-[1.05rem]"
                       >
                         길안내 시작
                       </Button>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 ))})()}
               </div>
             )}
@@ -1091,8 +1068,8 @@ function MainApp() {
         style={{ top: 'calc(env(safe-area-inset-top, 0px) + 132px)' }}
       >
         {/* 캐시 강제 삭제 및 새로고침 버튼 (모바일용) */}
-        <Fab
-          size="small"
+        <button
+          type="button"
           onClick={async () => {
             if ('caches' in window) {
               const keys = await caches.keys();
@@ -1106,124 +1083,127 @@ function MainApp() {
             }
             window.location.href = window.location.pathname + '?t=' + Date.now();
           }}
-          sx={{ bgcolor: '#ef4444', color: '#ffffff', borderRadius: 2, '&:hover': { bgcolor: '#dc2626' } }}
+          className="w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg bg-red-500 text-white hover:bg-red-600 transition active:scale-95"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path></svg>
-        </Fab>
+        </button>
 
         {activeTab === 'map' && (
           <>
             {/* 행정구역 토글 버튼 */}
-            <Fab
-              size="small"
+            <button
+              type="button"
               onClick={() => setShowRegions(!showRegions)}
-              sx={{ bgcolor: showRegions ? '#12203D' : '#ffffff', color: showRegions ? '#ffffff' : '#475569', borderRadius: 2 }}
+              className={`w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg transition active:scale-95 ${showRegions ? 'bg-[#12203D] text-white' : 'bg-white text-slate-600'}`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-            </Fab>
+            </button>
 
             {/* 확대/축소 버튼 */}
-            <Fab size="small" onClick={() => setMapZoom(prev => Math.min(prev + 1, 21))} sx={{ bgcolor: '#ffffff', borderRadius: 2, mt: 1 }}>
+            <button
+              type="button"
+              onClick={() => setMapZoom(prev => Math.min(prev + 1, 21))}
+              className="w-10 h-10 mt-1 flex items-center justify-center rounded-2xl shadow-lg bg-white transition active:scale-95"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </Fab>
-            <Fab size="small" onClick={() => setMapZoom(prev => Math.max(prev - 1, 6))} sx={{ bgcolor: '#ffffff', borderRadius: 2 }}>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMapZoom(prev => Math.max(prev - 1, 6))}
+              className="w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg bg-white transition active:scale-95"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </Fab>
+            </button>
 
             {/* 내 위치 버튼 */}
-            <Fab size="small" onClick={handleMyLocation} disabled={isLocating} sx={{ bgcolor: '#ffffff', borderRadius: 2, mt: 1 }}>
+            <button
+              type="button"
+              onClick={handleMyLocation}
+              disabled={isLocating}
+              className="w-10 h-10 mt-1 flex items-center justify-center rounded-2xl shadow-lg bg-white transition active:scale-95 disabled:opacity-60"
+            >
               {isLocating ? (
-                <CircularProgress size={18} sx={{ color: '#12203D' }} />
+                <Spinner size={18} className="text-[#12203D]" />
               ) : (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#12203D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19 12h2"></path><path d="M3 12h2"></path><path d="M12 3v2"></path><path d="M12 19v2"></path><circle cx="12" cy="12" r="8"></circle></svg>
               )}
-            </Fab>
+            </button>
           </>
         )}
       </div>
 
-      <Fab 
-        color="primary" 
-        aria-label="어르신 추가" 
+      <button
+        type="button"
+        aria-label="어르신 추가"
         onClick={() => { setEditingRecipient(null); setIsModalOpen(true); }}
-        sx={{ position: 'absolute', bottom: 100, right: 24, zIndex: 40, width: 56, height: 56, borderRadius: 2, boxShadow: '0 4px 14px rgba(245,165,36,0.45)' }}
+        className="absolute bottom-[100px] right-6 z-40 w-14 h-14 flex items-center justify-center rounded-2xl shadow-[0_4px_14px_rgba(245,165,36,0.45)] bg-[#F5A524] text-[#12203D] transition active:scale-95"
       >
         <IconPlus size={32} strokeWidth={2.5} />
-      </Fab>
+      </button>
 
       {/* Map Marker Popup (비중을 줄인 컴팩트 버전) */}
-      <Drawer
-        anchor="bottom"
-        open={Boolean(selectedRecipient && activeTab === 'map')}
-        onClose={() => setSelectedRecipient(null)}
-        sx={{ '& .MuiDrawer-paper': { borderTopLeftRadius: 16, borderTopRightRadius: 16, p: 2, pb: 11 } }}
-        ModalProps={{ keepMounted: true }}
-      >
+      <BottomSheet open={Boolean(selectedRecipient && activeTab === 'map')} onClose={() => setSelectedRecipient(null)}>
         {selectedRecipient && (
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                <Typography variant="subtitle1" component="div" sx={{ fontWeight: 800, color: '#12203D', whiteSpace: 'nowrap' }}>
+          <div className="p-4 pb-11">
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <p className="font-extrabold text-[#12203D] whitespace-nowrap">
                   {selectedRecipient.name} 어르신
-                </Typography>
-                <Chip
-                  icon={<IconClock size={12} />}
-                  label={`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : selectedRecipient.visit_time.substring(0, 5)}`}
-                  size="small"
-                  sx={{ height: 22, fontSize: 11, fontWeight: 700, bgcolor: '#f1f5f9', color: '#475569', '& .MuiChip-icon': { color: '#475569', ml: 0.5 } }}
-                />
-              </Box>
-              <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
-                <IconButton onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} size="small">
+                </p>
+                <Chip icon={<IconClock size={12} color="#475569" />} className="h-[22px] text-[11px] bg-slate-100 text-slate-600">
+                  {`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : selectedRecipient.visit_time.substring(0, 5)}`}
+                </Chip>
+              </div>
+              <div className="flex gap-1 flex-shrink-0">
+                <IconButton onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} className="hover:bg-slate-100">
                   <IconPencil size={16} />
                 </IconButton>
-                <IconButton onClick={() => handleDelete(selectedRecipient.id)} size="small" sx={{ color: '#ef4444' }}>
+                <IconButton onClick={() => handleDelete(selectedRecipient.id)} className="text-red-500 hover:bg-red-50">
                   <IconTrash size={16} />
                 </IconButton>
-                <IconButton onClick={() => setSelectedRecipient(null)} size="small">
+                <IconButton onClick={() => setSelectedRecipient(null)} className="hover:bg-slate-100">
                   <IconX size={16} />
                 </IconButton>
-              </Box>
-            </Box>
-            <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500, mb: 1.5, display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
-              <IconMapPin size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+              </div>
+            </div>
+            <p className="text-slate-500 font-medium mb-3 flex items-start gap-1">
+              <IconMapPin size={14} className="flex-shrink-0 mt-0.5" />
               {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
-            </Typography>
+            </p>
             <Button
-              variant="contained"
               fullWidth
+              variant="dark"
               startIcon={<IconNavigation size={18} />}
               onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address)}
-              sx={{ py: 1, borderRadius: 2, fontSize: '0.95rem', fontWeight: 700, bgcolor: '#12203D', boxShadow: 'none', '&:hover': { bgcolor: '#1A2F52' } }}
+              className="text-[0.95rem]"
             >
               길안내 시작
             </Button>
-          </Box>
+          </div>
         )}
-      </Drawer>
+      </BottomSheet>
 
       {/* Redesigned Bottom Navigation */}
-      <Paper sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 50, borderRadius: '16px 16px 0 0', overflow: 'hidden', boxShadow: '0 -10px 40px rgba(0,0,0,0.08)' }} elevation={8}>
-        <BottomNavigation
-          showLabels
-          value={activeTab}
-          onChange={(event, newValue) => setActiveTab(newValue)}
-          sx={{ height: 80, pb: 'env(safe-area-inset-bottom)' }}
-        >
-          <BottomNavigationAction 
-            label="지도 보기" 
-            value="map" 
-            icon={<IconMapPin size={26} strokeWidth={activeTab === 'map' ? 2.5 : 2} />} 
-            sx={{ '&.Mui-selected': { color: '#12203D', fontWeight: 800 } }}
-          />
-          <BottomNavigationAction 
-            label="명단 보기" 
-            value="list" 
-            icon={<IconList size={26} strokeWidth={activeTab === 'list' ? 2.5 : 2} />} 
-            sx={{ '&.Mui-selected': { color: '#12203D', fontWeight: 800 } }}
-          />
-        </BottomNavigation>
-      </Paper>
+      <div className="absolute bottom-0 left-0 right-0 z-50 rounded-t-2xl overflow-hidden shadow-[0_-10px_40px_rgba(0,0,0,0.08)] bg-white">
+        <div className="flex h-20 pb-[env(safe-area-inset-bottom)]">
+          <button
+            type="button"
+            onClick={() => setActiveTab('map')}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === 'map' ? 'text-[#12203D] font-extrabold' : 'text-slate-400 font-semibold'}`}
+          >
+            <IconMapPin size={26} strokeWidth={activeTab === 'map' ? 2.5 : 2} />
+            지도 보기
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('list')}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === 'list' ? 'text-[#12203D] font-extrabold' : 'text-slate-400 font-semibold'}`}
+          >
+            <IconList size={26} strokeWidth={activeTab === 'list' ? 2.5 : 2} />
+            명단 보기
+          </button>
+        </div>
+      </div>
 
       <RecipientModal 
         isOpen={isModalOpen} 
