@@ -236,9 +236,16 @@ function MainApp() {
       });
     }
 
-    // 지도 이동/확대 시 화면에 보이는 마커만 업데이트 (최적화)
-    if (!window.naver.maps.Event.hasListener(map, 'idle')) {
-      window.naver.maps.Event.addListener(map, 'idle', () => {
+    // 지도 이동/확대 시 상태 동기화 및 마커/폴리곤 업데이트
+    window.naver.maps.Event.clearListeners(map, 'idle');
+    window.naver.maps.Event.addListener(map, 'idle', () => {
+        // 항상 지도 상태를 동기화하여 수동 줌인/줌아웃 시에도 mapZoom 상태가 최신으로 유지되게 함
+        const currentZoom = map.getZoom();
+        setMapZoom(currentZoom);
+        
+        const currentCenter = map.getCenter();
+        setMapCenter({ lat: currentCenter.y, lng: currentCenter.x });
+
         if (!showRegions || !currentRenderedLevel) return;
         const bounds = map.getBounds();
         
@@ -248,17 +255,7 @@ function MainApp() {
         const minLng = bounds.minX() - 0.15;
         const maxLng = bounds.maxX() + 0.15;
         
-        // 확대/축소 및 이동 추적 (깜빡임 방지를 위해 애니메이션 종료 후 한 번만 상태 업데이트)
-        const currentZoom = map.getZoom();
-        if (currentZoom !== mapZoom) {
-            setMapZoom(currentZoom);
-        }
-        const currentCenter = map.getCenter();
-        const latDiff = Math.abs(currentCenter.y - mapCenter.lat);
-        const lngDiff = Math.abs(currentCenter.x - mapCenter.lng);
-        if (latDiff > 0.0001 || lngDiff > 0.0001) {
-            setMapCenter({ lat: currentCenter.y, lng: currentCenter.x });
-        }
+
 
         // 새로 보여야 할 폴리곤만 추가 (성능 최적화)
         if (geoCache[currentRenderedLevel]) {
@@ -298,7 +295,6 @@ function MainApp() {
           }
         });
       });
-    }
 
     if (geoCache[level]) {
       drawLevel(level);
@@ -771,19 +767,14 @@ function MainApp() {
                     onClick={() => setSelectedRecipient(marker)}
                     icon={{
                       content: `
-                        <div class="relative flex flex-col items-center justify-center ${selectedRecipient?.id === marker.id ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
-                          <div class="relative flex items-center justify-center w-12 h-12">
-                            <div class="absolute inset-0 bg-teal-500 rounded-full opacity-30 animate-ping"></div>
-                            <div class="relative bg-teal-600 text-white rounded-full p-2.5 shadow-[0_4px_12px_rgba(13,148,136,0.5)] border-2 border-white">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            </div>
-                          </div>
-                          <div class="mt-1 px-2 py-0.5 bg-white text-slate-700 text-xs font-bold rounded-md shadow-sm border border-slate-200 whitespace-nowrap">
-                            ${marker.name} 어르신
+                        <div class="relative flex items-center justify-center ${selectedRecipient?.id === marker.id ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
+                          <div class="absolute inset-0 bg-teal-500 rounded-full opacity-30 animate-ping"></div>
+                          <div class="relative w-11 h-11 flex items-center justify-center bg-teal-600 text-white font-extrabold text-lg rounded-full shadow-[0_4px_12px_rgba(13,148,136,0.5)] border-2 border-white">
+                            ${(marker.name || '?').charAt(0)}
                           </div>
                         </div>
                       `,
-                      anchor: { x: 24, y: 24 }
+                      anchor: { x: 22, y: 22 }
                     }}
                   />
                 ))}
@@ -922,54 +913,59 @@ function MainApp() {
       </div>
 
       {/* Floating Action Button (Add Recipient) */}
-      {/* 캐시 강제 삭제 및 새로고침 버튼 (모바일용) */}
-      <Fab
-        size="small"
-        onClick={async () => {
-          if ('caches' in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(key => caches.delete(key)));
-          }
-          if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            for (let reg of regs) {
-              await reg.unregister();
-            }
-          }
-          window.location.href = window.location.pathname + '?t=' + Date.now();
-        }}
-        sx={{ position: 'absolute', top: 72, right: 16, zIndex: 40, bgcolor: '#ef4444', color: '#ffffff', borderRadius: 2, '&:hover': { bgcolor: '#dc2626' } }}
+      {/* 우측 플로팅 버튼 스택: 헤더 높이(+노치 안전영역)만큼 아래에서 시작해서
+          헤더의 시/도·군/구·동 select와 겹치지 않게 한 줄로 쌓는다. */}
+      <div
+        className="absolute right-4 z-40 flex flex-col gap-2"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 132px)' }}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path></svg>
-      </Fab>
+        {/* 캐시 강제 삭제 및 새로고침 버튼 (모바일용) */}
+        <Fab
+          size="small"
+          onClick={async () => {
+            if ('caches' in window) {
+              const keys = await caches.keys();
+              await Promise.all(keys.map(key => caches.delete(key)));
+            }
+            if ('serviceWorker' in navigator) {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              for (let reg of regs) {
+                await reg.unregister();
+              }
+            }
+            window.location.href = window.location.pathname + '?t=' + Date.now();
+          }}
+          sx={{ bgcolor: '#ef4444', color: '#ffffff', borderRadius: 2, '&:hover': { bgcolor: '#dc2626' } }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path></svg>
+        </Fab>
 
-      {activeTab === 'map' && (
-        <>
-          {/* 행정구역 토글 버튼 */}
-          <Fab
-            size="small"
-            onClick={() => setShowRegions(!showRegions)}
-            sx={{ position: 'absolute', top: 120, right: 16, zIndex: 40, bgcolor: showRegions ? '#0d9488' : '#ffffff', color: showRegions ? '#ffffff' : '#475569', borderRadius: 2 }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-          </Fab>
+        {activeTab === 'map' && (
+          <>
+            {/* 행정구역 토글 버튼 */}
+            <Fab
+              size="small"
+              onClick={() => setShowRegions(!showRegions)}
+              sx={{ bgcolor: showRegions ? '#0d9488' : '#ffffff', color: showRegions ? '#ffffff' : '#475569', borderRadius: 2 }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            </Fab>
 
-          {/* 확대/축소 버튼 */}
-          <div className="absolute top-[180px] right-4 z-40 flex flex-col gap-2">
-            <Fab size="small" onClick={() => setMapZoom(prev => Math.min(prev + 1, 21))} sx={{ bgcolor: '#ffffff', borderRadius: 2 }}>
+            {/* 확대/축소 버튼 */}
+            <Fab size="small" onClick={() => setMapZoom(prev => Math.min(prev + 1, 21))} sx={{ bgcolor: '#ffffff', borderRadius: 2, mt: 1 }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </Fab>
             <Fab size="small" onClick={() => setMapZoom(prev => Math.max(prev - 1, 6))} sx={{ bgcolor: '#ffffff', borderRadius: 2 }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </Fab>
-            
+
             {/* 내 위치 버튼 */}
             <Fab size="small" onClick={handleMyLocation} sx={{ bgcolor: '#ffffff', borderRadius: 2, mt: 1 }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19 12h2"></path><path d="M3 12h2"></path><path d="M12 3v2"></path><path d="M12 19v2"></path><circle cx="12" cy="12" r="8"></circle></svg>
             </Fab>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
 
       <Fab 
         color="primary" 
