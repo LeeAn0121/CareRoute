@@ -1574,9 +1574,7 @@ function MainApp() {
               >
                 <IconX size={18} />
               </IconButton>
-            </div>
-            <div className="px-5 pb-5 -mt-12">
-              <div className="w-24 h-24 rounded-2xl bg-[#EEF1F6] border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
+              <div className="absolute left-5 -bottom-12 w-24 h-24 rounded-2xl bg-[#EEF1F6] border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
                 {selectedRecipient.photo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={selectedRecipient.photo_url} alt="" className="w-full h-full object-cover" />
@@ -1584,8 +1582,9 @@ function MainApp() {
                   <IconUser size={40} color="#12203D" />
                 )}
               </div>
-
-              <div className="mt-3 flex items-start justify-between gap-2">
+            </div>
+            <div className="px-5 pb-5 pt-14">
+              <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xl font-black text-[#12203D] tracking-tight truncate">
                     {selectedRecipient.name} 어르신
