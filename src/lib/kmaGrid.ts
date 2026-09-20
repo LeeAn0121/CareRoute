@@ -78,7 +78,7 @@ export function getBaseDateTime() {
   const hours = String(now.getHours()).padStart(2, '0');
   
   return {
-    base_date: `\${year}\${month}\${day}`,
-    base_time: `\${hours}00`
+    base_date: `${year}${month}${day}`,
+    base_time: `${hours}00`
   };
 }
