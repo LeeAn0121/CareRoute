@@ -4,7 +4,8 @@ import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
-import { Button, IconButton, NativeSelect, Chip, BottomSheet, Spinner } from '@/components/ui';
+import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/components/ui';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface RegCode {
   code: string;
@@ -1318,10 +1319,18 @@ function MainApp() {
                     );
                   }
 
-                  return filteredMarkers.map((marker) => (
-                  <div
+                  return (
+                  <AnimatePresence initial={false}>
+                    {filteredMarkers.map((marker, index) => (
+                  <motion.div
                     key={marker.id}
-                    className="rounded-xl mb-2 border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-transform cursor-pointer active:scale-[0.98] bg-white"
+                    layout
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ duration: 0.22, delay: Math.min(index, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
+                    whileTap={{ scale: 0.98 }}
+                    className="rounded-xl mb-2 border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] cursor-pointer bg-white"
                     onClick={() => {
                       setMapCenter({ lat: marker.lat, lng: marker.lng });
                       setMapZoom(17); // Zoom in deeply
@@ -1382,8 +1391,11 @@ function MainApp() {
                         길안내 시작
                       </Button>
                     </div>
-                  </div>
-                ))})()}
+                  </motion.div>
+                    ))}
+                  </AnimatePresence>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -1550,78 +1562,97 @@ function MainApp() {
         <IconPlus size={32} strokeWidth={2.5} />
       </button>
 
-      {/* Map Marker Popup (비중을 줄인 컴팩트 버전) */}
-      <BottomSheet open={Boolean(selectedRecipient && activeTab === 'map')} onClose={() => setSelectedRecipient(null)}>
+      {/* 어르신 상세 팝업 (지도 마커 클릭, 명단 보기 클릭 공용) */}
+      <Modal open={Boolean(selectedRecipient && activeTab === 'map')} onClose={() => setSelectedRecipient(null)}>
         {selectedRecipient && (
-          <div className="p-4 pb-11">
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <p className="font-extrabold text-[#12203D] whitespace-nowrap">
-                  {selectedRecipient.name} 어르신
-                </p>
-                <Chip icon={<IconClock size={12} color="#475569" />} className="h-[22px] text-[11px] bg-slate-100 text-slate-600">
-                  {`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '서비스 시간 미정' : selectedRecipient.visit_time.substring(0, 5)}`}
-                </Chip>
-              </div>
-              <div className="flex gap-1 flex-shrink-0">
-                <IconButton onClick={() => toggleCompleted(selectedRecipient)} className={isCompletedToday(selectedRecipient) ? 'bg-[#4C7A6B] text-white' : 'hover:bg-slate-100'} aria-label="오늘 방문 완료 체크">
-                  <IconCheck size={16} />
-                </IconButton>
-                <IconButton onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} className="hover:bg-slate-100">
-                  <IconPencil size={16} />
-                </IconButton>
-                <IconButton onClick={() => handleDelete(selectedRecipient.id)} className="text-red-500 hover:bg-red-50">
-                  <IconTrash size={16} />
-                </IconButton>
-                <IconButton onClick={() => setSelectedRecipient(null)} className="hover:bg-slate-100">
-                  <IconX size={16} />
-                </IconButton>
-              </div>
+          <div>
+            <div className="relative h-28 bg-gradient-to-br from-[#12203D] to-[#1A2F52]">
+              <IconButton
+                onClick={() => setSelectedRecipient(null)}
+                className="absolute top-3 right-3 bg-white/15 text-white hover:bg-white/25"
+                aria-label="닫기"
+              >
+                <IconX size={18} />
+              </IconButton>
             </div>
-            <p className="text-slate-500 font-medium mb-3 flex items-start gap-1">
-              <IconMapPin size={14} className="flex-shrink-0 mt-0.5" />
-              {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
-            </p>
-            <Button
-              fullWidth
-              variant="dark"
-              startIcon={<IconNavigation size={18} />}
-              onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address)}
-              className="text-[0.95rem]"
-            >
-              길안내 시작
-            </Button>
+            <div className="px-5 pb-5 -mt-12">
+              <div className="w-24 h-24 rounded-2xl bg-[#EEF1F6] border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
+                {selectedRecipient.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={selectedRecipient.photo_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <IconUser size={40} color="#12203D" />
+                )}
+              </div>
+
+              <div className="mt-3 flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xl font-black text-[#12203D] tracking-tight truncate">
+                    {selectedRecipient.name} 어르신
+                  </p>
+                  <Chip icon={<IconClock size={12} color="#8A5A00" />} className="mt-1.5 bg-[#FDECC8] text-[#8A5A00]">
+                    {`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '서비스 시간 미정' : selectedRecipient.visit_time.substring(0, 5) + ' 방문'}`}
+                  </Chip>
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  <IconButton onClick={() => toggleCompleted(selectedRecipient)} className={isCompletedToday(selectedRecipient) ? 'bg-[#4C7A6B] text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-200'} aria-label="오늘 방문 완료 체크">
+                    <IconCheck size={18} />
+                  </IconButton>
+                  <IconButton onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} className="bg-slate-50 text-slate-500 hover:bg-slate-200">
+                    <IconPencil size={18} />
+                  </IconButton>
+                  <IconButton onClick={() => handleDelete(selectedRecipient.id)} className="bg-red-50 text-red-500 hover:bg-red-200">
+                    <IconTrash size={18} />
+                  </IconButton>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-lg p-4 mt-4 flex gap-3 items-center">
+                <IconMapPin size={20} color="#94a3b8" className="flex-shrink-0" />
+                <p className="font-semibold text-slate-600 leading-snug text-sm">
+                  {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
+                </p>
+              </div>
+
+              <Button
+                fullWidth
+                variant="dark"
+                startIcon={<IconNavigation size={18} />}
+                onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address)}
+                className="mt-4 py-3 text-[1.05rem]"
+              >
+                길안내 시작
+              </Button>
+            </div>
           </div>
         )}
-      </BottomSheet>
+      </Modal>
 
       {/* Redesigned Bottom Navigation */}
       <div className="absolute bottom-0 left-0 right-0 z-50 rounded-t-2xl overflow-hidden shadow-[0_-10px_40px_rgba(0,0,0,0.08)] bg-white">
         <div className="flex h-20 pb-[env(safe-area-inset-bottom)]">
-          <button
-            type="button"
-            onClick={() => setActiveTab('map')}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === 'map' ? 'text-[#12203D] font-extrabold' : 'text-slate-400 font-semibold'}`}
-          >
-            <IconMapPin size={26} strokeWidth={activeTab === 'map' ? 2.5 : 2} />
-            지도 보기
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('list')}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === 'list' ? 'text-[#12203D] font-extrabold' : 'text-slate-400 font-semibold'}`}
-          >
-            <IconList size={26} strokeWidth={activeTab === 'list' ? 2.5 : 2} />
-            명단 보기
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('route')}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === 'route' ? 'text-[#12203D] font-extrabold' : 'text-slate-400 font-semibold'}`}
-          >
-            <IconNavigation size={26} strokeWidth={activeTab === 'route' ? 2.5 : 2} />
-            오늘의 경로
-          </button>
+          {([
+            { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
+            { key: 'list' as const, label: '명단 보기', Icon: IconList },
+            { key: 'route' as const, label: '오늘의 경로', Icon: IconNavigation },
+          ]).map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveTab(key)}
+              className={`relative flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === key ? 'text-[#12203D] font-extrabold' : 'text-slate-400 font-semibold'}`}
+            >
+              {activeTab === key && (
+                <motion.div
+                  layoutId="nav-indicator"
+                  className="absolute top-0 inset-x-5 h-[3px] rounded-full bg-[#F5A524]"
+                  transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                />
+              )}
+              <Icon size={26} strokeWidth={activeTab === key ? 2.5 : 2} />
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
