@@ -442,7 +442,10 @@ function MainApp() {
       const currentHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       
       markers.forEach(marker => {
-        if (marker.notes === currentYMD && marker.visit_time.substring(0, 5) === currentHM) {
+        // 방문 시간을 입력하지 않은 경우 DB엔 '00:00:00'이 기본값으로 들어가는데,
+        // 이걸 그대로 두면 시간 미지정 어르신 전원이 매일 자정에 알림이 울린다.
+        const hasTime = marker.visit_time && marker.visit_time !== '00:00:00';
+        if (hasTime && marker.notes === currentYMD && marker.visit_time.substring(0, 5) === currentHM) {
           const alarmKey = `alarm_${marker.id}_${currentYMD}_${currentHM}`;
           if (!localStorage.getItem(alarmKey)) {
             localStorage.setItem(alarmKey, 'true'); // Prevent duplicate fires
