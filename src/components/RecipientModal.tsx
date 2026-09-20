@@ -18,7 +18,10 @@ interface Recipient {
   lng: number;
   visit_time: string;
   notes?: string | null;
+  recurring_weekdays?: string | null;
 }
+
+const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 interface RecipientModalProps {
   isOpen: boolean;
@@ -34,6 +37,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   const [bcode, setBcode] = useState('');
   const [visitTime, setVisitTime] = useState('');
   const [visitDate, setVisitDate] = useState('');
+  const [recurringDays, setRecurringDays] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddressSearchOpen, setIsAddressSearchOpen] = useState(false);
   const detailAddressRef = useRef<HTMLInputElement>(null);
@@ -47,6 +51,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setBcode(recipientToEdit.dong);
         setVisitTime((recipientToEdit.visit_time && recipientToEdit.visit_time.substring(0, 5) !== '00:00') ? recipientToEdit.visit_time.substring(0, 5) : '');
         setVisitDate(recipientToEdit.notes || '');
+        setRecurringDays(recipientToEdit.recurring_weekdays ? recipientToEdit.recurring_weekdays.split(',').map(Number) : []);
       } else {
         setName('');
         setAddress('');
@@ -54,6 +59,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setBcode('');
         setVisitTime('');
         setVisitDate('');
+        setRecurringDays([]);
       }
       setIsSubmitting(false);
     }
@@ -162,7 +168,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         lat: coords.lat,
         lng: coords.lng,
         visit_time: visitTime ? `${visitTime}:00` : '00:00:00',
-        notes: visitDate
+        notes: visitDate,
+        recurring_weekdays: recurringDays.length > 0 ? [...recurringDays].sort().join(',') : null,
       };
 
       if (recipientToEdit?.id) {
@@ -248,6 +255,35 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
               </IconButton>
             ) : null}
           />
+
+          <div>
+            <span className="block text-sm font-bold text-slate-600 mb-1">반복 요일 (선택)</span>
+            <div className="flex gap-1.5">
+              {WEEKDAY_LABELS.map((label, day) => {
+                const active = recurringDays.includes(day);
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      setRecurringDays((prev) =>
+                        prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+                      );
+                    }}
+                    className={`w-9 h-9 rounded-full text-sm font-bold transition ${
+                      active ? 'bg-[#F5A524] text-[#12203D]' : 'bg-slate-100 text-slate-500'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            {recurringDays.length > 0 && (
+              <p className="text-xs text-slate-400 mt-1.5">매주 {recurringDays.slice().sort().map((d) => WEEKDAY_LABELS[d]).join(', ')}요일마다 방문 예정에 자동으로 포함됩니다.</p>
+            )}
+          </div>
 
           <TextField
             label="방문 예정 시간 (선택)"

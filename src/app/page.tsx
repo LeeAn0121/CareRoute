@@ -23,6 +23,8 @@ interface Recipient {
   lng: number;
   visit_time: string;
   notes?: string | null;
+  last_completed_key?: string | null;
+  recurring_weekdays?: string | null;
 }
 
 const SIDO_CENTERS: Record<string, { lat: number, lng: number }> = {
@@ -123,7 +125,7 @@ function MainApp() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   
-  const [activeTab, setActiveTab] = useState<'map' | 'list'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'list' | 'route'>('map');
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapZoom, setMapZoom] = useState(15);
   const [isLocating, setIsLocating] = useState(false);
@@ -774,6 +776,86 @@ function MainApp() {
     return Array.from(groups.values());
   }, [markers, clusterField]);
 
+  // 완료 체크: last_completed_key가 "오늘 날짜"와 같으면 오늘 방문 완료로 간주.
+  // 날짜가 바뀌면(다음 날/다음 예정일) 자동으로 다시 미완료 상태가 된다.
+  const todayYMD = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const isCompletedToday = (r: Recipient) => r.last_completed_key === todayYMD();
+  const toggleCompleted = async (r: Recipient) => {
+    const key = isCompletedToday(r) ? null : todayYMD();
+    // 낙관적 업데이트로 목록에 바로 반영
+    setMarkers((prev) => prev.map((m) => (m.id === r.id ? { ...m, last_completed_key: key } : m)));
+    await supabase.from('recipients').update({ last_completed_key: key }).eq('id', r.id);
+  };
+
+  // 오늘 방문 예정인지: 특정 날짜로 지정했거나, 반복 요일에 오늘 요일이 포함되면 해당
+  const isScheduledToday = (r: Recipient) => {
+    const now = new Date();
+    const ymd = todayYMD();
+    if (r.notes === ymd) return true;
+    if (r.recurring_weekdays) {
+      return r.recurring_weekdays.split(',').map(Number).includes(now.getDay());
+    }
+    return false;
+  };
+
+  // 오늘의 경로: 시간이 정해진 일정을 뼈대로 두고, 시간 미정인 곳은 이동
+  // 거리가 가장 적게 늘어나는 위치에 끼워넣는 방식(최근접 삽입 휴리스틱)으로
+  // 순서를 정한다. 실제 도로 거리가 아닌 직선 거리 기준의 근사치.
+  const todayRoute = useMemo(() => {
+    const todays = markers.filter(isScheduledToday);
+    const timed = todays
+      .filter((r) => r.visit_time && r.visit_time !== '00:00:00')
+      .sort((a, b) => a.visit_time.localeCompare(b.visit_time));
+    const flexible = todays.filter((r) => !r.visit_time || r.visit_time === '00:00:00');
+
+    if (flexible.length === 0) return timed;
+
+    if (timed.length === 0) {
+      const route: Recipient[] = [];
+      const remaining = [...flexible];
+      let curLat = mapCenter.lat, curLng = mapCenter.lng;
+      while (remaining.length > 0) {
+        let bestIdx = 0, bestDist = Infinity;
+        remaining.forEach((r, i) => {
+          const d = getDistanceFromLatLonInKm(curLat, curLng, r.lat, r.lng);
+          if (d < bestDist) { bestDist = d; bestIdx = i; }
+        });
+        const [next] = remaining.splice(bestIdx, 1);
+        route.push(next);
+        curLat = next.lat; curLng = next.lng;
+      }
+      return route;
+    }
+
+    const route = [...timed];
+    const remaining = [...flexible];
+    while (remaining.length > 0) {
+      let bestFlexIdx = 0, bestPos = 0, bestExtra = Infinity;
+      remaining.forEach((flex, fi) => {
+        const points = [{ lat: mapCenter.lat, lng: mapCenter.lng }, ...route];
+        for (let i = 0; i < points.length; i++) {
+          const a = points[i];
+          const b = points[i + 1];
+          const dA = getDistanceFromLatLonInKm(a.lat, a.lng, flex.lat, flex.lng);
+          const dB = b ? getDistanceFromLatLonInKm(flex.lat, flex.lng, b.lat, b.lng) : 0;
+          const dOrig = b ? getDistanceFromLatLonInKm(a.lat, a.lng, b.lat, b.lng) : 0;
+          const extra = dA + dB - dOrig;
+          if (extra < bestExtra) {
+            bestExtra = extra;
+            bestFlexIdx = fi;
+            bestPos = i;
+          }
+        }
+      });
+      const [chosen] = remaining.splice(bestFlexIdx, 1);
+      route.splice(bestPos, 0, chosen);
+    }
+    return route;
+  }, [markers, mapCenter]);
+
   return (
     <main className="flex-1 flex flex-col h-[100dvh] relative bg-[#FBFAF7] font-sans">
       
@@ -1026,6 +1108,9 @@ function MainApp() {
                           </div>
                         </div>
                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                          <IconButton onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} className={isCompletedToday(marker) ? 'bg-[#4C7A6B] text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-200'} aria-label="오늘 방문 완료 체크">
+                            <IconCheck size={18} />
+                          </IconButton>
                           <IconButton onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} className="bg-slate-50 text-slate-500 hover:bg-slate-200">
                             <IconPencil size={18} />
                           </IconButton>
@@ -1054,6 +1139,73 @@ function MainApp() {
                     </div>
                   </div>
                 ))})()}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 오늘의 경로: 오늘 방문 예정(날짜 지정 또는 반복 요일)인 곳만 모아
+            최근접 삽입 휴리스틱으로 방문 순서를 매겨 보여준다. */}
+        {activeTab === 'route' && (
+          <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-[#FBFAF7]">
+            <div className="mb-4">
+              <p className="text-lg font-black text-[#12203D]">오늘의 방문 순서</p>
+              <p className="text-sm text-slate-400 font-semibold">
+                직선거리 기준 추천 순서예요 · 총 {todayRoute.length}곳
+              </p>
+            </div>
+
+            {todayRoute.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 mt-16">
+                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
+                  <IconNavigation size={32} className="text-slate-300" />
+                </div>
+                <p className="font-bold text-lg text-slate-500">오늘 방문 예정인 어르신이 없습니다.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {todayRoute.map((marker, i) => {
+                  const completed = isCompletedToday(marker);
+                  return (
+                    <div
+                      key={marker.id}
+                      className={`rounded-xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] bg-white p-4 flex gap-3 items-start ${completed ? 'opacity-50' : ''}`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-[#12203D] text-white text-sm font-extrabold flex items-center justify-center flex-shrink-0 mt-0.5">
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-black text-[#12203D] ${completed ? 'line-through' : ''}`}>{marker.name} 어르신</p>
+                          <Chip icon={<IconClock size={12} color="#8A5A00" />} className="bg-[#FDECC8] text-[#8A5A00]">
+                            {marker.visit_time && marker.visit_time !== '00:00:00' ? marker.visit_time.substring(0, 5) : '시간 미정'}
+                          </Chip>
+                        </div>
+                        <p className="text-sm text-slate-500 font-medium mt-1 truncate">
+                          {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
+                        </p>
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            variant={completed ? 'ghost' : 'primary'}
+                            startIcon={<IconCheck size={16} />}
+                            onClick={() => toggleCompleted(marker)}
+                            className="py-1.5 text-sm"
+                          >
+                            {completed ? '완료 취소' : '완료'}
+                          </Button>
+                          <Button
+                            variant="dark"
+                            startIcon={<IconNavigation size={16} />}
+                            onClick={() => handleDirections(marker.lat, marker.lng, marker.address)}
+                            className="py-1.5 text-sm"
+                          >
+                            길안내
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1155,6 +1307,9 @@ function MainApp() {
                 </Chip>
               </div>
               <div className="flex gap-1 flex-shrink-0">
+                <IconButton onClick={() => toggleCompleted(selectedRecipient)} className={isCompletedToday(selectedRecipient) ? 'bg-[#4C7A6B] text-white' : 'hover:bg-slate-100'} aria-label="오늘 방문 완료 체크">
+                  <IconCheck size={16} />
+                </IconButton>
                 <IconButton onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} className="hover:bg-slate-100">
                   <IconPencil size={16} />
                 </IconButton>
@@ -1201,6 +1356,14 @@ function MainApp() {
           >
             <IconList size={26} strokeWidth={activeTab === 'list' ? 2.5 : 2} />
             명단 보기
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('route')}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === 'route' ? 'text-[#12203D] font-extrabold' : 'text-slate-400 font-semibold'}`}
+          >
+            <IconNavigation size={26} strokeWidth={activeTab === 'route' ? 2.5 : 2} />
+            오늘의 경로
           </button>
         </div>
       </div>

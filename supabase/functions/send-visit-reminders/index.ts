@@ -25,12 +25,18 @@ function seoulNow() {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    weekday: "short",
     hour12: false,
   });
   const parts = Object.fromEntries(
     fmt.formatToParts(new Date()).map((p) => [p.type, p.value]),
   );
-  return { ymd: `${parts.year}-${parts.month}-${parts.day}`, hm: `${parts.hour}:${parts.minute}` };
+  const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    ymd: `${parts.year}-${parts.month}-${parts.day}`,
+    hm: `${parts.hour}:${parts.minute}`,
+    weekday: weekdayMap[parts.weekday],
+  };
 }
 
 const restHeaders = {
@@ -40,11 +46,12 @@ const restHeaders = {
 };
 
 Deno.serve(async () => {
-  const { ymd, hm } = seoulNow();
+  const { ymd, hm, weekday } = seoulNow();
   const notifiedKey = `${ymd}_${hm}`;
 
+  // 오늘 날짜로 지정된 방문 + 반복 요일에 오늘이 포함된 방문 모두 조회
   const recRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/recipients?select=id,name,address,visit_time,notes,last_notified_key&notes=eq.${ymd}`,
+    `${SUPABASE_URL}/rest/v1/recipients?select=id,name,address,visit_time,notes,recurring_weekdays,last_notified_key&or=(notes.eq.${ymd},recurring_weekdays.not.is.null)`,
     { headers: restHeaders },
   );
   if (!recRes.ok) {
@@ -52,7 +59,12 @@ Deno.serve(async () => {
   }
   const recipients = await recRes.json();
 
+  const isScheduledToday = (r: any) =>
+    r.notes === ymd ||
+    (r.recurring_weekdays && r.recurring_weekdays.split(",").map(Number).includes(weekday));
+
   const due = recipients.filter((r: any) =>
+    isScheduledToday(r) &&
     r.visit_time &&
     r.visit_time !== "00:00:00" &&
     r.visit_time.substring(0, 5) === hm &&
