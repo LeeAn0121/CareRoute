@@ -140,14 +140,14 @@ function MainApp() {
       const minLng = bounds.minX() - 0.15;
       const maxLng = bounds.maxX() + 0.15;
       
-      const filteredFeatures = geoCache[lvl].features.filter((f: any) => {
+      const filteredFeatures = lvl === 'dong' ? geoCache[lvl].features.filter((f: any) => {
          const lat = f.properties?._centerLat;
          const lng = f.properties?._centerLng;
          if (lat && lng) {
             return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
          }
          return true;
-      });
+      }) : geoCache[lvl].features;
       
       const filteredGeoJson = { ...geoCache[lvl], features: filteredFeatures };
       map.data.addGeoJson(filteredGeoJson);
@@ -191,7 +191,7 @@ function MainApp() {
               if (f.getProperty('name')) existingIds.add(f.getProperty('name'));
            });
            
-           const featuresToAdd = geoCache[currentRenderedLevel].features.filter((f: any) => {
+           const featuresToAdd = currentRenderedLevel === 'dong' ? geoCache[currentRenderedLevel].features.filter((f: any) => {
               const lat = f.properties?._centerLat;
               const lng = f.properties?._centerLng;
               if (lat && lng) {
@@ -199,7 +199,7 @@ function MainApp() {
                  return inBounds && !existingIds.has(f.properties.name);
               }
               return false;
-           });
+           }) : [];
            
            if (featuresToAdd.length > 0) {
               map.data.addGeoJson({ type: "FeatureCollection", features: featuresToAdd });
