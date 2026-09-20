@@ -4,6 +4,7 @@ import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
+import Onboarding from '@/components/Onboarding';
 import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/components/ui';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -144,6 +145,7 @@ function MainApp() {
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   
   const [activeTab, setActiveTab] = useState<'map' | 'list' | 'route'>('map');
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapZoom, setMapZoom] = useState(15);
   const [isLocating, setIsLocating] = useState(false);
@@ -462,6 +464,7 @@ function MainApp() {
   // 보내주므로, 앱이 닫혀있거나 백그라운드여도 알림이 온다. (예전의 setInterval
   // 기반 포그라운드 전용 체크는 앱이 열려있을 때만 동작해 신뢰할 수 없었음)
   useEffect(() => {
+    if (showOnboarding) return;
     const setupPush = async () => {
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
@@ -493,6 +496,12 @@ function MainApp() {
     };
 
     setupPush().catch((err) => console.warn('Push 구독 설정 실패:', err));
+  }, []);
+
+  useEffect(() => {
+    if (!localStorage.getItem('careroute_tutorial_done')) {
+      setShowOnboarding(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -733,6 +742,7 @@ function MainApp() {
   const gpsInitRef = useRef(false);
   // 앱 실행 시 즉시 현재 위치로 이동 (초기 1회)
   useEffect(() => {
+    if (showOnboarding) return;
     if (mapLoaded && navigator.geolocation && !gpsInitRef.current) {
       gpsInitRef.current = true;
       navigator.geolocation.getCurrentPosition(
@@ -1676,6 +1686,12 @@ function MainApp() {
         }}
         recipientToEdit={editingRecipient}
       />
+
+      <AnimatePresence>
+        {showOnboarding && (
+          <Onboarding onComplete={() => setShowOnboarding(false)} />
+        )}
+      </AnimatePresence>
     </main>
   );
 }
