@@ -795,14 +795,17 @@ function MainApp() {
                     position={{ lat: marker.lat, lng: marker.lng }}
                     onClick={() => setSelectedRecipient(marker)}
                     icon={{
-                      content: `
-                        <div class="relative flex items-center justify-center ${selectedRecipient?.id === marker.id ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
-                          <div class="absolute inset-0 bg-teal-500 rounded-full opacity-30 animate-ping"></div>
-                          <div class="relative bg-teal-600 text-white rounded-full p-2.5 shadow-[0_4px_12px_rgba(13,148,136,0.5)] border-2 border-white">
+                      content: (() => {
+                        const isSelected = selectedRecipient?.id === marker.id;
+                        return `
+                        <div class="relative flex items-center justify-center ${isSelected ? 'scale-125 z-50' : 'scale-100'} transition-transform duration-300">
+                          ${isSelected ? '<div class="absolute -inset-2 bg-amber-400 rounded-full opacity-60 animate-ping"></div>' : ''}
+                          <div class="relative ${isSelected ? 'bg-amber-500' : 'bg-teal-600'} text-white rounded-full p-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.35)] border-2 border-white transition-colors duration-300">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                           </div>
                         </div>
-                      `,
+                      `;
+                      })(),
                       anchor: { x: 24, y: 24 }
                     }}
                   />
@@ -888,7 +891,10 @@ function MainApp() {
                       setMapCenter({ lat: marker.lat, lng: marker.lng });
                       setMapZoom(17); // Zoom in deeply
                       setActiveTab('map'); // Switch to map tab
-                      setSelectedRecipient(null);
+                      // 어떤 어르신 위치로 포커싱된 건지 확실히 보이도록 해당
+                      // 마커를 선택 상태로 만든다 (마커가 앰버색으로 바뀌며
+                      // 핑 애니메이션 + 하단 상세 시트가 함께 뜸).
+                      setSelectedRecipient(marker);
                     }}
                   >
                     <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
