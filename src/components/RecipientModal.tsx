@@ -13,6 +13,7 @@ import {
   Box,
   Typography,
   IconButton,
+  InputAdornment,
   CircularProgress
 } from '@mui/material';
 import { IconX, IconSearch, IconMapPin } from '@tabler/icons-react';
@@ -253,7 +254,18 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
               value={visitDate}
               onChange={(e) => setVisitDate(e.target.value)}
               disabled={isSubmitting}
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{ 
+                inputLabel: { shrink: true },
+                input: {
+                  endAdornment: visitDate ? (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setVisitDate('')} edge="end">
+                        <IconX size={16} />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null
+                }
+              }}
             />
 
             <TextField
@@ -264,7 +276,18 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
               value={visitTime}
               onChange={(e) => setVisitTime(e.target.value)}
               disabled={isSubmitting}
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{ 
+                inputLabel: { shrink: true },
+                input: {
+                  endAdornment: visitTime ? (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setVisitTime('')} edge="end">
+                        <IconX size={16} />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null
+                }
+              }}
             />
           </Box>
         </DialogContent>
