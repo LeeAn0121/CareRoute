@@ -1,10 +1,11 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
 import Tour from '@/components/Tour';
+import SettingsView from '@/components/SettingsView';
 import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/components/ui';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -144,7 +145,7 @@ function MainApp() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   
-  const [activeTab, setActiveTab] = useState<'map' | 'list' | 'route'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'list' | 'route' | 'settings'>('map');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapZoom, setMapZoom] = useState(15);
@@ -1501,10 +1502,17 @@ function MainApp() {
         )}
       </div>
 
+      {activeTab === 'settings' && (
+        <SettingsView onReplayTutorial={() => {
+          setActiveTab('map');
+          setTimeout(() => setShowOnboarding(true), 100);
+        }} />
+      )}
+
       {/* Floating Action Button (Add Recipient) */}
       {/* 우측 플로팅 버튼 스택: 헤더 높이(+노치 안전영역)만큼 아래에서 시작해서
           헤더의 시/도·군/구·동 select와 겹치지 않게 한 줄로 쌓는다. */}
-      <div
+      {activeTab !== 'settings' && (<div
         className="absolute right-4 z-40 flex flex-col gap-2"
         style={{ top: 'calc(env(safe-area-inset-top, 0px) + 132px)' }}
       >
@@ -1573,8 +1581,9 @@ function MainApp() {
             </button>
           </>
         )}
-      </div>
+      </div>)}
 
+      {activeTab !== 'settings' && (
       <button
         id="tour-add-button"
         type="button"
@@ -1584,6 +1593,7 @@ function MainApp() {
       >
         <IconPlus size={32} strokeWidth={2.5} />
       </button>
+      )}
 
       {/* 어르신 상세 팝업 (지도 마커 클릭, 명단 보기 클릭 공용) */}
       <Modal open={Boolean(selectedRecipient && (activeTab === 'map' || activeTab === 'route'))} onClose={() => setSelectedRecipient(null)}>
@@ -1657,6 +1667,7 @@ function MainApp() {
             { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
             { key: 'list' as const, label: '명단 보기', Icon: IconList },
             { key: 'route' as const, label: '오늘의 경로', Icon: IconNavigation },
+            { key: 'settings' as const, label: '설정', Icon: IconSettings },
           ]).map(({ key, label, Icon }) => (
             <button
               key={key}
