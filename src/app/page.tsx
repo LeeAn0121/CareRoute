@@ -25,6 +25,7 @@ interface Recipient {
   notes?: string | null;
   last_completed_key?: string | null;
   recurring_weekdays?: string | null;
+  photo_url?: string | null;
 }
 
 const SIDO_CENTERS: Record<string, { lat: number, lng: number }> = {
@@ -1248,8 +1249,13 @@ function MainApp() {
                     <div className="p-6">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex gap-4 items-center">
-                          <div className="w-14 h-14 bg-[#EEF1F6] rounded-2xl flex items-center justify-center flex-shrink-0">
-                            <IconUser size={28} color="#12203D" />
+                          <div className="w-14 h-14 bg-[#EEF1F6] rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            {marker.photo_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <IconUser size={28} color="#12203D" />
+                            )}
                           </div>
                           <div>
                             <p className="text-lg font-black text-[#12203D] tracking-tight">

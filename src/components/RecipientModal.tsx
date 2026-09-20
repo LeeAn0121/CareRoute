@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { DaumPostcodeEmbed } from 'react-daum-postcode';
-import { IconX, IconSearch } from '@tabler/icons-react';
+import { IconX, IconSearch, IconCamera, IconUser } from '@tabler/icons-react';
 import { Button, IconButton, Modal, TextField } from './ui';
 
 interface Recipient {
@@ -19,6 +19,7 @@ interface Recipient {
   visit_time: string;
   notes?: string | null;
   recurring_weekdays?: string | null;
+  photo_url?: string | null;
 }
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -38,9 +39,25 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   const [visitTime, setVisitTime] = useState('');
   const [visitDate, setVisitDate] = useState('');
   const [recurringDays, setRecurringDays] = useState<number[]>([]);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddressSearchOpen, setIsAddressSearchOpen] = useState(false);
   const detailAddressRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // 새로 고른 파일이 있으면 그 로컬 미리보기를, 없으면 기존 저장된 사진을 보여준다.
+  // object URL은 교체/언마운트 시 꼭 해제해서 메모리 누수를 막는다.
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreview(existingPhotoUrl);
+      return;
+    }
+    const url = URL.createObjectURL(photoFile);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile, existingPhotoUrl]);
 
   useEffect(() => {
     if (isOpen) {
@@ -52,6 +69,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setVisitTime((recipientToEdit.visit_time && recipientToEdit.visit_time.substring(0, 5) !== '00:00') ? recipientToEdit.visit_time.substring(0, 5) : '');
         setVisitDate(recipientToEdit.notes || '');
         setRecurringDays(recipientToEdit.recurring_weekdays ? recipientToEdit.recurring_weekdays.split(',').map(Number) : []);
+        setExistingPhotoUrl(recipientToEdit.photo_url || null);
       } else {
         setName('');
         setAddress('');
@@ -60,7 +78,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setVisitTime('');
         setVisitDate('');
         setRecurringDays([]);
+        setExistingPhotoUrl(null);
       }
+      setPhotoFile(null);
       setIsSubmitting(false);
     }
   }, [isOpen, recipientToEdit]);
@@ -158,6 +178,16 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         }
       }
 
+      let photoUrl = existingPhotoUrl;
+      if (photoFile) {
+        const ext = photoFile.name.split('.').pop() || 'jpg';
+        const path = `${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from('recipient-photos').upload(path, photoFile);
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage.from('recipient-photos').getPublicUrl(path);
+        photoUrl = publicUrlData.publicUrl;
+      }
+
       const recipientData = {
         name,
         address,
@@ -170,6 +200,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         visit_time: visitTime ? `${visitTime}:00` : '00:00:00',
         notes: visitDate,
         recurring_weekdays: recurringDays.length > 0 ? [...recurringDays].sort().join(',') : null,
+        photo_url: photoUrl,
       };
 
       if (recipientToEdit?.id) {
@@ -205,6 +236,53 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
       <form onSubmit={handleSubmit}>
         <div className="flex flex-col gap-4 px-5 py-3">
+          <div className="flex justify-center">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                disabled={isSubmitting}
+                className="w-24 h-24 rounded-full overflow-hidden bg-[#EEF1F6] flex items-center justify-center border border-slate-200"
+                aria-label="사진 선택"
+              >
+                {photoPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoPreview} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <IconUser size={40} color="#94a3b8" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                disabled={isSubmitting}
+                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#12203D] text-white flex items-center justify-center border-2 border-white"
+                aria-label="사진 촬영/선택"
+              >
+                <IconCamera size={16} />
+              </button>
+              {photoPreview && (
+                <button
+                  type="button"
+                  onClick={() => { setPhotoFile(null); setExistingPhotoUrl(null); if (photoInputRef.current) photoInputRef.current.value = ''; }}
+                  disabled={isSubmitting}
+                  className="absolute top-0 right-0 w-6 h-6 rounded-full bg-white text-red-500 shadow flex items-center justify-center"
+                  aria-label="사진 제거"
+                >
+                  <IconX size={14} />
+                </button>
+              )}
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+              />
+            </div>
+          </div>
+
           <TextField
             label="성함"
             required
