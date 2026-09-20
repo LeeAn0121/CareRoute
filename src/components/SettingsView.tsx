@@ -8,12 +8,12 @@ interface SettingsViewProps {
 }
 
 const colorThemes = [
-  { id: 'theme-navy', name: '네이비', color: 'bg-blue-900' },
-  { id: 'theme-blue', name: '블루', color: 'bg-blue-500' },
-  { id: 'theme-emerald', name: '에메랄드', color: 'bg-emerald-500' },
-  { id: 'theme-rose', name: '로즈', color: 'bg-rose-500' },
-  { id: 'theme-purple', name: '퍼플', color: 'bg-purple-500' },
-  { id: 'theme-teal', name: '틸', color: 'bg-teal-500' },
+  { id: 'theme-navy', name: '블랙/화이트', color: 'bg-[#1C1C1E] dark:bg-white' },
+  { id: 'theme-blue', name: '블루', color: 'bg-[#007AFF]' },
+  { id: 'theme-emerald', name: '에메랄드', color: 'bg-[#34C759]' },
+  { id: 'theme-rose', name: '로즈', color: 'bg-[#FF2D55]' },
+  { id: 'theme-purple', name: '퍼플', color: 'bg-[#AF52DE]' },
+  { id: 'theme-teal', name: '틸', color: 'bg-[#32ADE6]' },
 ];
 
 export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {

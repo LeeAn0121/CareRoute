@@ -247,13 +247,13 @@ function MainApp() {
 
     const centerLat = feature.properties._centerLat;
     const centerLng = feature.properties._centerLng;
-    const bg = lvl === 'dong' ? 'rgba(14, 165, 233, 0.85)' : (lvl === 'sigungu' ? 'rgba(13, 148, 136, 0.95)' : 'rgba(139, 92, 246, 0.95)');
+    const bg = lvl === 'dong' ? 'var(--color-primary)' : (lvl === 'sigungu' ? 'var(--color-primary)' : 'var(--color-primary)');
     const fs = lvl === 'dong' ? '11px' : '13px';
 
     const marker = new window.naver.maps.Marker({
       position: new window.naver.maps.LatLng(centerLat, centerLng),
       icon: {
-        content: `<div style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; cursor: pointer;">${name}</div>`,
+        content: `<div style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; cursor: pointer;">${name}</div>`,
         anchor: new window.naver.maps.Point(20, 10)
       }
     });
@@ -1108,9 +1108,9 @@ function MainApp() {
       {/* Floating Header */}
       {activeTab !== 'settings' && (
       <header className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
-        <div id="tour-header" className="p-4 pb-5 bg-surface rounded-b-3xl shadow-[0_8px_24px_rgba(18,32,61,0.08)]">
+        <div id="tour-header" className="p-4 pb-5 bg-surface rounded-b-3xl shadow-lg shadow-primary/5">
           <h1 className="flex items-center gap-3 mb-4 text-2xl font-black text-primary tracking-tight">
-            <span className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)]">
+            <span className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-inner border-t border-white/20">
               <IconMapPin size={20} color="white" />
             </span>
             케어루트
@@ -1181,7 +1181,7 @@ function MainApp() {
                             <div class="relative flex flex-col items-center ${isSelected ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
                               <div class="relative w-11 h-11 flex items-center justify-center">
                                 ${isSelected ? '<div class="absolute -inset-1.5 bg-accent rounded-full opacity-60 animate-ping"></div>' : ''}
-                                <div class="relative w-11 h-11 rounded-full overflow-hidden bg-primary flex items-center justify-center border-2 ${isSelected ? 'border-accent' : 'border-white'} shadow-[0_4px_16px_rgba(0,0,0,0.35)] transition-colors duration-300">
+                                <div class="relative w-11 h-11 rounded-full overflow-hidden bg-primary flex items-center justify-center border-2 ${isSelected ? 'border-accent' : 'border-white'} shadow-md shadow-foreground/20 transition-colors duration-300">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                   ${marker.photo_url ? `<img src="${marker.photo_url}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
                                 </div>
@@ -1214,7 +1214,7 @@ function MainApp() {
                       }}
                       icon={{
                         content: `
-                          <div class="flex items-center justify-center rounded-full bg-accent text-primary font-extrabold border-2 border-white shadow-[0_4px_16px_rgba(245,165,36,0.5)] cursor-pointer"
+                          <div class="flex items-center justify-center rounded-full bg-accent text-primary font-extrabold border-2 border-white shadow-lg shadow-accent/40 cursor-pointer"
                                style="width:${size}px;height:${size}px;font-size:${size >= 46 ? 16 : 14}px;">
                             ${cluster.length}
                           </div>
@@ -1356,7 +1356,7 @@ function MainApp() {
                     exit={{ opacity: 0, scale: 0.96 }}
                     transition={{ duration: 0.22, delay: Math.min(index, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
                     whileTap={{ scale: 0.98 }}
-                    className={`rounded-xl ${listViewMode === 'list' ? 'mb-2' : ''} border border-surface-border shadow-[0_4px_20px_rgba(0,0,0,0.03)] cursor-pointer bg-surface overflow-hidden flex flex-col`}
+                    className={`rounded-xl ${listViewMode === 'list' ? 'mb-2' : ''} border border-surface-border shadow-sm shadow-foreground/5 cursor-pointer bg-surface overflow-hidden flex flex-col`}
                     onClick={() => {
                       setMapCenter({ lat: marker.lat, lng: marker.lng });
                       setMapZoom(17);
@@ -1505,7 +1505,7 @@ function MainApp() {
                     <div
                       key={marker.id}
                       onClick={() => setSelectedRecipient(marker)}
-                      className={`rounded-xl border border-surface-border shadow-[0_4px_20px_rgba(0,0,0,0.03)] bg-surface p-4 flex gap-3 items-start cursor-pointer active:scale-[0.98] transition-transform ${completed ? 'opacity-50' : ''}`}
+                      className={`rounded-xl border border-surface-border shadow-sm shadow-foreground/5 bg-surface p-4 flex gap-3 items-start cursor-pointer active:scale-[0.98] transition-transform ${completed ? 'opacity-50' : ''}`}
                     >
                       <div className="w-8 h-8 rounded-full bg-primary text-white text-sm font-extrabold flex items-center justify-center flex-shrink-0 mt-0.5">
                         {i + 1}
@@ -1716,7 +1716,7 @@ function MainApp() {
 
       {/* Redesigned Bottom Navigation */}
       <div className="absolute bottom-6 left-4 right-4 z-50 px-2 pb-safe">
-        <div id="tour-bottom-nav" className="rounded-3xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.12)] bg-surface/95 backdrop-blur-xl border border-surface-border/60">
+        <div id="tour-bottom-nav" className="rounded-3xl overflow-hidden shadow-2xl shadow-foreground/10 bg-surface/95 backdrop-blur-xl border border-surface-border/60">
           <div className="flex h-16">
           {([
             { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },

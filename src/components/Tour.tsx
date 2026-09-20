@@ -23,7 +23,7 @@ const CustomTooltip = ({
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 350, damping: 25 }}
-      className="bg-surface/95 backdrop-blur-2xl border border-surface-border/50 p-6 rounded-[24px] shadow-[0_24px_48px_rgba(0,0,0,0.12)] max-w-[320px] relative overflow-hidden"
+      className="bg-surface/95 backdrop-blur-2xl border border-surface-border/50 p-6 rounded-[24px] shadow-2xl shadow-foreground/20 max-w-[320px] relative overflow-hidden"
     >
       {/* 장식용 빛 반사 효과 */}
       <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl" />

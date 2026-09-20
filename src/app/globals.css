@@ -2,77 +2,79 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* Navy Theme (Default) */
-  --primary: #12203D;
-  --primary-foreground: #ffffff;
-  --accent: #F5A524;
-  --accent-foreground: #12203D;
-  
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --surface: #ffffff;
-  --surface-muted: #f1f5f9;
-  --surface-border: #e2e8f0;
+  /* Ultra-sleek Neutral Base (Inspired by Apple HIG / Vercel) */
+  --background: #F2F2F7;
+  --foreground: #1C1C1E;
+  --surface: #FFFFFF;
+  --surface-muted: #F2F2F7;
+  --surface-border: #E5E5EA;
+
+  /* Default Navy Theme */
+  --primary: #1C1C1E;
+  --primary-foreground: #FFFFFF;
+  --accent: #FF9500;
+  --accent-foreground: #FFFFFF;
 }
 
 /* Color Themes */
 .theme-navy {
-  --primary: #12203D; --accent: #F5A524;
-  --background: #f8fafc; --surface: #ffffff; --surface-muted: #f1f5f9; --surface-border: #e2e8f0; --foreground: #0f172a;
+  --primary: #1C1C1E; --primary-foreground: #FFFFFF;
+  --accent: #FF9500; --accent-foreground: #FFFFFF;
 }
 .theme-blue {
-  --primary: #2563eb; --accent: #f59e0b;
-  --background: #eff6ff; --surface: #ffffff; --surface-muted: #dbeafe; --surface-border: #bfdbfe; --foreground: #1e3a8a;
+  --primary: #007AFF; --primary-foreground: #FFFFFF;
+  --accent: #FF2D55; --accent-foreground: #FFFFFF;
 }
 .theme-emerald {
-  --primary: #059669; --accent: #f59e0b;
-  --background: #ecfdf5; --surface: #ffffff; --surface-muted: #d1fae5; --surface-border: #a7f3d0; --foreground: #064e3b;
+  --primary: #34C759; --primary-foreground: #FFFFFF;
+  --accent: #007AFF; --accent-foreground: #FFFFFF;
 }
 .theme-rose {
-  --primary: #e11d48; --accent: #fbbf24;
-  --background: #fff1f2; --surface: #ffffff; --surface-muted: #ffe4e6; --surface-border: #fecdd3; --foreground: #881337;
+  --primary: #FF2D55; --primary-foreground: #FFFFFF;
+  --accent: #FF9500; --accent-foreground: #FFFFFF;
 }
 .theme-purple {
-  --primary: #7c3aed; --accent: #fcd34d;
-  --background: #faf5ff; --surface: #ffffff; --surface-muted: #f3e8ff; --surface-border: #e9d5ff; --foreground: #3b0764;
+  --primary: #AF52DE; --primary-foreground: #FFFFFF;
+  --accent: #34C759; --accent-foreground: #FFFFFF;
 }
 .theme-teal {
-  --primary: #0f766e; --accent: #f59e0b;
-  --background: #f0fdfa; --surface: #ffffff; --surface-muted: #ccfbf1; --surface-border: #99f6e4; --foreground: #134e4a;
+  --primary: #32ADE6; --primary-foreground: #FFFFFF;
+  --accent: #FF2D55; --accent-foreground: #FFFFFF;
 }
 
 .dark {
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  --surface: #1e293b;
-  --surface-muted: #0f172a;
-  --surface-border: #334155;
+  /* Pitch Black Base for OLED / Modern Dark Mode */
+  --background: #000000;
+  --foreground: #FFFFFF;
+  --surface: #1C1C1E;
+  --surface-muted: #2C2C2E;
+  --surface-border: #38383A;
 }
 
-/* Base Theme overrides for dark mode */
+/* Dark Mode Color Adjustments */
 .dark.theme-navy {
-  --primary: #3b82f6; --accent: #fbbf24;
-  --background: #0f172a; --surface: #1e293b; --surface-muted: #020617; --surface-border: #334155; --foreground: #f8fafc;
+  --primary: #FFFFFF; --primary-foreground: #1C1C1E;
+  --accent: #FF9F0A; --accent-foreground: #FFFFFF;
 }
 .dark.theme-blue {
-  --primary: #60a5fa; --accent: #fbbf24;
-  --background: #172554; --surface: #1e3a8a; --surface-muted: #1e40af; --surface-border: #1d4ed8; --foreground: #eff6ff;
+  --primary: #0A84FF; --primary-foreground: #FFFFFF;
+  --accent: #FF375F; --accent-foreground: #FFFFFF;
 }
 .dark.theme-emerald {
-  --primary: #34d399; --accent: #fbbf24;
-  --background: #022c22; --surface: #064e3b; --surface-muted: #065f46; --surface-border: #059669; --foreground: #ecfdf5;
+  --primary: #30D158; --primary-foreground: #FFFFFF;
+  --accent: #0A84FF; --accent-foreground: #FFFFFF;
 }
 .dark.theme-rose {
-  --primary: #fb7185; --accent: #fde047;
-  --background: #4c0519; --surface: #881337; --surface-muted: #9f1239; --surface-border: #be123c; --foreground: #fff1f2;
+  --primary: #FF375F; --primary-foreground: #FFFFFF;
+  --accent: #FF9F0A; --accent-foreground: #FFFFFF;
 }
 .dark.theme-purple {
-  --primary: #a78bfa; --accent: #fde047;
-  --background: #2e1065; --surface: #3b0764; --surface-muted: #4c1d95; --surface-border: #5b21b6; --foreground: #faf5ff;
+  --primary: #BF5AF2; --primary-foreground: #FFFFFF;
+  --accent: #30D158; --accent-foreground: #FFFFFF;
 }
 .dark.theme-teal {
-  --primary: #2dd4bf; --accent: #fbbf24;
-  --background: #042f2e; --surface: #134e4a; --surface-muted: #0f766e; --surface-border: #115e59; --foreground: #f0fdfa;
+  --primary: #64D2FF; --primary-foreground: #1C1C1E;
+  --accent: #FF375F; --accent-foreground: #FFFFFF;
 }
 
 @theme inline {
@@ -93,7 +95,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
-  transition: background-color 0.4s ease, color 0.4s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 @utility pb-safe {
