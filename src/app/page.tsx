@@ -546,20 +546,37 @@ function MainApp() {
 
     query.then(({ data, error }) => {
       if (!error && data) {
-        // 중복 좌표 분산 처리 (같은 집에 여러 어르신이 있을 경우 마커가 겹치는 현상 방지)
-        const offsetData = data.map((marker, index) => {
-          const overlappingCount = data.filter((m, i) => i < index && m.lat === marker.lat && m.lng === marker.lng).length;
-          if (overlappingCount > 0) {
-            const angle = overlappingCount * (Math.PI / 3); // 60 degrees apart
-            const distance = 0.00015; // 대략 15m 오프셋
-            return {
-              ...marker,
-              lat: marker.lat + (Math.sin(angle) * distance),
-              lng: marker.lng + (Math.cos(angle) * distance)
-            };
-          }
-          return marker;
+        // 근접 마커 자동 분산 처리: 완전히 같은 좌표뿐 아니라 같은 건물/블록처럼
+        // '근처'인 경우까지 하나의 클러스터로 묶어 부챗살 모양으로 벌려서 배치한다.
+        const PROXIMITY_KM = 0.02; // 약 20m 이내는 같은 클러스터로 취급
+        const clusters: typeof data[] = [];
+
+        data.forEach((marker) => {
+          const cluster = clusters.find((c) =>
+            getDistanceFromLatLonInKm(c[0].lat, c[0].lng, marker.lat, marker.lng) < PROXIMITY_KM
+          );
+          if (cluster) cluster.push(marker);
+          else clusters.push([marker]);
         });
+
+        const offsetData: typeof data = [];
+        clusters.forEach((cluster) => {
+          if (cluster.length === 1) {
+            offsetData.push(cluster[0]);
+            return;
+          }
+          // 인원이 많은 클러스터일수록 반경을 넓혀서 계속 겹치지 않게 함
+          const radius = 0.00015 + (cluster.length - 2) * 0.00003;
+          cluster.forEach((marker, i) => {
+            const angle = (2 * Math.PI * i) / cluster.length;
+            offsetData.push({
+              ...marker,
+              lat: cluster[0].lat + Math.sin(angle) * radius,
+              lng: cluster[0].lng + Math.cos(angle) * radius,
+            });
+          });
+        });
+
         setMarkers(offsetData);
       }
     });
