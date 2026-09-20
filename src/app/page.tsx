@@ -1643,7 +1643,7 @@ function MainApp() {
         type="button"
         aria-label="어르신 추가"
         onClick={() => { setEditingRecipient(null); setIsModalOpen(true); }}
-        className="absolute bottom-[100px] right-6 z-40 w-14 h-14 flex items-center justify-center rounded-2xl shadow-[0_4px_14px_rgba(245,165,36,0.45)] bg-accent text-primary transition active:scale-95"
+        className="absolute bottom-[100px] right-6 z-40 w-14 h-14 flex items-center justify-center rounded-2xl shadow-xl shadow-primary/20 bg-primary text-primary-foreground border-2 border-white/10 transition-all hover:scale-105 active:scale-95 backdrop-blur-md"
       >
         <IconPlus size={32} strokeWidth={2.5} />
       </button>
@@ -1653,7 +1653,7 @@ function MainApp() {
       <Modal open={Boolean(selectedRecipient && (activeTab === 'map' || activeTab === 'route'))} onClose={() => setSelectedRecipient(null)}>
         {selectedRecipient && (
           <div>
-            <div className="relative h-28 bg-gradient-to-br from-[#12203D] to-[#1A2F52]">
+            <div className="relative h-28 bg-gradient-to-r from-primary via-primary/90 to-accent/80">
               <IconButton
                 onClick={() => setSelectedRecipient(null)}
                 className="absolute top-3 right-3 bg-surface/15 text-white hover:bg-surface/25"
@@ -1715,8 +1715,9 @@ function MainApp() {
       </Modal>
 
       {/* Redesigned Bottom Navigation */}
-      <div id="tour-bottom-nav" className="absolute bottom-0 left-0 right-0 z-50 rounded-t-2xl overflow-hidden shadow-[0_-10px_40px_rgba(0,0,0,0.08)] bg-surface">
-        <div className="flex h-20 pb-[env(safe-area-inset-bottom)]">
+      <div className="absolute bottom-6 left-4 right-4 z-50 px-2 pb-safe">
+        <div id="tour-bottom-nav" className="rounded-3xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.12)] bg-surface/95 backdrop-blur-xl border border-surface-border/60">
+          <div className="flex h-16">
           {([
             { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
             { key: 'list' as const, label: '명단 보기', Icon: IconList },
@@ -1740,6 +1741,7 @@ function MainApp() {
               {label}
             </button>
           ))}
+        </div>
         </div>
       </div>
 

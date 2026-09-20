@@ -243,7 +243,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                 type="button"
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isSubmitting}
-                className="w-24 h-24 rounded-full overflow-hidden bg-primary/5 flex items-center justify-center border-2 border-dashed border-slate-300 transition-colors hover:border-amber-400"
+                className="w-24 h-24 rounded-full overflow-hidden bg-primary/5 flex items-center justify-center border-2 border-dashed border-surface-border transition-colors hover:border-amber-400"
                 aria-label="사진 선택"
               >
                 {photoPreview ? (
@@ -261,7 +261,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                 whileTap={{ scale: 0.9 }}
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isSubmitting}
-                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-accent text-primary flex items-center justify-center border-2 border-white shadow-sm"
+                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center border-2 border-surface shadow-md"
                 aria-label="사진 촬영/선택"
               >
                 <IconCamera size={16} />
@@ -290,7 +290,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
           </div>
 
           <div className="flex flex-col gap-3">
-            <p className="text-xs font-extrabold text-foreground/50 tracking-wide">기본 정보</p>
+            <p className="text-[13px] font-black text-primary/80 tracking-tight">기본 정보</p>
             <TextField
               label="성함"
               required
@@ -333,7 +333,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
           <div className="h-px bg-surface-muted" />
 
           <div className="flex flex-col gap-3">
-            <p className="text-xs font-extrabold text-foreground/50 tracking-wide">방문 일정</p>
+            <p className="text-[13px] font-black text-primary/80 tracking-tight">방문 일정</p>
             <TextField
               label="방문 예정일 (선택)"
               type="date"
@@ -364,8 +364,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                         );
                       }}
                       animate={{
-                        backgroundColor: active ? 'var(--accent)' : '#F1F5F9',
-                        color: active ? 'var(--primary)' : '#64748B',
+                        backgroundColor: active ? 'var(--accent)' : 'var(--color-surface-muted)',
+                        color: active ? 'var(--primary)' : 'var(--color-foreground)',
                       }}
                       transition={{ duration: 0.15 }}
                       className="w-9 h-9 rounded-full text-sm font-bold"
