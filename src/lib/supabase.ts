@@ -5,6 +5,11 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 // Next.js App Router의 공격적인 fetch 캐싱을 무력화하기 위해 no-store 옵션 추가
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
+  },
   global: {
     fetch: (url, options) => {
       // options.headers가 Headers 객체일 수 있으므로 안전하게 복사
