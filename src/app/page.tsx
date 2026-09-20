@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
+import WeatherWidget from '@/components/WeatherWidget';
 import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/components/ui';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -1108,8 +1109,10 @@ function MainApp() {
       {/* Floating Header */}
       {activeTab === 'map' && (
       <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col gap-3 mt-4 pointer-events-none">
+        
 
 
+        <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
         {/* Region Selectors - Floating Glassmorphism Island */}
         <div id="tour-header" className="flex gap-2 p-1.5 bg-surface/80 backdrop-blur-xl rounded-2xl shadow-lg shadow-foreground/10 border border-surface-border/50 pointer-events-auto">
           <NativeSelect
