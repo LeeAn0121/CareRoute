@@ -97,35 +97,46 @@ function MainApp() {
     if (showRegions && mapRef.current && window.naver && !regionsLoaded.current) {
       regionsLoaded.current = true;
       const map = mapRef.current;
-      for (let i = 1; i < 18; i++) {
-        let keyword = i.toString().padStart(2, '0');
-        fetch(`https://navermaps.github.io/maps.js.ncp/docs/data/region${keyword}.json`)
-          .then(r => r.json())
-          .then(geojson => {
-            map.data.addGeoJson(geojson);
-            
-            // 이름 라벨 마커 생성
-            if (geojson.features) {
-              geojson.features.forEach((feature: any) => {
-                const name = feature.properties?.area1;
-                const bbox = feature.bbox;
-                if (name && bbox) {
-                  const centerLat = (bbox[1] + bbox[3]) / 2;
-                  const centerLng = (bbox[0] + bbox[2]) / 2;
-                  const marker = new window.naver.maps.Marker({
-                    position: new window.naver.maps.LatLng(centerLat, centerLng),
-                    map: map,
-                    icon: {
-                      content: `<div style="padding: 4px 10px; background: rgba(13, 148, 136, 0.95); color: white; border-radius: 20px; font-size: 14px; font-weight: bold; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); white-space: nowrap; transition: all 0.2s ease;">${name}</div>`,
-                      anchor: new window.naver.maps.Point(20, 15)
-                    }
-                  });
-                  regionLabelsRef.current.push(marker);
-                }
-              });
-            }
-          });
-      }
+      fetch(`https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_municipalities_geo_simple.json`)
+        .then(r => r.json())
+        .then(geojson => {
+          map.data.addGeoJson(geojson);
+          
+          // 이름 라벨 마커 생성 (시군구)
+          if (geojson.features) {
+            geojson.features.forEach((feature: any) => {
+              const name = feature.properties?.name;
+              const coords = feature.geometry.coordinates;
+              if (name && coords) {
+                // Polygon 중심점 대략 계산
+                let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+                
+                // MultiPolygon or Polygon handling
+                const poly = feature.geometry.type === 'MultiPolygon' ? coords[0][0] : coords[0];
+                
+                poly.forEach((coord: number[]) => {
+                  if (coord[1] < minLat) minLat = coord[1];
+                  if (coord[1] > maxLat) maxLat = coord[1];
+                  if (coord[0] < minLng) minLng = coord[0];
+                  if (coord[0] > maxLng) maxLng = coord[0];
+                });
+                
+                const centerLat = (minLat + maxLat) / 2;
+                const centerLng = (minLng + maxLng) / 2;
+                
+                const marker = new window.naver.maps.Marker({
+                  position: new window.naver.maps.LatLng(centerLat, centerLng),
+                  map: map,
+                  icon: {
+                    content: `<div style="padding: 3px 8px; background: rgba(13, 148, 136, 0.9); color: white; border-radius: 12px; font-size: 12px; font-weight: bold; border: 1.5px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.2); white-space: nowrap;">${name}</div>`,
+                    anchor: new window.naver.maps.Point(20, 15)
+                  }
+                });
+                regionLabelsRef.current.push(marker);
+              }
+            });
+          }
+        });
       map.data.setStyle((feature: any) => {
         return {
           fillColor: '#0d9488',
