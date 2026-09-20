@@ -100,6 +100,7 @@ function MainApp() {
   const [showRegions, setShowRegions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const mapRef = useRef<any>(null);
+  const isAutoSelectRef = useRef(false);
   const regionsLoaded = useRef(false);
   const regionLabelsRef = useRef<any[]>([]);
 
@@ -403,6 +404,12 @@ function MainApp() {
     
     if (!query) return;
 
+    // 만약 마커 클릭이나 GPS 자동 세팅으로 인한 드롭다운 변경이라면, 지도를 강제로 패닝/줌아웃 하지 않음
+    if (isAutoSelectRef.current) {
+      isAutoSelectRef.current = false; // Reset after one skip
+      return;
+    }
+
     // 네이버 지오코딩으로 해당 구역 중심 좌표 찾기
     // @ts-ignore
     window.naver.maps.Service.geocode({ query }, function(status, response) {
@@ -557,9 +564,11 @@ function MainApp() {
     fetchMarkers();
   }, [selectedSido, selectedSigungu, selectedDong]);
 
+  const gpsInitRef = useRef(false);
   // 앱 실행 시 즉시 현재 위치로 이동 (초기 1회)
   useEffect(() => {
-    if (navigator.geolocation) {
+    if (mapLoaded && navigator.geolocation && !gpsInitRef.current) {
+      gpsInitRef.current = true;
       navigator.geolocation.getCurrentPosition(
         (position) => {
           // 사용자가 이미 다른 곳을 클릭해서 이동 중이라면 방해하지 않음
@@ -581,9 +590,10 @@ function MainApp() {
                   const sido = bcode.substring(0, 2) + '00000000';
                   const sigungu = bcode.substring(0, 5) + '00000';
                   const dong = bcode;
+                  isAutoSelectRef.current = true;
                   setSelectedSido(sido);
-                  setTimeout(() => setSelectedSigungu(sigungu), 200);
-                  setTimeout(() => setSelectedDong(dong), 400);
+                  setTimeout(() => { isAutoSelectRef.current = true; setSelectedSigungu(sigungu); }, 200);
+                  setTimeout(() => { isAutoSelectRef.current = true; setSelectedDong(dong); }, 400);
                 }
               }
             });
@@ -595,32 +605,13 @@ function MainApp() {
         { enableHighAccuracy: false, maximumAge: 60000, timeout: 5000 }
       );
     }
-  }, []);
+  }, [mapLoaded]);
 
   useEffect(() => {
     fetch('https://grpc-proxy-server-mkvo6j4wsq-du.a.run.app/v1/regcodes?regcode_pattern=*00000000')
       .then(res => res.json())
       .then(data => {
-        let loadedSidos = data.regcodes || [];
-        setSidos(loadedSidos);
-        
-        if ('geolocation' in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const { latitude, longitude } = position.coords;
-              const sorted = [...loadedSidos].sort((a: RegCode, b: RegCode) => {
-                const centerA = SIDO_CENTERS[a.name] || { lat: 37.5665, lng: 126.9780 };
-                const centerB = SIDO_CENTERS[b.name] || { lat: 37.5665, lng: 126.9780 };
-                const distA = getDistanceFromLatLonInKm(latitude, longitude, centerA.lat, centerA.lng);
-                const distB = getDistanceFromLatLonInKm(latitude, longitude, centerB.lat, centerB.lng);
-                return distA - distB;
-              });
-              setSidos(sorted);
-              if (sorted.length > 0) setSelectedSido(sorted[0].code);
-            },
-            () => {}
-          );
-        }
+        setSidos(data.regcodes || []);
       });
   }, []);
 
