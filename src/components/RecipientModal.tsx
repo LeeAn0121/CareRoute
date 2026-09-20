@@ -227,7 +227,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       closeOnBackdrop={!isSubmitting && !isAddressSearchOpen}
     >
       <div className="flex items-center justify-between px-5 pt-5 pb-2">
-        <h2 className="text-lg font-extrabold text-[#12203D]">
+        <h2 className="text-lg font-extrabold text-primary">
           {recipientToEdit ? '어르신 정보 수정' : '새 어르신 등록'}
         </h2>
         <IconButton onClick={onClose} disabled={isSubmitting} className="hover:bg-slate-100" aria-label="닫기">
@@ -261,7 +261,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                 whileTap={{ scale: 0.9 }}
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isSubmitting}
-                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#F5A524] text-[#12203D] flex items-center justify-center border-2 border-white shadow-sm"
+                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-accent text-primary flex items-center justify-center border-2 border-white shadow-sm"
                 aria-label="사진 촬영/선택"
               >
                 <IconCamera size={16} />
@@ -364,8 +364,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                         );
                       }}
                       animate={{
-                        backgroundColor: active ? '#F5A524' : '#F1F5F9',
-                        color: active ? '#12203D' : '#64748B',
+                        backgroundColor: active ? 'var(--accent)' : '#F1F5F9',
+                        color: active ? 'var(--primary)' : '#64748B',
                       }}
                       transition={{ duration: 0.15 }}
                       className="w-9 h-9 rounded-full text-sm font-bold"
@@ -407,7 +407,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
           열리지 않거나 opener와의 콜백 연결이 끊기는 경우가 흔하기 때문. */}
       <Modal open={isAddressSearchOpen} onClose={() => setIsAddressSearchOpen(false)}>
         <div className="flex items-center justify-between px-5 pt-5 pb-2">
-          <h2 className="text-lg font-extrabold text-[#12203D]">주소 검색</h2>
+          <h2 className="text-lg font-extrabold text-primary">주소 검색</h2>
           <IconButton onClick={() => setIsAddressSearchOpen(false)} aria-label="닫기">
             <IconX size={20} />
           </IconButton>

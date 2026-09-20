@@ -22,11 +22,11 @@ export function Spinner({ size = 20, className = '' }: { size?: number; classNam
 type ButtonVariant = 'primary' | 'dark' | 'ghost' | 'danger-ghost' | 'plain';
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: 'bg-[#F5A524] text-[#12203D] shadow-sm hover:brightness-95',
-  dark: 'bg-[#12203D] text-white shadow-sm hover:bg-[#1A2F52]',
+  primary: 'bg-accent text-primary shadow-sm hover:brightness-95',
+  dark: 'bg-primary text-white shadow-sm hover:bg-[#1A2F52]',
   ghost: 'bg-slate-100 text-slate-600 hover:bg-slate-200',
   'danger-ghost': 'bg-red-50 text-red-600 hover:bg-red-100',
-  plain: 'bg-white text-[#12203D] border border-slate-200 hover:bg-slate-50',
+  plain: 'bg-white text-primary border border-slate-200 hover:bg-slate-50',
 };
 
 export function Button({
@@ -178,7 +178,7 @@ export function TextField({
           required={required}
           disabled={disabled}
           placeholder={placeholder}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[0.95rem] font-medium text-[#12203D] disabled:bg-slate-100 disabled:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[0.95rem] font-medium text-primary disabled:bg-slate-100 disabled:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
         />
         {endAdornment && (
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">{endAdornment}</div>
@@ -206,7 +206,7 @@ export function NativeSelect({
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className={`w-full rounded-lg bg-slate-50 px-2.5 py-2 text-sm font-bold text-[#12203D] shadow-sm disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-400 ${className}`}
+      className={`w-full rounded-lg bg-slate-50 px-2.5 py-2 text-sm font-bold text-primary shadow-sm disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-400 ${className}`}
     >
       {children}
     </select>

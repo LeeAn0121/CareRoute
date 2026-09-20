@@ -1042,7 +1042,7 @@ function MainApp() {
       
       {/* PWA Install Banner */}
       {(!isStandalone && !installDismissed && (showInstallPrompt || isIOS)) && (
-        <div className="absolute top-4 left-4 right-4 z-[60] bg-[#12203D] text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-fade-in-down">
+        <div className="absolute top-4 left-4 right-4 z-[60] bg-primary text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-fade-in-down">
           <div className="flex items-center gap-3">
             <div className="bg-white/10 p-2 rounded-xl">
               <IconDownload size={20} className="text-white" />
@@ -1055,7 +1055,7 @@ function MainApp() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleInstallClick}
-              className="px-4 py-2 bg-[#F5A524] text-[#12203D] font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform"
+              className="px-4 py-2 bg-accent text-primary font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform"
             >
               설치
             </button>
@@ -1077,7 +1077,7 @@ function MainApp() {
       {/* 오프라인 안내: 서버 연결에 실패하면 마지막으로 저장해둔 명단을 대신
           보여주는데, 그게 최신 데이터가 아닐 수 있다는 걸 알려준다. */}
       {isOffline && (
-        <div className="absolute top-4 left-4 right-4 z-[60] bg-amber-500 text-[#12203D] p-3 rounded-2xl shadow-xl flex items-center gap-2 animate-fade-in-down">
+        <div className="absolute top-4 left-4 right-4 z-[60] bg-amber-500 text-primary p-3 rounded-2xl shadow-xl flex items-center gap-2 animate-fade-in-down">
           <IconDownload size={18} className="flex-shrink-0" />
           <p className="text-sm font-bold">오프라인 상태입니다. 마지막으로 저장된 명단을 보여주고 있어요.</p>
         </div>
@@ -1107,8 +1107,8 @@ function MainApp() {
       {/* Floating Header */}
       <header className="absolute top-0 left-0 right-0 z-20 flex flex-col gap-2">
         <div id="tour-header" className="p-4 pb-5 bg-white rounded-b-3xl shadow-[0_8px_24px_rgba(18,32,61,0.08)]">
-          <h1 className="flex items-center gap-3 mb-4 text-2xl font-black text-[#12203D] tracking-tight">
-            <span className="w-9 h-9 bg-[#12203D] rounded-lg flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)]">
+          <h1 className="flex items-center gap-3 mb-4 text-2xl font-black text-primary tracking-tight">
+            <span className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)]">
               <IconMapPin size={20} color="white" />
             </span>
             케어루트
@@ -1178,12 +1178,12 @@ function MainApp() {
                             <div class="relative flex flex-col items-center ${isSelected ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
                               <div class="relative w-11 h-11 flex items-center justify-center">
                                 ${isSelected ? '<div class="absolute -inset-1.5 bg-amber-400 rounded-full opacity-60 animate-ping"></div>' : ''}
-                                <div class="relative w-11 h-11 rounded-full overflow-hidden bg-[#12203D] flex items-center justify-center border-2 ${isSelected ? 'border-amber-400' : 'border-white'} shadow-[0_4px_16px_rgba(0,0,0,0.35)] transition-colors duration-300">
+                                <div class="relative w-11 h-11 rounded-full overflow-hidden bg-primary flex items-center justify-center border-2 ${isSelected ? 'border-amber-400' : 'border-white'} shadow-[0_4px_16px_rgba(0,0,0,0.35)] transition-colors duration-300">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                   ${marker.photo_url ? `<img src="${marker.photo_url}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
                                 </div>
                               </div>
-                              <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-amber-500 text-[#12203D]' : 'bg-white text-[#12203D]'} text-[11px] font-bold rounded-md shadow-sm border border-slate-200 whitespace-nowrap transition-colors duration-300">
+                              <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-amber-500 text-primary' : 'bg-white text-primary'} text-[11px] font-bold rounded-md shadow-sm border border-slate-200 whitespace-nowrap transition-colors duration-300">
                                 ${marker.name}
                               </div>
                             </div>
@@ -1211,7 +1211,7 @@ function MainApp() {
                       }}
                       icon={{
                         content: `
-                          <div class="flex items-center justify-center rounded-full bg-[#F5A524] text-[#12203D] font-extrabold border-2 border-white shadow-[0_4px_16px_rgba(245,165,36,0.5)] cursor-pointer"
+                          <div class="flex items-center justify-center rounded-full bg-accent text-primary font-extrabold border-2 border-white shadow-[0_4px_16px_rgba(245,165,36,0.5)] cursor-pointer"
                                style="width:${size}px;height:${size}px;font-size:${size >= 46 ? 16 : 14}px;">
                             ${cluster.length}
                           </div>
@@ -1229,7 +1229,7 @@ function MainApp() {
                 <div className="absolute inset-0 rounded-full border-4 border-amber-100"></div>
                 <div className="absolute inset-0 rounded-full border-4 border-amber-400 border-t-transparent animate-spin"></div>
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm">
-                  <IconMapPin size={28} className="text-[#12203D]" />
+                  <IconMapPin size={28} className="text-primary" />
                 </div>
               </div>
               <p className="font-extrabold text-xl text-slate-600 mb-3 tracking-tight">지도 연동 대기 중</p>
@@ -1276,7 +1276,7 @@ function MainApp() {
                     key={f.key}
                     onClick={() => setListFilter(f.key)}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
-                      listFilter === f.key ? 'bg-[#12203D] text-white' : 'bg-white text-slate-500 border border-slate-200'
+                      listFilter === f.key ? 'bg-primary text-white' : 'bg-white text-slate-500 border border-slate-200'
                     }`}
                   >
                     {f.label}
@@ -1363,11 +1363,11 @@ function MainApp() {
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                             ) : (
-                              <IconUser size={28} color="#12203D" />
+                              <IconUser size={28} color='var(--primary)' />
                             )}
                           </div>
                           <div>
-                            <p className="text-lg font-black text-[#12203D] tracking-tight">
+                            <p className="text-lg font-black text-primary tracking-tight">
                               {marker.name} 어르신
                             </p>
                             <Chip icon={<IconClock size={14} color="#8A5A00" />} className="mt-1 bg-[#FDECC8] text-[#8A5A00]">
@@ -1421,7 +1421,7 @@ function MainApp() {
           <div className="absolute inset-0 overflow-y-auto px-4 pt-[160px] pb-32 bg-[#FBFAF7]">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-lg font-black text-[#12203D]">오늘의 방문 순서</p>
+                <p className="text-lg font-black text-primary">오늘의 방문 순서</p>
                 <p className="text-sm text-slate-400 font-semibold">
                   직선거리 기준 추천 순서예요 · 총 {todayRoute.length}곳
                 </p>
@@ -1453,7 +1453,7 @@ function MainApp() {
                       onClick={() => setSelectedRecipient(marker)}
                       className={`rounded-xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] bg-white p-4 flex gap-3 items-start cursor-pointer active:scale-[0.98] transition-transform ${completed ? 'opacity-50' : ''}`}
                     >
-                      <div className="w-8 h-8 rounded-full bg-[#12203D] text-white text-sm font-extrabold flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-full bg-primary text-white text-sm font-extrabold flex items-center justify-center flex-shrink-0 mt-0.5">
                         {i + 1}
                       </div>
                       <div className="w-11 h-11 rounded-xl bg-[#EEF1F6] flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -1461,12 +1461,12 @@ function MainApp() {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <IconUser size={20} color="#12203D" />
+                          <IconUser size={20} color='var(--primary)' />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className={`font-black text-[#12203D] ${completed ? 'line-through' : ''}`}>{marker.name} 어르신</p>
+                          <p className={`font-black text-primary ${completed ? 'line-through' : ''}`}>{marker.name} 어르신</p>
                           <Chip icon={<IconClock size={12} color="#8A5A00" />} className="bg-[#FDECC8] text-[#8A5A00]">
                             {marker.visit_time && marker.visit_time !== '00:00:00' ? marker.visit_time.substring(0, 5) : '서비스 시간 미정'}
                           </Chip>
@@ -1545,7 +1545,7 @@ function MainApp() {
             <button
               type="button"
               onClick={() => setShowRegions(!showRegions)}
-              className={`w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg transition active:scale-95 ${showRegions ? 'bg-[#12203D] text-white' : 'bg-white text-slate-600'}`}
+              className={`w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg transition active:scale-95 ${showRegions ? 'bg-primary text-white' : 'bg-white text-slate-600'}`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
             </button>
@@ -1574,9 +1574,9 @@ function MainApp() {
               className="w-10 h-10 mt-1 flex items-center justify-center rounded-2xl shadow-lg bg-white transition active:scale-95 disabled:opacity-60"
             >
               {isLocating ? (
-                <Spinner size={18} className="text-[#12203D]" />
+                <Spinner size={18} className="text-primary" />
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#12203D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19 12h2"></path><path d="M3 12h2"></path><path d="M12 3v2"></path><path d="M12 19v2"></path><circle cx="12" cy="12" r="8"></circle></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke='var(--primary)' strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19 12h2"></path><path d="M3 12h2"></path><path d="M12 3v2"></path><path d="M12 19v2"></path><circle cx="12" cy="12" r="8"></circle></svg>
               )}
             </button>
           </>
@@ -1589,7 +1589,7 @@ function MainApp() {
         type="button"
         aria-label="어르신 추가"
         onClick={() => { setEditingRecipient(null); setIsModalOpen(true); }}
-        className="absolute bottom-[100px] right-6 z-40 w-14 h-14 flex items-center justify-center rounded-2xl shadow-[0_4px_14px_rgba(245,165,36,0.45)] bg-[#F5A524] text-[#12203D] transition active:scale-95"
+        className="absolute bottom-[100px] right-6 z-40 w-14 h-14 flex items-center justify-center rounded-2xl shadow-[0_4px_14px_rgba(245,165,36,0.45)] bg-accent text-primary transition active:scale-95"
       >
         <IconPlus size={32} strokeWidth={2.5} />
       </button>
@@ -1612,14 +1612,14 @@ function MainApp() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={selectedRecipient.photo_url} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <IconUser size={40} color="#12203D" />
+                  <IconUser size={40} color='var(--primary)' />
                 )}
               </div>
             </div>
             <div className="px-5 pb-5 pt-14">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-xl font-black text-[#12203D] tracking-tight truncate">
+                  <p className="text-xl font-black text-primary tracking-tight truncate">
                     {selectedRecipient.name} 어르신
                   </p>
                   <Chip icon={<IconClock size={12} color="#8A5A00" />} className="mt-1.5 bg-[#FDECC8] text-[#8A5A00]">
@@ -1673,12 +1673,12 @@ function MainApp() {
               key={key}
               type="button"
               onClick={() => setActiveTab(key)}
-              className={`relative flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === key ? 'text-[#12203D] font-extrabold' : 'text-slate-400 font-semibold'}`}
+              className={`relative flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === key ? 'text-primary font-extrabold' : 'text-slate-400 font-semibold'}`}
             >
               {activeTab === key && (
                 <motion.div
                   layoutId="nav-indicator"
-                  className="absolute top-0 inset-x-5 h-[3px] rounded-full bg-[#F5A524]"
+                  className="absolute top-0 inset-x-5 h-[3px] rounded-full bg-accent"
                   transition={{ type: 'spring', damping: 28, stiffness: 320 }}
                 />
               )}

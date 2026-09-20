@@ -72,10 +72,10 @@ export default function Tour({ onComplete }: TourProps) {
           lineHeight: '1.5'
         },
         buttonPrimary: {
-          backgroundColor: '#12203D'
+          backgroundColor: 'var(--primary)'
         },
         buttonBack: {
-          color: '#12203D'
+          color: 'var(--primary)'
         }
       }}
       locale={{
