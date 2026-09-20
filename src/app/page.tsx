@@ -15,6 +15,7 @@ interface Recipient {
   id: string;
   name: string;
   address: string;
+  detail_address?: string | null;
   sido: string;
   sigungu: string;
   dong: string;
@@ -889,7 +890,7 @@ function MainApp() {
                       <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2, borderRadius: 3, mb: 2.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
                         <IconMapPin size={22} color="#94a3b8" style={{ flexShrink: 0 }} />
                         <Typography variant="body1" sx={{ fontWeight: 600, color: '#475569', lineHeight: 1.4 }}>
-                          {marker.address}
+                          {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
                         </Typography>
                       </Paper>
 
@@ -1014,7 +1015,7 @@ function MainApp() {
             </Box>
             <Paper elevation={0} sx={{ bgcolor: '#f8fafc', p: 2.5, borderRadius: 2, mb: 3 }}>
               <Typography variant="body1" sx={{ fontWeight: 600, color: '#475569', lineHeight: 1.6 }}>
-                {selectedRecipient.address}
+                {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
               </Typography>
             </Paper>
             <Button

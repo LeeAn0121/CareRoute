@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { DaumPostcodeEmbed } from 'react-daum-postcode';
 import {
@@ -27,6 +27,7 @@ interface Recipient {
   id: string;
   name: string;
   address: string;
+  detail_address?: string | null;
   sido: string;
   sigungu: string;
   dong: string;
@@ -52,13 +53,14 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   const [visitDate, setVisitDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddressSearchOpen, setIsAddressSearchOpen] = useState(false);
+  const detailAddressRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       if (recipientToEdit) {
         setName(recipientToEdit.name);
         setAddress(recipientToEdit.address);
-        setDetailAddress('');
+        setDetailAddress(recipientToEdit.detail_address || '');
         setBcode(recipientToEdit.dong);
         setVisitTime((recipientToEdit.visit_time && recipientToEdit.visit_time.substring(0, 5) !== '00:00') ? recipientToEdit.visit_time.substring(0, 5) : '');
         setVisitDate(recipientToEdit.notes || '');
@@ -87,6 +89,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
     setAddress(fullAddress);
     setBcode(data.bcode);
     setIsAddressSearchOpen(false);
+    // 다이얼로그 닫힘 애니메이션/포커스 복원과 충돌하지 않도록 한 틱 늦춰서 포커스
+    setTimeout(() => detailAddressRef.current?.focus(), 150);
   };
 
   const handleSearchAddress = () => {
@@ -165,11 +169,10 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         }
       }
 
-      const finalAddress = detailAddress ? `${address} ${detailAddress}` : address;
-
       const recipientData = {
         name,
-        address: finalAddress,
+        address,
+        detail_address: detailAddress || null,
         sido: bcode.substring(0, 2) + '00000000',
         sigungu: bcode.substring(0, 5) + '00000',
         dong: bcode,
@@ -216,6 +219,13 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onBlur={() => {
+                // 신규 등록 시 성함을 입력하고 다음 항목으로 넘어가면
+                // 바로 주소 검색을 띄워 한 번에 이어서 입력할 수 있게 한다.
+                if (!recipientToEdit && name.trim() && !address) {
+                  handleSearchAddress();
+                }
+              }}
               disabled={isSubmitting}
             />
 
@@ -248,6 +258,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
               value={detailAddress}
               onChange={(e) => setDetailAddress(e.target.value)}
               disabled={isSubmitting}
+              inputRef={detailAddressRef}
             />
 
             <TextField
