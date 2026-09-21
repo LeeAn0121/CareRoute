@@ -1756,90 +1756,50 @@ function MainApp() {
         }} onBack={() => setActiveTab('map')} />
       )}
 
-      {/* Floating Action Button (Add Recipient) */}
-      {/* 우측 플로팅 버튼 스택: 헤더 높이(+노치 안전영역)만큼 아래에서 시작해서
-          헤더의 시/도·군/구·동 select와 겹치지 않게 한 줄로 쌓는다. */}
-      {activeTab === 'map' && (<div
-        className="absolute right-4 z-40 flex flex-col gap-2"
-        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 132px)' }}
-      >
-        {/* 캐시 강제 삭제 및 새로고침 버튼 (모바일용) */}
-        <button
-          type="button"
-          onClick={async () => {
-            if ('caches' in window) {
-              const keys = await caches.keys();
-              await Promise.all(keys.map(key => caches.delete(key)));
-            }
-            if ('serviceWorker' in navigator) {
-              const regs = await navigator.serviceWorker.getRegistrations();
-              for (let reg of regs) {
-                await reg.unregister();
-              }
-            }
-            // 강제 새로고침일 때는 예외적으로 설치 배너 닫힘 상태를 초기화
-            try { localStorage.removeItem(INSTALL_DISMISSED_KEY); } catch {}
-            window.location.href = window.location.pathname + '?t=' + Date.now();
-          }}
-          className="w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg bg-red-500 text-white hover:bg-red-600 transition active:scale-95"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path></svg>
-        </button>
-
-        {activeTab === 'map' && (
-          <>
-            {/* 행정구역 토글 버튼 */}
+      {/* 맵 플로팅 컨트롤 툴바 (레이어 & 내위치) - 통합 및 접근성 개선 */}
+      {activeTab === 'map' && (
+        <div id="tour-map-controls" className="absolute right-4 bottom-[100px] z-40 flex flex-col items-center gap-4 pointer-events-none">
+          
+          <div className="flex flex-col items-center bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[24px] shadow-[0_12px_32px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 pointer-events-auto p-1.5 gap-1.5">
+            {/* 행정구역 보기 (Map Layers) */}
             <button
               type="button"
               onClick={() => setShowRegions(!showRegions)}
-              className={`w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg transition active:scale-95 ${showRegions ? 'bg-primary text-white' : 'bg-surface text-foreground/70'}`}
+              className={`w-11 h-11 flex items-center justify-center rounded-[18px] transition-colors active:scale-95 ${showRegions ? 'bg-primary text-white shadow-md' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+              <IconMap size={24} strokeWidth={2.5} />
             </button>
+            
+            <div className="w-8 h-[1px] bg-foreground/10" />
 
-            {/* 확대/축소 버튼 */}
-            <button
-              type="button"
-              onClick={() => setMapZoom(prev => Math.min(prev + 1, 21))}
-              className="w-10 h-10 mt-1 flex items-center justify-center rounded-2xl shadow-lg bg-surface transition active:scale-95"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMapZoom(prev => Math.max(prev - 1, 6))}
-              className="w-10 h-10 flex items-center justify-center rounded-2xl shadow-lg bg-surface transition active:scale-95"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </button>
-
-            {/* 내 위치 버튼 */}
+            {/* 내 위치 */}
             <button
               type="button"
               onClick={handleMyLocation}
               disabled={isLocating}
-              className="w-12 h-12 mt-2 flex items-center justify-center rounded-[20px] shadow-[0_8px_24px_rgba(0,0,0,0.12)] bg-surface/80 backdrop-blur-[40px] saturate-200 border border-white/20 dark:border-white/10 transition-transform active:scale-90 disabled:opacity-60"
+              className={`w-11 h-11 flex items-center justify-center rounded-[18px] transition-colors active:scale-95 disabled:opacity-60 ${myLocation ? 'text-primary bg-primary/10' : 'text-foreground/80 hover:bg-foreground/[0.04]'}`}
             >
               {isLocating ? (
-                <Spinner size={18} className="text-primary" />
+                <Spinner size={20} className="text-primary" />
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke='var(--primary)' strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19 12h2"></path><path d="M3 12h2"></path><path d="M12 3v2"></path><path d="M12 19v2"></path><circle cx="12" cy="12" r="8"></circle></svg>
+                <IconCurrentLocation size={24} strokeWidth={2.5} />
               )}
             </button>
-          </>
-        )}
-      </div>)}
+          </div>
 
-      {activeTab !== 'settings' && (
-      <button
-        id="tour-add-button"
-        type="button"
-        aria-label="어르신 추가"
-        onClick={() => { setEditingRecipient(null); setIsModalOpen(true); }}
-        className="absolute bottom-[100px] right-5 z-40 w-[60px] h-[60px] flex items-center justify-center rounded-[24px] shadow-[0_16px_32px_rgba(0,0,0,0.2)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200"
-      >
-        <IconPlus size={32} strokeWidth={2.5} />
-      </button>
+          {/* 어르신 추가 (강조형 FAB) */}
+          <button
+            onClick={() => {
+              setEditingRecipient(null);
+              setIsModalOpen(true);
+            }}
+            id="tour-add-button"
+            className="w-[60px] h-[60px] flex items-center justify-center rounded-[24px] shadow-[0_16px_32px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200 pointer-events-auto"
+          >
+            <IconUserPlus size={30} strokeWidth={2.5} />
+          </button>
+          
+        </div>
       )}
 
       {/* 어르신 상세 팝업 (지도 마커 클릭, 명단 보기 클릭 공용) */}
