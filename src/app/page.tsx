@@ -866,40 +866,46 @@ function MainApp() {
   };
 
   const handleNavi = (type: 'tmap' | 'kakao' | 'naver', lat: number, lng: number, address: string, detailAddress?: string | null) => {
-    const fullAddress = detailAddress ? `${address} ${detailAddress}` : address;
-    const encName = encodeURIComponent(fullAddress);
+    // 상세 주소(동/호수)가 딥링크에 들어가면 앱들이 위치(좌표)보다 주소 텍스트 검색을 우선시하다가 
+    // 실패하는 경우가 많아, 내비 목적지 명칭은 순수 도로명/지번 주소만 넘기거나 좌표 중심으로 구성합니다.
+    const encName = encodeURIComponent(address);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // PC(Mac/Windows 등)에서 클릭한 경우 딥링크가 작동하지 않으므로 바로 웹 버전으로 이동
     if (!isMobile) {
       if (type === 'kakao') {
         window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
+      } else if (type === 'tmap') {
+        alert("T맵은 PC 웹 길찾기를 지원하지 않아 네이버 지도로 대체 연결됩니다.");
+        window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
       } else {
-        // PC 웹 길찾기는 네이버 모바일웹 URL이 가장 깔끔하게 렌더링됨
         window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
       }
       return;
     }
 
-    // 모바일인 경우 해당 앱의 딥링크 호출
+    // 모바일 딥링크 실행 후 앱이 성공적으로 열리면(브라우저가 백그라운드로 가면) 폴백 취소
+    let fallbackTimeout: NodeJS.Timeout;
+    const clearFallback = () => clearTimeout(fallbackTimeout);
+    window.addEventListener('blur', clearFallback, { once: true });
+    window.addEventListener('pagehide', clearFallback, { once: true });
+    window.addEventListener('visibilitychange', () => { if (document.hidden) clearFallback(); }, { once: true });
+
     if (type === 'tmap') {
       window.location.href = `tmap://route?goalname=${encName}&goalx=${lng}&goaly=${lat}`;
-      // Tmap 앱이 없을 경우를 대비한 폴백 (네이버 웹 길찾기로 연결)
-      setTimeout(() => {
+      fallbackTimeout = setTimeout(() => {
         window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
-      }, 1000);
+      }, 1500);
     } else if (type === 'kakao') {
-      window.location.href = `kakaonavi://navigate?ep=${lng},${lat}&name=${encName}`;
-      // 카카오내비 앱이 없을 경우 카카오맵 웹버전으로 연결
-      setTimeout(() => {
+      // 카카오내비 딥링크 공식 파라미터 규격 적용 (ep가 아니라 x, y를 사용해야 함)
+      window.location.href = `kakaonavi://navigate?name=${encName}&x=${lng}&y=${lat}&coord_type=wgs84`;
+      fallbackTimeout = setTimeout(() => {
         window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
-      }, 1000);
+      }, 1500);
     } else if (type === 'naver') {
       window.location.href = `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${encName}&appname=com.careroute`;
-      // 네이버지도 앱이 없을 경우 네이버맵 웹버전으로 연결
-      setTimeout(() => {
+      fallbackTimeout = setTimeout(() => {
         window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
-      }, 1000);
+      }, 1500);
     }
   };
 
