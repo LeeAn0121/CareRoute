@@ -1189,45 +1189,46 @@ function MainApp() {
         </div>
       )}
 
-      {/* Floating Header */}
+      {/* iOS / One UI 6 Styled Floating Header */}
       {activeTab === 'map' && (
-      <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col gap-3 mt-4 pointer-events-none">
+      <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col gap-3 mt-3 pointer-events-none">
         
+        {/* Dynamic Island Style Address & Weather Combined */}
+        <div className="flex flex-col gap-3 pointer-events-auto">
+          
+          <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
 
-
-        <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
-        {/* Region Selectors - Floating Glassmorphism Island */}
-        
-        {/* Region Filter Toggle Button */}
-        <div className="flex justify-start pointer-events-auto">
+          {/* Location Pill */}
           <button 
             onClick={() => setShowRegionFilter(!showRegionFilter)}
-            className="flex items-center gap-2 px-5 py-3 bg-surface/95 backdrop-blur-2xl rounded-full shadow-lg shadow-foreground/5 border border-surface-border/60 transition-all hover:scale-105 active:scale-95"
+            className="self-start flex items-center gap-2 px-4 py-2.5 bg-surface/75 supports-[backdrop-filter]:bg-surface/50 backdrop-blur-3xl saturate-150 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.08)] border border-surface-border/50 transition-transform active:scale-95"
           >
-            <IconMapPin size={18} className="text-primary" />
-            <span className="text-[14px] font-black text-primary">
-              {selectedSido ? `${sidos.find(s=>s.code===selectedSido)?.name || ''} ${sigungus.find(s=>s.code===selectedSigungu)?.name?.split(' ').pop() || ''} ${dongs.find(s=>s.code===selectedDong)?.name?.split(' ').pop() || ''}`.trim() : '전체 지역 (검색하려면 탭하세요)'}
+            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+              <IconMapPin size={14} className="text-primary" />
+            </div>
+            <span className="text-[14px] font-black tracking-tight text-foreground/90">
+              {selectedSido ? `${sidos.find(s=>s.code===selectedSido)?.name || ''} ${sigungus.find(s=>s.code===selectedSigungu)?.name?.split(' ').pop() || ''} ${dongs.find(s=>s.code===selectedDong)?.name?.split(' ').pop() || ''}`.trim() : '어디로 갈까요?'}
             </span>
-            <IconSearch size={16} className="text-foreground/50 ml-1" />
+            <IconChevronRight size={16} className="text-foreground/40 ml-1" />
           </button>
         </div>
 
-        {/* Region Selectors - Floating Glassmorphism Island */}
+        {/* Region Filter Dropdown - iOS Menu Style */}
         {showRegionFilter && (
-        <div id="tour-header" className="mt-2 flex flex-col gap-3 p-4 bg-surface/95 backdrop-blur-3xl rounded-3xl shadow-2xl shadow-foreground/15 border border-surface-border/80 pointer-events-auto animate-in fade-in slide-in-from-top-2 w-[280px]">
-          <div className="flex items-center justify-between pb-2 border-b border-surface-border/50">
-            <span className="text-[15px] font-black text-foreground/80 tracking-tight">지역 상세 설정</span>
+        <div id="tour-header" className="mt-1 p-5 bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[32px] shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-surface-border/50 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[320px]">
+          <div className="flex items-center justify-between pb-4 border-b border-surface-border/40 mb-4">
+            <span className="text-[17px] font-bold text-foreground tracking-tight">지역 설정</span>
             <button 
               onClick={() => setShowRegionFilter(false)} 
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-surface-muted text-foreground/50 hover:text-foreground hover:bg-surface-border/50 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 text-foreground/50 hover:bg-foreground/10 transition-colors"
             >
-              <IconX size={16} />
+              <IconX size={18} />
             </button>
           </div>
           
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-3">
             <NativeSelect
-              className="w-full !bg-surface-muted !shadow-none !border-0 !rounded-2xl !py-3.5 !px-4 !text-[14px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/30 transition-all cursor-pointer"
+              className="w-full !bg-foreground/5 !border-0 !rounded-2xl !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
               value={selectedSido}
               onChange={(e) => {
                 setSelectedSido(e.target.value);
@@ -1235,38 +1236,33 @@ function MainApp() {
                 setSelectedDong('');
               }}
             >
-              <option value="">🗺️ 시/도 선택</option>
-              {sidos.map(sido => <option key={sido.code} value={sido.code}>{sido.name}</option>)}
+              <option value="">시/도 선택</option>
+              {sidos.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
             </NativeSelect>
+
             <NativeSelect
-              className="w-full !bg-surface-muted !shadow-none !border-0 !rounded-2xl !py-3.5 !px-4 !text-[14px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/30 transition-all cursor-pointer disabled:opacity-50"
+              className="w-full !bg-foreground/5 !border-0 !rounded-2xl !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
               value={selectedSigungu}
-              disabled={!selectedSido}
               onChange={(e) => {
                 setSelectedSigungu(e.target.value);
                 setSelectedDong('');
               }}
+              disabled={!selectedSido}
             >
-              <option value="">🏙️ 군/구 선택</option>
-              {sigungus.map(sig => <option key={sig.code} value={sig.code}>{sig.name.split(' ').pop()}</option>)}
+              <option value="">시/군/구 선택</option>
+              {sigungus.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
             </NativeSelect>
+
             <NativeSelect
-              className="w-full !bg-surface-muted !shadow-none !border-0 !rounded-2xl !py-3.5 !px-4 !text-[14px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/30 transition-all cursor-pointer disabled:opacity-50"
+              className="w-full !bg-foreground/5 !border-0 !rounded-2xl !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
               value={selectedDong}
-              disabled={!selectedSigungu}
               onChange={(e) => setSelectedDong(e.target.value)}
+              disabled={!selectedSigungu}
             >
-              <option value="">🏘️ 동/읍/면 선택</option>
-              {dongs.map(dong => <option key={dong.code} value={dong.code}>{dong.name.split(' ').pop()}</option>)}
+              <option value="">읍/면/동 선택</option>
+              {dongs.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
             </NativeSelect>
           </div>
-
-          <button 
-            onClick={() => setShowRegionFilter(false)} 
-            className="mt-2 w-full py-3 bg-primary text-white text-[15px] font-black rounded-2xl shadow-md shadow-primary/20 hover:bg-primary/90 transition-colors active:scale-95"
-          >
-            적용하기
-          </button>
         </div>
         )}
       </header>
@@ -1749,7 +1745,7 @@ function MainApp() {
               type="button"
               onClick={handleMyLocation}
               disabled={isLocating}
-              className="w-10 h-10 mt-1 flex items-center justify-center rounded-full shadow-lg bg-surface/80 backdrop-blur-xl border border-surface-border/50 transition active:scale-95 disabled:opacity-60"
+              className="w-12 h-12 mt-2 flex items-center justify-center rounded-[20px] shadow-[0_8px_24px_rgba(0,0,0,0.12)] bg-surface/80 backdrop-blur-[40px] saturate-200 border border-white/20 dark:border-white/10 transition-transform active:scale-90 disabled:opacity-60"
             >
               {isLocating ? (
                 <Spinner size={18} className="text-primary" />
@@ -1767,7 +1763,7 @@ function MainApp() {
         type="button"
         aria-label="어르신 추가"
         onClick={() => { setEditingRecipient(null); setIsModalOpen(true); }}
-        className="absolute bottom-[100px] right-6 z-40 w-14 h-14 flex items-center justify-center rounded-full shadow-xl shadow-primary/30 bg-primary/90 text-primary-foreground border border-white/20 transition-all hover:scale-105 active:scale-95 backdrop-blur-2xl"
+        className="absolute bottom-[100px] right-5 z-40 w-[60px] h-[60px] flex items-center justify-center rounded-[24px] shadow-[0_16px_32px_rgba(0,0,0,0.2)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200"
       >
         <IconPlus size={32} strokeWidth={2.5} />
       </button>
@@ -1926,7 +1922,7 @@ function MainApp() {
 
       {/* Redesigned Bottom Navigation */}
       <div className="absolute bottom-6 left-4 right-4 z-50 px-2 pb-safe">
-        <div id="tour-bottom-nav" className="rounded-[32px] overflow-hidden shadow-2xl shadow-black/10 bg-surface/60 backdrop-blur-[32px] border border-surface-border/50 supports-[backdrop-filter]:bg-surface/50">
+        <div id="tour-bottom-nav" className="rounded-[36px] overflow-hidden shadow-[0_20px_40px_rgba(0,0,0,0.12)] bg-surface/75 backdrop-blur-[40px] saturate-200 border border-white/20 dark:border-white/10 supports-[backdrop-filter]:bg-surface/50">
           <div className="flex h-16">
           {([
             { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
@@ -1943,7 +1939,7 @@ function MainApp() {
               {activeTab === key && (
                 <motion.div
                   layoutId="nav-indicator"
-                  className="absolute top-0 inset-x-5 h-[3px] rounded-full bg-accent"
+                  className="absolute top-0 inset-x-5 h-[4px] rounded-full bg-primary shadow-[0_2px_8px_rgba(var(--primary),0.5)]"
                   transition={{ type: 'spring', damping: 28, stiffness: 320 }}
                 />
               )}
