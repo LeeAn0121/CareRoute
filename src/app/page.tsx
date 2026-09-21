@@ -843,29 +843,7 @@ function MainApp() {
     }
   };
 
-  // 줌 레벨에 따라 마커를 행정구역(시/도 → 시/군/구 → 동/읍/면) 단위로 묶어
-  // 숫자 뱃지로 보여준다. 거리 기반 그리드 대신 실제 행정구역 코드로 묶기
-  // 때문에, 지도를 조금만 움직여도 클러스터가 들쭉날쭉 바뀌던 문제가 없고
-  // 행정구역 경계 표시 기능과 동일한 줌 기준(10/13/15)을 공유해 일관적이다.
-  const clusterField: 'sido' | 'sigungu' | 'dong' | null =
-    mapZoom <= 10 ? 'sido' : mapZoom <= 13 ? 'sigungu' : mapZoom <= 15 ? 'dong' : null;
 
-  // 클러스터를 탭했을 때 다음 단계(하위 행정구역/개별 마커)가 바로 보이는
-  // 줌 레벨로 확대
-  const clusterDrillZoom = clusterField === 'sido' ? 12 : clusterField === 'sigungu' ? 14 : 17;
-
-  const markerClusters = useMemo(() => {
-    if (!clusterField) return markers.map((m) => [m]);
-
-    const groups = new Map<string, Recipient[]>();
-    markers.forEach((marker) => {
-      const key = marker[clusterField] || '__unknown__';
-      const group = groups.get(key);
-      if (group) group.push(marker);
-      else groups.set(key, [marker]);
-    });
-    return Array.from(groups.values());
-  }, [markers, clusterField]);
 
   // 완료 체크: last_completed_key가 "오늘 날짜"와 같으면 오늘 방문 완료로 간주.
   // 날짜가 바뀌면(다음 날/다음 예정일) 자동으로 다시 미완료 상태가 된다.
@@ -1205,59 +1183,29 @@ function MainApp() {
                 defaultCenter={mapCenter}
                 defaultZoom={mapZoom}
               >
-                {markerClusters.map((cluster) => {
-                  if (cluster.length === 1) {
-                    const marker = cluster[0];
-                    const isSelected = selectedRecipient?.id === marker.id;
-                    return (
-                      <Marker
-                        key={marker.id}
-                        position={{ lat: marker.lat, lng: marker.lng }}
-                        onClick={() => setSelectedRecipient(marker)}
-                        icon={{
-                          content: `
-                            <div class="marker-wrapper relative flex flex-col items-center ${isSelected ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
-                              <div class="relative w-11 h-11 flex items-center justify-center">
-                                ${isSelected ? '<div class="absolute -inset-1.5 bg-accent rounded-full opacity-60 animate-ping"></div>' : ''}
-                                <div class="relative w-11 h-11 rounded-full overflow-hidden bg-primary flex items-center justify-center border-2 ${isSelected ? 'border-accent' : 'border-white'} shadow-md shadow-foreground/20 transition-colors duration-300">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                                  ${marker.photo_url ? `<img src="${marker.photo_url}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
-                                </div>
-                              </div>
-                              <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-accent text-primary' : 'bg-surface text-primary'} text-[11px] font-bold rounded-md shadow-sm border border-surface-border whitespace-nowrap transition-colors duration-300">
-                                ${marker.name}
-                              </div>
-                            </div>
-                          `,
-                          anchor: { x: 22, y: 22 }
-                        }}
-                      />
-                    );
-                  }
-
-                  // 클러스터: 여러 명이 근처에 모여있으면 숫자 뱃지 하나로 표시.
-                  // 탭하면 그 지점으로 확대되면서 개별 마커로 풀린다.
-                  const centerLat = cluster.reduce((sum, m) => sum + m.lat, 0) / cluster.length;
-                  const centerLng = cluster.reduce((sum, m) => sum + m.lng, 0) / cluster.length;
-                  const size = cluster.length >= 10 ? 52 : cluster.length >= 5 ? 46 : 40;
-
-                  const clusterKey = clusterField ? cluster[0][clusterField] : cluster[0].id;
+                {markers.map((marker) => {
+                  const isSelected = selectedRecipient?.id === marker.id;
                   return (
                     <Marker
-                      key={`cluster-${clusterKey}`}
-                      position={{ lat: centerLat, lng: centerLng }}
-                      onClick={() => {
-                        setMapCenter({ lat: centerLat, lng: centerLng });
-                        setMapZoom(clusterDrillZoom);
-                      }}
+                      key={marker.id}
+                      position={{ lat: marker.lat, lng: marker.lng }}
+                      onClick={() => setSelectedRecipient(marker)}
                       icon={{
                         content: `
-                          <div class="marker-wrapper flex items-center justify-center rounded-full bg-accent text-primary font-extrabold border-2 border-white shadow-lg shadow-accent/40 cursor-pointer"
-                               style="width:${size}px;height:${size}px;font-size:${size >= 46 ? 16 : 14}px;">
-                            ${cluster.length}
+                          <div class="marker-wrapper relative flex flex-col items-center ${isSelected ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
+                            <div class="relative w-11 h-11 flex items-center justify-center">
+                              ${isSelected ? '<div class="absolute -inset-1.5 bg-accent rounded-full opacity-60 animate-ping"></div>' : ''}
+                              <div class="relative w-11 h-11 rounded-full overflow-hidden bg-primary flex items-center justify-center border-2 ${isSelected ? 'border-accent' : 'border-white'} shadow-md shadow-foreground/20 transition-colors duration-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                ${marker.photo_url ? `<img src="${marker.photo_url}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
+                              </div>
+                            </div>
+                            <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-accent text-primary' : 'bg-surface text-primary'} text-[11px] font-bold rounded-md shadow-sm border border-surface-border whitespace-nowrap transition-colors duration-300">
+                              ${marker.name}
+                            </div>
                           </div>
                         `,
-                        anchor: { x: size / 2, y: size / 2 }
+                        anchor: { x: 22, y: 22 }
                       }}
                     />
                   );
