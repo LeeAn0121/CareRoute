@@ -98,6 +98,9 @@ function MainApp() {
       return parts[2] || parts[1] || parts[0];
     }
   };
+  // 내 위치 추적용 ID
+  const watchIdRef = useRef<number | null>(null);
+
   const handleMyLocation = () => {
     if (!navigator.geolocation) {
       alert("GPS를 지원하지 않는 기기입니다.");
@@ -107,8 +110,20 @@ function MainApp() {
 
     const onSuccess = (position: GeolocationPosition) => {
       setIsLocating(false);
-      setMapCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      setMapCenter({ lat, lng });
+      setMyLocation({ lat, lng });
       setMapZoom(17);
+
+      // 한 번 버튼을 누른 이후부터는 위치를 계속 추적해서 파란 점을 이동시킴
+      if (watchIdRef.current === null) {
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (pos) => setMyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          (err) => console.warn("Watch position error:", err),
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        );
+      }
     };
 
     const describeError = (error: GeolocationPositionError) => {
@@ -167,6 +182,7 @@ function MainApp() {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapZoom, setMapZoom] = useState(15);
   const [isLocating, setIsLocating] = useState(false);
+  const [myLocation, setMyLocation] = useState<{lat: number, lng: number} | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [showRegions, setShowRegions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -244,6 +260,15 @@ function MainApp() {
     const timer = setTimeout(fetchMapWeathers, 1500);
     return () => { isMounted = false; clearTimeout(timer); };
   }, [markers, mapZoom <= 10 ? 0 : mapZoom <= 13 ? 1 : 2]); // 줌 레벨 구간(시도/시군구/동)이 바뀔 때만 재요청
+
+  // 컴포넌트 언마운트 시 위치 추적 해제
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
 
   // Programmatic Pan & Zoom (React State -> Map API)
   useEffect(() => {
@@ -1304,7 +1329,24 @@ function MainApp() {
                 defaultCenter={mapCenter}
                 defaultZoom={mapZoom}
               >
-                                {/* 전역 행정구역 날씨 맵 마커 (방해되지 않도록 작고 반투명하게) */}
+                                                {/* 내 위치 (파란 점) */}
+                {myLocation && (
+                  <Marker
+                    position={{ lat: myLocation.lat, lng: myLocation.lng }}
+                    zIndex={999}
+                    icon={{
+                      content: `
+                        <div class="relative flex items-center justify-center w-12 h-12 pointer-events-none">
+                          <div class="absolute inset-0 bg-blue-500 rounded-full opacity-25 animate-ping"></div>
+                          <div class="relative w-5 h-5 bg-blue-500 border-2 border-white rounded-full shadow-lg shadow-blue-500/50"></div>
+                        </div>
+                      `,
+                      anchor: { x: 24, y: 24 }
+                    }}
+                  />
+                )}
+                
+                {/* 전역 행정구역 날씨 맵 마커 (방해되지 않도록 작고 반투명하게) */}
                 {/* 행정구역 보기(showRegions)가 켜져있거나, 지도를 많이 축소했을 때(mapZoom <= 12)만 날씨 표시하여 가림 방지 */}
                 {(showRegions || mapZoom <= 11) && districtWeathers.map((dw, i) => (
                   <Marker
