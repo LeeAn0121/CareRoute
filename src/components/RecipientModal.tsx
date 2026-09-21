@@ -40,6 +40,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   const [visitTime, setVisitTime] = useState('');
   const [visitDate, setVisitDate] = useState('');
   const [recurringDays, setRecurringDays] = useState<number[]>([]);
+  const [doorPasscode, setDoorPasscode] = useState('');
+  const [parkingMemo, setParkingMemo] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -70,6 +72,10 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setVisitTime((recipientToEdit.visit_time && recipientToEdit.visit_time.substring(0, 5) !== '00:00') ? recipientToEdit.visit_time.substring(0, 5) : '');
         setVisitDate(recipientToEdit.notes || '');
         setRecurringDays(recipientToEdit.recurring_weekdays ? recipientToEdit.recurring_weekdays.split(',').map(Number) : []);
+      // @ts-ignore
+      setDoorPasscode(recipientToEdit.door_passcode || '');
+      // @ts-ignore
+      setParkingMemo(recipientToEdit.parking_memo || '');
         setExistingPhotoUrl(recipientToEdit.photo_url || null);
       } else {
         setName('');
@@ -79,6 +85,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setVisitTime('');
         setVisitDate('');
         setRecurringDays([]);
+      setDoorPasscode('');
+      setParkingMemo('');
         setExistingPhotoUrl(null);
       }
       setPhotoFile(null);
@@ -327,6 +335,26 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
               onChange={(e) => setDetailAddress(e.target.value)}
               disabled={isSubmitting}
               inputRef={detailAddressRef}
+            />
+          </div>
+
+          <div className="h-px bg-surface-muted" />
+
+          <div className="flex flex-col gap-3">
+            <p className="text-[13px] font-black text-primary/80 tracking-tight">현장 편의 정보</p>
+            <TextField
+              label="공동현관 비밀번호 (선택)"
+              placeholder="예: 🔔1234#"
+              value={doorPasscode}
+              onChange={(e) => setDoorPasscode(e.target.value)}
+              disabled={isSubmitting}
+            />
+            <TextField
+              label="주차 꿀팁 메모 (선택)"
+              placeholder="예: 빌라 뒤쪽 공터에 주차 가능"
+              value={parkingMemo}
+              onChange={(e) => setParkingMemo(e.target.value)}
+              disabled={isSubmitting}
             />
           </div>
 

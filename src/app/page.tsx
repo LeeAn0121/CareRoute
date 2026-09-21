@@ -30,6 +30,8 @@ interface Recipient {
   last_completed_key?: string | null;
   recurring_weekdays?: string | null;
   photo_url?: string | null;
+  door_passcode?: string | null;
+  parking_memo?: string | null;
 }
 
 const SIDO_CENTERS: Record<string, { lat: number, lng: number }> = {
@@ -859,16 +861,28 @@ function MainApp() {
     }
   };
 
-  const handleDirections = (lat: number, lng: number, name: string) => {
-    const isAndr = /android/i.test(navigator.userAgent);
+  const handleNavi = (type: 'tmap' | 'kakao' | 'naver', lat: number, lng: number, name: string) => {
+    const encName = encodeURIComponent(name + ' 어르신댁');
     
-    if (isAndr) {
-      window.location.href = `geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(name)})`;
-    } else if (isIOS) {
-      window.location.href = `maps://?q=${encodeURIComponent(name)}&ll=${lat},${lng}`;
-    } else {
-      window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encodeURIComponent(name)}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
+    // 모바일 딥링크: 앱이 없으면 스토어로 이동하거나 동작하지 않을 수 있지만, 
+    // 대부분의 실무자들은 내비 앱이 깔려있음.
+    if (type === 'tmap') {
+      window.location.href = `tmap://route?goalname=${encName}&goalx=${lng}&goaly=${lat}`;
+      // 안드로이드 intent 방식 대비책이 필요할 수 있으나 기본 scheme부터 적용
+    } else if (type === 'kakao') {
+      window.location.href = `kakaonavi://navigate?ep=${lng},${lat}&name=${encName}`;
+    } else if (type === 'naver') {
+      window.location.href = `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${encName}&appname=com.careroute`;
+      
+      // 웹 폴백 (앱이 없거나 PC일 때)
+      setTimeout(() => {
+        window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
+      }, 500);
     }
+  };
+
+  const handleDirections = (lat: number, lng: number, name: string) => {
+    handleNavi('naver', lat, lng, name);
   };
 
 
@@ -1753,15 +1767,55 @@ function MainApp() {
                 </p>
               </div>
 
-              <Button
-                fullWidth
-                variant="dark"
-                startIcon={<IconNavigation size={18} />}
-                onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address)}
-                className="mt-4 py-3 text-[1.05rem]"
-              >
-                길안내 시작
-              </Button>
+              {(selectedRecipient.door_passcode || selectedRecipient.parking_memo) && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  {selectedRecipient.door_passcode && (
+                    <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 flex flex-col items-center justify-center text-center">
+                      <span className="text-[11px] font-black text-amber-700 mb-1">공동현관 비밀번호</span>
+                      <span className="text-[15px] font-extrabold text-amber-900">{selectedRecipient.door_passcode}</span>
+                    </div>
+                  )}
+                  {selectedRecipient.parking_memo && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex flex-col items-center justify-center text-center">
+                      <span className="text-[11px] font-black text-blue-700 mb-1">주차 꿀팁 메모</span>
+                      <span className="text-[13px] font-bold text-blue-900 leading-tight">{selectedRecipient.parking_memo}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-col gap-2">
+                <span className="text-[12px] font-black text-foreground/50 ml-1">원클릭 길안내</span>
+                <div className="flex gap-2">
+                  <Button
+                    fullWidth
+                    variant="dark"
+                    startIcon={<IconNavigation size={18} />}
+                    onClick={() => handleNavi('tmap', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
+                    className="py-3 text-[14px] bg-[#000000] text-white hover:bg-[#333]"
+                  >
+                    T맵
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="dark"
+                    startIcon={<IconNavigation size={18} />}
+                    onClick={() => handleNavi('kakao', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
+                    className="py-3 text-[14px] bg-[#FFE812] text-[#3c1e1e] hover:bg-[#F4DC00]"
+                  >
+                    카카오내비
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="dark"
+                    startIcon={<IconNavigation size={18} />}
+                    onClick={() => handleNavi('naver', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
+                    className="py-3 text-[14px] bg-[#03C75A] text-white hover:bg-[#02b350]"
+                  >
+                    네이버지도
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         )}
