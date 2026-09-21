@@ -890,18 +890,20 @@ function MainApp() {
     window.addEventListener('visibilitychange', () => { if (document.hidden) clearFallback(); }, { once: true });
 
     if (type === 'tmap') {
-      window.location.href = `tmap://route?goalname=${encName}&goalx=${lng}&goaly=${lat}`;
+      const safeName = encodeURIComponent('도착지');
+      window.location.href = `tmap://route?goalname=${safeName}&goalx=${lng}&goaly=${lat}`;
       fallbackTimeout = setTimeout(() => {
         window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
       }, 1500);
     } else if (type === 'kakao') {
-      // 카카오내비 앱의 URI 스키마가 SDK 없이 불안정하므로 카카오맵(자동차 길찾기)으로 대체합니다.
+      // 카카오내비 앱의 URI 스키마가 SDK 없이 불안정하므로 카카오내비(자동차 길찾기)으로 대체합니다.
       window.location.href = `kakaomap://route?ep=${lat},${lng}&by=CAR`;
       fallbackTimeout = setTimeout(() => {
         window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
       }, 1500);
     } else if (type === 'naver') {
-      window.location.href = `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${encName}&appname=com.careroute`;
+      const safeName = encodeURIComponent('도착지');
+      window.location.href = `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${safeName}&appname=com.careroute`;
       fallbackTimeout = setTimeout(() => {
         window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
       }, 1500);
@@ -1907,9 +1909,9 @@ function MainApp() {
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
                     <div className="w-12 h-12 rounded-[14px] shadow-sm bg-white overflow-hidden border border-surface-border flex items-center justify-center p-1.5">
-                      <img src="https://map.kakao.com/favicon.ico" alt="카카오맵" className="w-full h-full object-contain" />
+                      <img src="https://map.kakao.com/favicon.ico" alt="카카오내비" className="w-full h-full object-contain" />
                     </div>
-                    <span className="text-[10px] font-bold text-foreground/70">카카오맵</span>
+                    <span className="text-[10px] font-bold text-foreground/70">카카오내비</span>
                   </button>
 
                   <button
