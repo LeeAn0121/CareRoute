@@ -4,6 +4,7 @@ import { Container, NaverMap, Marker } from 'react-naver-maps';
 import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
+import VoiceMemoModal from '@/components/VoiceMemoModal';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
 import WeatherWidget from '@/components/WeatherWidget';
@@ -32,6 +33,8 @@ interface Recipient {
   photo_url?: string | null;
   door_passcode?: string | null;
   parking_memo?: string | null;
+  health_tags?: string | null;
+  last_completed_memo?: string | null;
 }
 
 const SIDO_CENTERS: Record<string, { lat: number, lng: number }> = {
@@ -163,6 +166,7 @@ function MainApp() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
+  const [completingRecipient, setCompletingRecipient] = useState<Recipient | null>(null);
   
   const [activeTab, setActiveTab] = useState<'map' | 'list' | 'route' | 'settings'>('map');
   const [listViewMode, setListViewMode] = useState<'list' | 'grid' | 'compact'>('list');
@@ -912,10 +916,26 @@ function MainApp() {
   };
   const isCompletedToday = (r: Recipient) => r.last_completed_key === todayYMD();
   const toggleCompleted = async (r: Recipient) => {
-    const key = isCompletedToday(r) ? null : todayYMD();
-    // 낙관적 업데이트로 목록에 바로 반영
-    setMarkers((prev) => prev.map((m) => (m.id === r.id ? { ...m, last_completed_key: key } : m)));
-    await supabase.from('recipients').update({ last_completed_key: key }).eq('id', r.id);
+    if (isCompletedToday(r)) {
+      // 이미 완료된 상태면 완료 취소
+      const key = null;
+      setMarkers((prev) => prev.map((m) => (m.id === r.id ? { ...m, last_completed_key: key, last_completed_memo: null } : m)));
+      await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: null }).eq('id', r.id);
+    } else {
+      // 미완료 상태면 일지 작성 모달 띄우기
+      setCompletingRecipient(r);
+    }
+  };
+
+  const handleSaveMemo = async (memo: string) => {
+    if (!completingRecipient) return;
+    const key = todayYMD();
+    const rId = completingRecipient.id;
+    setCompletingRecipient(null); // 모달 닫기
+    
+    // 낙관적 업데이트
+    setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: key, last_completed_memo: memo || null } : m)));
+    await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null }).eq('id', rId);
   };
 
   // 오늘 방문 예정인지: 특정 날짜로 지정했거나, 반복 요일에 오늘 요일이 포함되면 해당
@@ -1760,7 +1780,16 @@ function MainApp() {
                   <p className="text-xl font-black text-primary tracking-tight truncate">
                     {selectedRecipient.name} 어르신
                   </p>
-                  <Chip icon={<IconClock size={12} color="#8A5A00" />} className="mt-1.5 bg-accent/20 text-foreground/80 font-bold">
+                  {selectedRecipient.health_tags && (
+                    <div className="flex flex-wrap gap-1 mt-1.5 mb-1">
+                      {selectedRecipient.health_tags.split(',').filter(Boolean).map((tag, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-red-100 text-red-700 rounded-md text-[11px] font-extrabold tracking-tight border border-red-200">
+                          #{tag.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <Chip icon={<IconClock size={12} color="#8A5A00" />} className="mt-1 bg-accent/20 text-foreground/80 font-bold">
                     {`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '서비스 시간 미정' : selectedRecipient.visit_time.substring(0, 5) + ' 방문'}`}
                   </Chip>
                 </div>
@@ -1776,6 +1805,15 @@ function MainApp() {
                   </IconButton>
                 </div>
               </div>
+
+              {isCompletedToday(selectedRecipient) && selectedRecipient.last_completed_memo && (
+                <div className="bg-[#4C7A6B]/10 border border-[#4C7A6B]/20 rounded-lg p-4 mt-4 relative">
+                  <div className="absolute -top-3 left-4 bg-surface px-2 text-[11px] font-black text-[#4C7A6B]">오늘의 방문 일지</div>
+                  <p className="text-[13px] font-medium text-foreground/80 whitespace-pre-wrap">
+                    {selectedRecipient.last_completed_memo}
+                  </p>
+                </div>
+              )}
 
               <div className="bg-surface-muted rounded-lg p-4 mt-4 flex gap-3 items-center">
                 <IconMapPin size={20} color="#94a3b8" className="flex-shrink-0" />
@@ -1868,6 +1906,13 @@ function MainApp() {
         </div>
         </div>
       </div>
+
+      <VoiceMemoModal
+        isOpen={Boolean(completingRecipient)}
+        onClose={() => setCompletingRecipient(null)}
+        onSave={handleSaveMemo}
+        recipientName={completingRecipient?.name || ''}
+      />
 
       <RecipientModal 
         isOpen={isModalOpen} 

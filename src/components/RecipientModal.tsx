@@ -42,6 +42,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   const [recurringDays, setRecurringDays] = useState<number[]>([]);
   const [doorPasscode, setDoorPasscode] = useState('');
   const [parkingMemo, setParkingMemo] = useState('');
+  const [healthTags, setHealthTags] = useState<string[]>([]);
+  const [customTag, setCustomTag] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -76,6 +78,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       setDoorPasscode(recipientToEdit.door_passcode || '');
       // @ts-ignore
       setParkingMemo(recipientToEdit.parking_memo || '');
+      // @ts-ignore
+      setHealthTags(recipientToEdit.health_tags ? recipientToEdit.health_tags.split(',').filter(Boolean) : []);
         setExistingPhotoUrl(recipientToEdit.photo_url || null);
       } else {
         setName('');
@@ -87,6 +91,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setRecurringDays([]);
       setDoorPasscode('');
       setParkingMemo('');
+      setHealthTags([]);
+      setCustomTag('');
         setExistingPhotoUrl(null);
       }
       setPhotoFile(null);
@@ -336,6 +342,75 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
               disabled={isSubmitting}
               inputRef={detailAddressRef}
             />
+          </div>
+
+          <div className="h-px bg-surface-muted" />
+
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] font-black text-primary/80 tracking-tight">어르신 특이사항 (건강 해시태그)</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {['치매', '당뇨', '고혈압', '거동불편', '청각장애', '시각장애', '와상'].map(tag => {
+                const isActive = healthTags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => {
+                      if (isActive) setHealthTags(prev => prev.filter(t => t !== tag));
+                      else setHealthTags(prev => [...prev, tag]);
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-[12px] font-bold border transition-colors ${isActive ? 'bg-red-100 text-red-700 border-red-200' : 'bg-surface text-foreground/60 border-surface-border'}`}
+                  >
+                    #{tag}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="직접 입력 (예: 식사보조)"
+                value={customTag}
+                onChange={(e) => setCustomTag(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (customTag.trim() && !healthTags.includes(customTag.trim())) {
+                      setHealthTags(prev => [...prev, customTag.trim()]);
+                      setCustomTag('');
+                    }
+                  }
+                }}
+                className="flex-1 px-3 py-2 text-[13px] border border-surface-border rounded-lg bg-surface focus:outline-none focus:border-primary"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (customTag.trim() && !healthTags.includes(customTag.trim())) {
+                    setHealthTags(prev => [...prev, customTag.trim()]);
+                    setCustomTag('');
+                  }
+                }}
+                className="px-4 py-2 bg-primary/10 text-primary rounded-lg text-[13px] font-bold"
+              >
+                추가
+              </button>
+            </div>
+            {/* Custom added tags that are not in the preset list */}
+            {healthTags.filter(t => !['치매', '당뇨', '고혈압', '거동불편', '청각장애', '시각장애', '와상'].includes(t)).length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-1">
+                {healthTags.filter(t => !['치매', '당뇨', '고혈압', '거동불편', '청각장애', '시각장애', '와상'].includes(t)).map(tag => (
+                  <div key={tag} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-bold bg-red-100 text-red-700 border border-red-200">
+                    <span>#{tag}</span>
+                    <button type="button" onClick={() => setHealthTags(prev => prev.filter(t => t !== tag))} className="text-red-400 hover:text-red-700">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="h-px bg-surface-muted" />
