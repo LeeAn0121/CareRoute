@@ -927,6 +927,24 @@ function MainApp() {
     }
   };
 
+  const handleShareReport = async (r: Recipient) => {
+    const text = `[케어루트 안심 알림 💙]\n${r.name} 어르신 방문 케어를 무사히 마쳤습니다.\n\n📝 요양보호사 일지:\n${r.last_completed_memo || '특이사항 없음'}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${r.name} 어르신 방문 리포트`,
+          text: text,
+        });
+      } catch (err) {
+        console.log('Share canceled or failed', err);
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      navigator.clipboard.writeText(text);
+      alert("공유 기능이 지원되지 않아 일지 내용이 복사되었습니다. 카카오톡에 붙여넣기 해주세요!");
+    }
+  };
+
   const handleSaveMemo = async (memo: string) => {
     if (!completingRecipient) return;
     const key = todayYMD();
@@ -1812,14 +1830,40 @@ function MainApp() {
                   <p className="text-[13px] font-medium text-foreground/80 whitespace-pre-wrap">
                     {selectedRecipient.last_completed_memo}
                   </p>
+                  <div className="mt-3 flex justify-end">
+                    <button 
+                      onClick={() => handleShareReport(selectedRecipient)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4C7A6B] text-white rounded-full text-[11px] font-bold shadow-md hover:bg-[#3b6054] transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                      가족에게 안심 전송
+                    </button>
+                  </div>
                 </div>
               )}
 
-              <div className="bg-surface-muted rounded-lg p-4 mt-4 flex gap-3 items-center">
-                <IconMapPin size={20} color="#94a3b8" className="flex-shrink-0" />
-                <p className="font-semibold text-foreground/70 leading-snug text-sm">
-                  {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
-                </p>
+              <div className="bg-surface-muted rounded-lg p-4 mt-4 flex flex-col gap-3">
+                <div className="flex gap-3 items-center">
+                  <IconMapPin size={20} color="#94a3b8" className="flex-shrink-0" />
+                  <p className="font-semibold text-foreground/70 leading-snug text-sm">
+                    {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
+                  </p>
+                </div>
+                {/* 긴급/주변 시설 검색 (응급실, 약국) */}
+                <div className="flex gap-2 ml-8">
+                  <button
+                    onClick={() => window.open(`https://m.map.naver.com/search2/search.naver?query=%EC%95%BD%EA%B5%AD&sm=sug&style=v5&x=${selectedRecipient.lng}&y=${selectedRecipient.lat}`, '_blank')}
+                    className="flex-1 py-1.5 bg-white border border-surface-border rounded text-[11px] font-bold text-foreground/70 flex items-center justify-center gap-1 shadow-sm active:scale-95"
+                  >
+                    💊 주변 약국
+                  </button>
+                  <button
+                    onClick={() => window.open(`https://m.map.naver.com/search2/search.naver?query=%EB%B3%91%EC%9B%90&sm=sug&style=v5&x=${selectedRecipient.lng}&y=${selectedRecipient.lat}`, '_blank')}
+                    className="flex-1 py-1.5 bg-white border border-surface-border rounded text-[11px] font-bold text-foreground/70 flex items-center justify-center gap-1 shadow-sm active:scale-95"
+                  >
+                    🏥 주변 병원
+                  </button>
+                </div>
               </div>
 
               {(selectedRecipient.door_passcode || selectedRecipient.parking_memo) && (
