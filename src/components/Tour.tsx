@@ -1,7 +1,7 @@
 import React from 'react';
 import { Joyride, EventData, STATUS, TooltipRenderProps } from 'react-joyride';
 import { motion } from 'motion/react';
-import { IconMapPin, IconUserPlus, IconCategory, IconTarget, IconStar } from '@tabler/icons-react';
+import { IconMapPin, IconUserPlus, IconCategory, IconTarget, IconStar, IconMenu2, IconMap } from '@tabler/icons-react';
 
 interface TourProps {
   onComplete: () => void;
@@ -78,14 +78,20 @@ export default function Tour({ onComplete }: TourProps) {
     {
       target: 'body',
       title: <><IconStar className="text-accent" /> 환영합니다!</>,
-      content: '케어루트에 오신 것을 환영합니다!\n스마트한 동선 관리를 위한 간단한 사용법을 알려드릴게요.',
+      content: '케어루트에 오신 것을 환영합니다!\n새로워진 앱의 핵심 기능들을 간단히 소개해드릴게요.',
       placement: 'center' as const,
       disableBeacon: true,
     },
     {
       target: '#tour-header',
-      title: <><IconTarget className="text-primary" /> 동네 이동하기</>,
-      content: '이곳에서 원하시는 시/도, 군/구, 동/읍/면을 선택하면 지도가 해당 동네로 빠르게 이동합니다.',
+      title: <><IconTarget className="text-primary" /> 실시간 위치 및 검색</>,
+      content: '이곳에서 현재 접속 중인 GPS 주소와 날씨를 확인하거나, 다른 지역을 바로 검색할 수 있습니다.',
+      disableBeacon: true,
+    },
+    {
+      target: '#tour-map-controls',
+      title: <><IconMap className="text-primary" /> 맵 컨트롤 툴바</>,
+      content: '행정구역 표시, 지도 확대/축소, 그리고 내 위치로 돌아가기 기능이 하나의 세련된 툴바로 통합되었습니다.',
       disableBeacon: true,
     },
     {
@@ -96,13 +102,19 @@ export default function Tour({ onComplete }: TourProps) {
     },
     {
       target: '#tour-bottom-nav',
-      title: <><IconCategory className="text-primary" /> 메뉴 이동</>,
-      content: '하단 탭을 통해 언제든지 [지도], [명단 관리], [오늘의 경로], [설정] 화면으로 이동할 수 있습니다.',
+      title: <><IconCategory className="text-primary" /> 주요 메뉴 이동</>,
+      content: '하단 탭을 통해 언제든지 핵심 기능인 [지도], [명단 관리], [오늘의 경로] 화면으로 이동할 수 있습니다.',
+      disableBeacon: true,
+    },
+    {
+      target: '#tour-user-menu',
+      title: <><IconMenu2 className="text-primary" /> 사용자 설정</>,
+      content: '우측 상단의 메뉴 버튼을 누르면 앱 테마, 알림 등 세부 설정 창으로 들어갈 수 있습니다.',
       disableBeacon: true,
     },
     {
       target: 'body',
-      title: <><IconMapPin className="text-primary" /> 거의 다 왔어요!</>,
+      title: <><IconMapPin className="text-primary" /> 시작 준비 완료!</>,
       content: '마지막으로, 현재 위치 표시와 방문 시간 알림을 위해 권한을 허용해 주시면 모든 준비가 끝납니다!',
       placement: 'center' as const,
       disableBeacon: true,

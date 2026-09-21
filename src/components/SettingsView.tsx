@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { IconPalette, IconHelp, IconShieldLock, IconChevronRight, IconMoonStars, IconSun, IconDeviceDesktop, IconBrandGithub, IconBug } from '@tabler/icons-react';
+import { IconPalette, IconHelp, IconShieldLock, IconChevronRight, IconMoonStars, IconSun, IconDeviceDesktop, IconBrandGithub, IconBug, IconRefresh } from '@tabler/icons-react';
 import { useTheme } from 'next-themes';
 import { motion } from 'motion/react';
 
@@ -193,7 +193,7 @@ export default function SettingsView({ onReplayTutorial, onBack }: SettingsViewP
             
             <button
               onClick={onReplayTutorial}
-              className="w-full flex items-center justify-between p-4 hover:bg-foreground/[0.04] transition-colors active:bg-foreground/[0.08]"
+              className="w-full flex items-center justify-between p-4 hover:bg-foreground/[0.04] transition-colors active:bg-foreground/[0.08] border-b border-surface-border/50"
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-[10px] bg-primary/10 flex items-center justify-center text-primary"><IconHelp size={18} /></div>
@@ -201,6 +201,33 @@ export default function SettingsView({ onReplayTutorial, onBack }: SettingsViewP
               </div>
               <IconChevronRight size={18} className="text-foreground/30" />
             </button>
+
+            <button
+              onClick={async () => {
+                if ('caches' in window) {
+                  const keys = await caches.keys();
+                  await Promise.all(keys.map(key => caches.delete(key)));
+                }
+                if ('serviceWorker' in navigator) {
+                  const regs = await navigator.serviceWorker.getRegistrations();
+                  for (let reg of regs) {
+                    await reg.unregister();
+                  }
+                }
+                try { localStorage.removeItem('careroute_pwa_install_dismissed'); } catch {}
+                window.location.href = window.location.pathname + '?t=' + Date.now();
+              }}
+              className="w-full flex items-center justify-between p-4 hover:bg-red-500/10 transition-colors active:bg-red-500/20"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-[10px] bg-red-500/10 flex items-center justify-center text-red-500"><IconRefresh size={18} /></div>
+                <div className="flex flex-col items-start">
+                  <span className="font-bold text-[16px] tracking-tight text-red-500">앱 데이터 초기화 및 강력 새로고침</span>
+                  <span className="text-[12px] text-foreground/50 font-bold">지도 화면 등에서 오류가 발생할 때 사용</span>
+                </div>
+              </div>
+            </button>
+
           </div>
         </section>
 
