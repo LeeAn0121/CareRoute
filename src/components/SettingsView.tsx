@@ -61,25 +61,24 @@ export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="absolute inset-0 overflow-y-auto px-5 pt-16 pb-32 bg-background/80 backdrop-blur-3xl text-foreground transition-colors duration-500"
+      className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-surface-muted/50 supports-[backdrop-filter]:bg-surface-muted/30 backdrop-blur-[40px] saturate-200 text-foreground transition-colors duration-500"
     >
-      <div className="mb-8">
-        <h2 className="text-3xl font-black tracking-tight text-primary">설정</h2>
-        <p className="text-[15px] font-semibold text-foreground/50 mt-1">앱 환경을 내 취향에 맞게 꾸며보세요.</p>
+      <div className="mb-8 px-2">
+        <h2 className="text-[34px] font-black tracking-tighter text-foreground">설정</h2>
       </div>
 
       <div className="space-y-8">
         {/* Appearance Settings */}
+        {/* Appearance Settings */}
         <section>
-          <div className="flex items-center gap-2.5 mb-4">
-            <IconPalette size={20} className="text-primary" />
-            <h3 className="font-bold text-lg text-foreground/80">화면 및 테마</h3>
+          <div className="px-4 mb-2">
+            <span className="text-[13px] font-bold text-foreground/50 uppercase tracking-wider">화면 및 테마</span>
           </div>
           
-          <div className="bg-surface rounded-2xl shadow-sm border border-surface-border p-5 space-y-6">
-            <div>
-              <p className="text-sm font-bold text-foreground/60 mb-3">모드 설정</p>
-              <div className="flex p-1 bg-surface-muted rounded-xl">
+          <div className="bg-surface/80 supports-[backdrop-filter]:bg-surface/50 backdrop-blur-2xl rounded-[24px] shadow-[0_8px_24px_rgba(0,0,0,0.04)] border border-surface-border/50 overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-surface-border/50">
+              <p className="text-[14px] font-bold text-foreground/70 mb-3">모드 설정</p>
+              <div className="flex p-1 bg-foreground/[0.04] rounded-[18px]">
                 {[
                   { id: 'light', label: '라이트', icon: <IconSun size={18} /> },
                   { id: 'dark', label: '다크', icon: <IconMoonStars size={18} /> },
@@ -88,9 +87,9 @@ export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
                   <button
                     key={t.id}
                     onClick={() => setTheme(t.id)}
-                    className={`flex-1 py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${
+                    className={`flex-1 py-2.5 rounded-[14px] font-bold text-[14px] flex items-center justify-center gap-1.5 transition-all ${
                       theme === t.id 
-                        ? 'bg-surface text-primary shadow-sm' 
+                        ? 'bg-surface text-foreground shadow-[0_4px_12px_rgba(0,0,0,0.08)]' 
                         : 'text-foreground/50 hover:text-foreground/80'
                     }`}
                   >
@@ -101,18 +100,18 @@ export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
               </div>
             </div>
 
-            <div>
-              <p className="text-sm font-bold text-foreground/60 mb-3">전체 시스템 테마 컬러</p>
+            <div className="p-4">
+              <p className="text-[14px] font-bold text-foreground/70 mb-3">테마 컬러</p>
               <div className="grid grid-cols-3 gap-3">
                 {colorThemes.map(t => (
                   <button
                     key={t.id}
                     onClick={() => handleColorThemeChange(t.id)}
-                    className={`relative flex flex-col items-center justify-center py-4 rounded-xl border-2 transition-all gap-2 ${
-                      colorTheme === t.id ? 'border-primary bg-primary/5' : 'border-surface-border bg-surface hover:bg-surface-muted'
+                    className={`relative flex flex-col items-center justify-center py-4 rounded-[20px] transition-all gap-2 ${
+                      colorTheme === t.id ? 'bg-primary/10 ring-2 ring-primary ring-inset' : 'bg-foreground/[0.02] hover:bg-foreground/[0.06]'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-full shadow-md border-2 border-white/50 ${t.color}`} />
+                    <div className={`w-8 h-8 rounded-full shadow-md border-2 border-white/20 ${t.color}`} />
                     <span className={`text-[13px] font-bold ${colorTheme === t.id ? 'text-primary' : 'text-foreground/70'}`}>
                       {t.name}
                     </span>
@@ -125,47 +124,49 @@ export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
 
         {/* Permissions */}
         <section>
-          <div className="flex items-center gap-2.5 mb-4">
-            <IconShieldLock size={20} className="text-primary" />
-            <h3 className="font-bold text-lg text-foreground/80">개인정보 및 권한</h3>
+          <div className="px-4 mb-2 mt-6">
+            <span className="text-[13px] font-bold text-foreground/50 uppercase tracking-wider">개인정보 및 권한</span>
           </div>
-          <div className="bg-surface rounded-2xl shadow-sm border border-surface-border overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-surface-border">
-              <span className="font-semibold text-[15px]">위치 정보 (내 위치 표시)</span>
+          <div className="bg-surface/80 supports-[backdrop-filter]:bg-surface/50 backdrop-blur-2xl rounded-[24px] shadow-[0_8px_24px_rgba(0,0,0,0.04)] border border-surface-border/50 overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-surface-border/50">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500"><IconShieldLock size={18}/></div>
+                <span className="font-bold text-[16px] tracking-tight">위치 정보</span>
+              </div>
               {translatePerm(locationPerm)}
             </div>
             <div className="flex items-center justify-between p-4">
-              <span className="font-semibold text-[15px]">알림 (방문 시간 안내)</span>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500"><IconShieldLock size={18}/></div>
+                <span className="font-bold text-[16px] tracking-tight">알림</span>
+              </div>
               {translatePerm(notifPerm)}
             </div>
           </div>
-          {(locationPerm === 'denied' || notifPerm === 'denied') && (
-            <p className="text-[13px] text-foreground/50 mt-3 px-2 font-medium">
-              * 거부된 권한은 기기의 브라우저 설정에서 직접 허용해야 합니다.
-            </p>
-          )}
         </section>
 
         {/* App Info & Github */}
         <section>
-          <div className="flex items-center gap-2.5 mb-4">
-            <IconBrandGithub size={20} className="text-primary" />
-            <h3 className="font-bold text-lg text-foreground/80">앱 정보 및 고객센터</h3>
+          <div className="px-4 mb-2 mt-6">
+            <span className="text-[13px] font-bold text-foreground/50 uppercase tracking-wider">앱 정보 및 고객센터</span>
           </div>
           
-          <div className="bg-surface/70 backdrop-blur-xl rounded-2xl shadow-sm border border-surface-border overflow-hidden">
+          <div className="bg-surface/80 supports-[backdrop-filter]:bg-surface/50 backdrop-blur-2xl rounded-[24px] shadow-[0_8px_24px_rgba(0,0,0,0.04)] border border-surface-border/50 overflow-hidden flex flex-col">
             <a
               href="https://github.com/LeeAn0121/CareRoute/releases"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-between p-4 hover:bg-surface-muted transition-colors border-b border-surface-border"
+              className="flex items-center justify-between p-4 hover:bg-foreground/[0.04] transition-colors border-b border-surface-border/50 active:bg-foreground/[0.08]"
             >
-              <div className="flex flex-col">
-                <span className="font-bold text-[15px]">현재 버전 (v1.0.0)</span>
-                <span className="text-[12px] text-foreground/50 font-medium">업데이트 노트 확인하기</span>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-[10px] bg-foreground flex items-center justify-center text-surface"><IconBrandGithub size={18} /></div>
+                <div className="flex flex-col">
+                  <span className="font-bold text-[16px] tracking-tight">버전 정보 (v1.0.0)</span>
+                  <span className="text-[12px] text-foreground/50 font-bold">업데이트 노트 확인</span>
+                </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[12px] font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full">최신</span>
+                <span className="text-[12px] font-bold text-accent bg-accent/10 px-2.5 py-1 rounded-full">최신 버전</span>
                 <IconChevronRight size={18} className="text-foreground/30" />
               </div>
             </a>
@@ -174,43 +175,29 @@ export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
               href="https://github.com/LeeAn0121/CareRoute/issues/new"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-between p-4 hover:bg-surface-muted transition-colors border-b border-surface-border"
+              className="flex items-center justify-between p-4 hover:bg-foreground/[0.04] transition-colors border-b border-surface-border/50 active:bg-foreground/[0.08]"
             >
               <div className="flex items-center gap-3">
-                <IconBug size={20} className="text-red-500" />
-                <span className="font-bold text-[15px]">버그 제보 및 기능 제안</span>
+                <div className="w-8 h-8 rounded-[10px] bg-red-500/10 flex items-center justify-center text-red-500"><IconBug size={18} /></div>
+                <span className="font-bold text-[16px] tracking-tight">버그 제보 및 기능 제안</span>
               </div>
               <IconChevronRight size={18} className="text-foreground/30" />
             </a>
             
             <button
               onClick={onReplayTutorial}
-              className="w-full flex items-center justify-between p-4 hover:bg-surface-muted transition-colors"
+              className="w-full flex items-center justify-between p-4 hover:bg-foreground/[0.04] transition-colors active:bg-foreground/[0.08]"
             >
               <div className="flex items-center gap-3">
-                <IconHelp size={20} className="text-primary" />
-                <span className="font-bold text-[15px]">앱 사용법 (가이드 투어) 다시 보기</span>
+                <div className="w-8 h-8 rounded-[10px] bg-primary/10 flex items-center justify-center text-primary"><IconHelp size={18} /></div>
+                <span className="font-bold text-[16px] tracking-tight">앱 사용 가이드 다시 보기</span>
               </div>
               <IconChevronRight size={18} className="text-foreground/30" />
             </button>
           </div>
         </section>
 
-        {/* Removed redundant Support section */}
-        <section className="hidden">
-          <div className="bg-surface rounded-2xl shadow-sm border border-surface-border overflow-hidden">
-            <button
-              onClick={onReplayTutorial}
-              className="w-full flex items-center justify-between p-4 hover:bg-surface-muted transition-colors active:bg-surface-muted/80"
-            >
-              <div className="flex items-center gap-3">
-                <IconHelp size={22} className="text-primary" />
-                <span className="font-bold text-[15px]">앱 사용법 (가이드 투어) 다시 보기</span>
-              </div>
-              <IconChevronRight size={20} className="text-foreground/30" />
-            </button>
-          </div>
-        </section>
+        
       </div>
     </motion.div>
   );
