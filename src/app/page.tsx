@@ -179,6 +179,61 @@ function MainApp() {
   const [showRegions, setShowRegions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentAddress, setCurrentAddress] = useState('위치 파악 중...');
+
+  // Reverse Geocode for Top Bar Address
+  useEffect(() => {
+    let isMounted = true;
+    if (window.naver && window.naver.maps && window.naver.maps.Service && mapCenter) {
+      window.naver.maps.Service.reverseGeocode({
+        coords: new window.naver.maps.LatLng(mapCenter.lat, mapCenter.lng),
+        orders: [
+          window.naver.maps.Service.OrderType.ROAD_ADDR,
+          window.naver.maps.Service.OrderType.ADDR
+        ].join(',')
+      }, function(status: any, response: any) {
+        if (status === window.naver.maps.Service.Status.OK && isMounted) {
+          const result = response.v2;
+          // Use roadAddress if available, otherwise jibunAddress
+          const roadAddr = result.address?.roadAddress;
+          const jibunAddr = result.address?.jibunAddress;
+          let finalAddr = roadAddr || jibunAddr;
+          
+          if (!finalAddr && result.results && result.results.length > 0) {
+             // Fallback: construct it manually from results if SDK didn't provide address object
+             for (const res of result.results) {
+               const region = res.region;
+               const land = res.land;
+               if (!region) continue;
+               
+               const sido = region.area1?.name || '';
+               const sigungu = region.area2?.name || '';
+               const dong = region.area3?.name || '';
+               
+               if (res.name === 'roadaddr' && land) {
+                 const roadName = land.name || '';
+                 const buildingNum = land.number1 || '';
+                 finalAddr = `${sido} ${sigungu} ${roadName} ${buildingNum}`.trim();
+                 break;
+               } else if (res.name === 'addr' && land) {
+                 const landNum1 = land.number1 || '';
+                 const landNum2 = land.number2 ? `-${land.number2}` : '';
+                 finalAddr = `${sido} ${sigungu} ${dong} ${landNum1}${landNum2}`.trim();
+               }
+               
+               if (!finalAddr) {
+                 finalAddr = `${sido} ${sigungu} ${dong}`.trim();
+               }
+             }
+          }
+          
+          if (finalAddr) {
+            setCurrentAddress(finalAddr);
+          }
+        }
+      });
+    }
+    return () => { isMounted = false; };
+  }, [mapCenter]);
   const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring'>('all');
   const [showRegionFilter, setShowRegionFilter] = useState(false);
   const [sortMode, setSortMode] = useState<'time' | 'name' | 'distance'>('name');
@@ -1206,8 +1261,8 @@ function MainApp() {
               <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center">
                 <IconMapPin size={14} className="text-primary" />
               </div>
-              <span className="text-[15px] font-black tracking-tight text-foreground/90">
-                {selectedSido ? `${sidos.find(s=>s.code===selectedSido)?.name || ''} ${sigungus.find(s=>s.code===selectedSigungu)?.name?.split(' ').pop() || ''} ${dongs.find(s=>s.code===selectedDong)?.name?.split(' ').pop() || ''}`.trim() : '전체 지역 (검색하려면 탭하세요)'}
+              <span className="text-[15px] font-black tracking-tight text-foreground/90 truncate max-w-[200px] sm:max-w-[300px]">
+                {selectedSido ? `${sidos.find(s=>s.code===selectedSido)?.name || ''} ${sigungus.find(s=>s.code===selectedSigungu)?.name?.split(' ').pop() || ''} ${dongs.find(s=>s.code===selectedDong)?.name?.split(' ').pop() || ''}`.trim() : currentAddress}
               </span>
             </div>
             <IconChevronRight size={18} className="text-foreground/40" />
