@@ -158,10 +158,79 @@ function MainApp() {
   const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring'>('all');
   const [showRegionFilter, setShowRegionFilter] = useState(false);
   const [sortMode, setSortMode] = useState<'time' | 'name' | 'distance'>('name');
+  const [districtWeathers, setDistrictWeathers] = useState<{name: string; lat: number; lng: number; emoji: string; temp: string}[]>([]);
   const mapRef = useRef<any>(null);
   const isAutoSelectRef = useRef(false);
   const regionsLoaded = useRef(false);
   const regionLabelsRef = useRef<any[]>([]);
+
+  // 전역 행정구역(구/동) 별 날씨 패치 (지도 위 오버레이용)
+  useEffect(() => {
+    if (markers.length === 0) return;
+    
+    let isMounted = true;
+    const fetchMapWeathers = async () => {
+      // 1. 모든 마커의 시군구(혹은 동) 추출하여 중심 좌표 계산
+      const groups = new Map<string, { lat: number; lng: number; count: number }>();
+      markers.forEach(m => {
+        if (!m.address) return;
+        const parts = m.address.split(' ');
+        if (parts.length < 2) return;
+        let region = parts[1];
+        if (parts[0].includes('세종') || parts[0].includes('제주')) region = parts[0];
+        
+        const group = groups.get(region);
+        if (group) {
+          group.lat += m.lat;
+          group.lng += m.lng;
+          group.count += 1;
+        } else {
+          groups.set(region, { lat: m.lat, lng: m.lng, count: 1 });
+        }
+      });
+      
+      const uniqueRegions = Array.from(groups.entries()).map(([name, data]) => ({
+        name,
+        lat: data.lat / data.count,
+        lng: data.lng / data.count
+      })).slice(0, 10); // 최대 10개 구역까지만 (API 길이 제한 및 렌더링 최적화)
+
+      if (uniqueRegions.length === 0) return;
+
+      const lats = uniqueRegions.map(r => r.lat).join(',');
+      const lngs = uniqueRegions.map(r => r.lng).join(',');
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&current=temperature_2m,weather_code&timezone=Asia%2FSeoul`;
+      
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!isMounted) return;
+        
+        const dataArray = Array.isArray(data) ? data : [data];
+        const results = dataArray.map((item, idx) => {
+          let emoji = "☀️";
+          const wmo = item.current?.weather_code || 0;
+          if ([51,53,55,61,63,65,80,81,82,95,96,99].includes(wmo)) emoji = "🌧️";
+          if ([71,73,75,77,85,86].includes(wmo)) emoji = "❄️";
+          
+          return {
+            name: uniqueRegions[idx].name,
+            lat: uniqueRegions[idx].lat,
+            lng: uniqueRegions[idx].lng,
+            emoji,
+            temp: Math.round(item.current?.temperature_2m || 0).toString()
+          };
+        });
+        setDistrictWeathers(results);
+      } catch (err) {
+        console.error("Map Weather fetch failed", err);
+      }
+    };
+    
+    // 약간의 지연 후 호출하여 초기 로딩 부하 분산
+    const timer = setTimeout(fetchMapWeathers, 1500);
+    return () => { isMounted = false; clearTimeout(timer); };
+  }, [markers]);
 
   // Programmatic Pan & Zoom (React State -> Map API)
   useEffect(() => {
@@ -1225,6 +1294,24 @@ function MainApp() {
                 defaultCenter={mapCenter}
                 defaultZoom={mapZoom}
               >
+                                {/* 전역 행정구역 날씨 맵 마커 (방해되지 않도록 작고 반투명하게) */}
+                {districtWeathers.map((dw, i) => (
+                  <Marker
+                    key={`weather-${i}`}
+                    position={{ lat: dw.lat, lng: dw.lng }}
+                    zIndex={10} // 어르신 마커보다 무조건 아래에 깔리게
+                    icon={{
+                      content: `
+                        <div class="flex items-center gap-1.5 px-2 py-1 bg-surface/60 backdrop-blur-md rounded-full shadow-sm border border-surface-border/30 text-[11px] font-black text-foreground/60 pointer-events-none transition-opacity" style="opacity: 0.85;">
+                          <span class="text-[12px]">${dw.emoji}</span>
+                          <span>${dw.name} ${dw.temp}°C</span>
+                        </div>
+                      `,
+                      anchor: { x: 40, y: 15 } // 약간 오프셋을 줘서 중앙이 가려지지 않게
+                    }}
+                  />
+                ))}
+
                 {markers.map((marker) => {
                   const isSelected = selectedRecipient?.id === marker.id;
                   return (
