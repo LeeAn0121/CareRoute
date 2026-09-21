@@ -249,7 +249,7 @@ export function Modal({
                 transition={{ duration: 0.15 }}
               />
             </Dialog.Overlay>
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+            <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
               <Dialog.Content
                 asChild
                 onOpenAutoFocus={(e) => {

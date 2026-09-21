@@ -178,6 +178,7 @@ function MainApp() {
   const [isOffline, setIsOffline] = useState(false);
   const [showRegions, setShowRegions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentAddress, setCurrentAddress] = useState('위치 파악 중...');
   const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring'>('all');
   const [showRegionFilter, setShowRegionFilter] = useState(false);
   const [sortMode, setSortMode] = useState<'time' | 'name' | 'distance'>('name');
