@@ -875,7 +875,6 @@ function MainApp() {
       if (type === 'kakao') {
         window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
       } else if (type === 'tmap') {
-        alert("T맵은 PC 웹 길찾기를 지원하지 않아 네이버 지도로 대체 연결됩니다.");
         window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
       } else {
         window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
@@ -896,8 +895,8 @@ function MainApp() {
         window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
       }, 1500);
     } else if (type === 'kakao') {
-      // 카카오내비 딥링크 공식 파라미터 규격 적용 (ep가 아니라 x, y를 사용해야 함)
-      window.location.href = `kakaonavi://navigate?name=${encName}&x=${lng}&y=${lat}&coord_type=wgs84`;
+      // 카카오내비 앱의 URI 스키마가 SDK 없이 불안정하므로 카카오맵(자동차 길찾기)으로 대체합니다.
+      window.location.href = `kakaomap://route?ep=${lat},${lng}&by=CAR`;
       fallbackTimeout = setTimeout(() => {
         window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
       }, 1500);
@@ -1908,9 +1907,9 @@ function MainApp() {
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
                     <div className="w-12 h-12 rounded-[14px] shadow-sm bg-white overflow-hidden border border-surface-border flex items-center justify-center p-1.5">
-                      <img src="https://map.kakao.com/favicon.ico" alt="카카오내비" className="w-full h-full object-contain" />
+                      <img src="https://map.kakao.com/favicon.ico" alt="카카오맵" className="w-full h-full object-contain" />
                     </div>
-                    <span className="text-[10px] font-bold text-foreground/70">카카오내비</span>
+                    <span className="text-[10px] font-bold text-foreground/70">카카오맵</span>
                   </button>
 
                   <button
