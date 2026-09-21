@@ -866,47 +866,36 @@ function MainApp() {
   };
 
   const handleNavi = (type: 'tmap' | 'kakao' | 'naver', lat: number, lng: number, address: string, detailAddress?: string | null) => {
-    // 상세 주소(동/호수)가 딥링크에 들어가면 앱들이 위치(좌표)보다 주소 텍스트 검색을 우선시하다가 
-    // 실패하는 경우가 많아, 내비 목적지 명칭은 순수 도로명/지번 주소만 넘기거나 좌표 중심으로 구성합니다.
-    const encName = encodeURIComponent(address);
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
+    const encName = encodeURIComponent('도착지');
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isMobile = isAndroid || isIOS;
+
     if (!isMobile) {
       if (type === 'kakao') {
         window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
-      } else if (type === 'tmap') {
-        window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
       } else {
         window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
       }
       return;
     }
 
-    // 모바일 딥링크 실행 후 앱이 성공적으로 열리면(브라우저가 백그라운드로 가면) 폴백 취소
-    let fallbackTimeout: NodeJS.Timeout;
-    const clearFallback = () => clearTimeout(fallbackTimeout);
-    window.addEventListener('blur', clearFallback, { once: true });
-    window.addEventListener('pagehide', clearFallback, { once: true });
-    window.addEventListener('visibilitychange', () => { if (document.hidden) clearFallback(); }, { once: true });
+    // 모바일 딥링크: 브라우저 타이머(setTimeout) 폴백은 '앱 열기' 확인창 대기 시간과 겹쳐 오작동(네이버 맵 강제 이동 등)을 유발하므로 모두 제거하고,
+    // OS 단에서 확실하게 처리되는 Intent 및 각 사의 공식 Universal Web Link로 완전 대체합니다.
 
-    if (type === 'tmap') {
-      const safeName = encodeURIComponent('도착지');
-      window.location.href = `tmap://route?goalname=${safeName}&goalx=${lng}&goaly=${lat}`;
-      fallbackTimeout = setTimeout(() => {
-        window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
-      }, 1500);
-    } else if (type === 'kakao') {
-      // 카카오내비 앱의 URI 스키마가 SDK 없이 불안정하므로 카카오내비(자동차 길찾기)으로 대체합니다.
-      window.location.href = `kakaomap://route?ep=${lat},${lng}&by=CAR`;
-      fallbackTimeout = setTimeout(() => {
-        window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
-      }, 1500);
+    if (type === 'kakao') {
+      // 카카오 공식 웹-투-앱 브릿지 링크. 앱이 있으면 자동으로 열리고 없으면 완벽한 웹 길찾기로 연결됨
+      window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
     } else if (type === 'naver') {
-      const safeName = encodeURIComponent('도착지');
-      window.location.href = `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${safeName}&appname=com.careroute`;
-      fallbackTimeout = setTimeout(() => {
-        window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
-      }, 1500);
+      // 네이버 공식 앱 구동 유니버설 링크
+      window.location.href = `https://app.map.naver.com/launchApp/?version=11&menu=navigation&elat=${lat}&elng=${lng}&etitle=${encName}`;
+    } else if (type === 'tmap') {
+      // T맵은 공식 유니버설 링크가 없으므로 안드로이드는 확실한 Intent를, iOS는 커스텀 스키마를 직접 호출
+      if (isAndroid) {
+        window.location.href = `intent://route?goalname=${encName}&goalx=${lng}&goaly=${lat}#Intent;scheme=tmap;package=com.skt.tmap.ku;end;`;
+      } else {
+        window.location.href = `tmap://route?goalname=${encName}&goalx=${lng}&goaly=${lat}`;
+      }
     }
   };
 
