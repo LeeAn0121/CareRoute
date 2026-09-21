@@ -1890,8 +1890,8 @@ function MainApp() {
                     onClick={() => handleNavi('tmap', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    <div className="w-12 h-12 rounded-[14px] bg-[#000000] shadow-md flex items-center justify-center border border-black/10">
-                      <span className="text-white font-black text-xl italic tracking-tighter pr-1">T</span>
+                    <div className="w-12 h-12 rounded-[14px] shadow-md overflow-hidden border border-black/5">
+                      <img src="/navi/tmap.png" alt="T맵" className="w-full h-full object-cover" />
                     </div>
                     <span className="text-[10px] font-bold text-foreground/70">T맵</span>
                   </button>
@@ -1900,11 +1900,8 @@ function MainApp() {
                     onClick={() => handleNavi('kakao', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    <div className="w-12 h-12 rounded-[14px] bg-[#FEE500] shadow-md flex items-center justify-center border border-[#FEE500]/50 relative">
-                      {/* 카카오 심볼 형태 */}
-                      <div className="w-6 h-5 bg-[#3C1E1E] rounded-[10px] relative">
-                        <div className="absolute -bottom-1 left-1.5 w-2 h-2 bg-[#3C1E1E] rotate-45"></div>
-                      </div>
+                    <div className="w-12 h-12 rounded-[14px] shadow-md overflow-hidden border border-black/5">
+                      <img src="/navi/kakao.png" alt="카카오내비" className="w-full h-full object-cover" />
                     </div>
                     <span className="text-[10px] font-bold text-foreground/70">카카오내비</span>
                   </button>
@@ -1913,8 +1910,8 @@ function MainApp() {
                     onClick={() => handleNavi('naver', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    <div className="w-12 h-12 rounded-[14px] bg-[#03C75A] shadow-md flex items-center justify-center border border-[#03C75A]/50">
-                      <span className="text-white font-black text-lg uppercase">N</span>
+                    <div className="w-12 h-12 rounded-[14px] shadow-md overflow-hidden border border-black/5">
+                      <img src="/navi/naver.png" alt="네이버지도" className="w-full h-full object-cover" />
                     </div>
                     <span className="text-[10px] font-bold text-foreground/70">네이버지도</span>
                   </button>
