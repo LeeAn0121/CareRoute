@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { IconPalette, IconHelp, IconShieldLock, IconChevronRight, IconMoonStars, IconSun, IconDeviceDesktop } from '@tabler/icons-react';
+import { IconPalette, IconHelp, IconShieldLock, IconChevronRight, IconMoonStars, IconSun, IconDeviceDesktop, IconBrandGithub, IconBug } from '@tabler/icons-react';
 import { useTheme } from 'next-themes';
 import { motion } from 'motion/react';
 
@@ -61,7 +61,7 @@ export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="absolute inset-0 overflow-y-auto px-5 pt-16 pb-32 bg-background text-foreground transition-colors duration-500"
+      className="absolute inset-0 overflow-y-auto px-5 pt-16 pb-32 bg-background/80 backdrop-blur-3xl text-foreground transition-colors duration-500"
     >
       <div className="mb-8">
         <h2 className="text-3xl font-black tracking-tight text-primary">설정</h2>
@@ -146,8 +146,58 @@ export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
           )}
         </section>
 
-        {/* Support */}
+        {/* App Info & Github */}
         <section>
+          <div className="flex items-center gap-2.5 mb-4">
+            <IconBrandGithub size={20} className="text-primary" />
+            <h3 className="font-bold text-lg text-foreground/80">앱 정보 및 고객센터</h3>
+          </div>
+          
+          <div className="bg-surface/70 backdrop-blur-xl rounded-2xl shadow-sm border border-surface-border overflow-hidden">
+            <a
+              href="https://github.com/LeeAn0121/CareRoute/releases"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between p-4 hover:bg-surface-muted transition-colors border-b border-surface-border"
+            >
+              <div className="flex flex-col">
+                <span className="font-bold text-[15px]">현재 버전 (v1.0.0)</span>
+                <span className="text-[12px] text-foreground/50 font-medium">업데이트 노트 확인하기</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full">최신</span>
+                <IconChevronRight size={18} className="text-foreground/30" />
+              </div>
+            </a>
+            
+            <a
+              href="https://github.com/LeeAn0121/CareRoute/issues/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between p-4 hover:bg-surface-muted transition-colors border-b border-surface-border"
+            >
+              <div className="flex items-center gap-3">
+                <IconBug size={20} className="text-red-500" />
+                <span className="font-bold text-[15px]">버그 제보 및 기능 제안</span>
+              </div>
+              <IconChevronRight size={18} className="text-foreground/30" />
+            </a>
+            
+            <button
+              onClick={onReplayTutorial}
+              className="w-full flex items-center justify-between p-4 hover:bg-surface-muted transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <IconHelp size={20} className="text-primary" />
+                <span className="font-bold text-[15px]">앱 사용법 (가이드 투어) 다시 보기</span>
+              </div>
+              <IconChevronRight size={18} className="text-foreground/30" />
+            </button>
+          </div>
+        </section>
+
+        {/* Removed redundant Support section */}
+        <section className="hidden">
           <div className="bg-surface rounded-2xl shadow-sm border border-surface-border overflow-hidden">
             <button
               onClick={onReplayTutorial}

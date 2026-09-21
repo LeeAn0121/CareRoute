@@ -1747,7 +1747,7 @@ function MainApp() {
               type="button"
               onClick={handleMyLocation}
               disabled={isLocating}
-              className="w-10 h-10 mt-1 flex items-center justify-center rounded-2xl shadow-lg bg-surface transition active:scale-95 disabled:opacity-60"
+              className="w-10 h-10 mt-1 flex items-center justify-center rounded-full shadow-lg bg-surface/80 backdrop-blur-xl border border-surface-border/50 transition active:scale-95 disabled:opacity-60"
             >
               {isLocating ? (
                 <Spinner size={18} className="text-primary" />
@@ -1765,7 +1765,7 @@ function MainApp() {
         type="button"
         aria-label="어르신 추가"
         onClick={() => { setEditingRecipient(null); setIsModalOpen(true); }}
-        className="absolute bottom-[100px] right-6 z-40 w-14 h-14 flex items-center justify-center rounded-2xl shadow-xl shadow-primary/20 bg-primary text-primary-foreground border-2 border-white/10 transition-all hover:scale-105 active:scale-95 backdrop-blur-md"
+        className="absolute bottom-[100px] right-6 z-40 w-14 h-14 flex items-center justify-center rounded-full shadow-xl shadow-primary/30 bg-primary/90 text-primary-foreground border border-white/20 transition-all hover:scale-105 active:scale-95 backdrop-blur-2xl"
       >
         <IconPlus size={32} strokeWidth={2.5} />
       </button>
@@ -1924,7 +1924,7 @@ function MainApp() {
 
       {/* Redesigned Bottom Navigation */}
       <div className="absolute bottom-6 left-4 right-4 z-50 px-2 pb-safe">
-        <div id="tour-bottom-nav" className="rounded-3xl overflow-hidden shadow-2xl shadow-foreground/10 bg-surface/95 backdrop-blur-xl border border-surface-border/60">
+        <div id="tour-bottom-nav" className="rounded-[32px] overflow-hidden shadow-2xl shadow-black/10 bg-surface/60 backdrop-blur-[32px] border border-surface-border/50 supports-[backdrop-filter]:bg-surface/50">
           <div className="flex h-16">
           {([
             { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
