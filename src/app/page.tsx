@@ -83,21 +83,7 @@ const renderedFeatureKeys: any = { sido: new Set(), sigungu: new Set(), dong: ne
 let currentRenderedLevel = ''; // Track currently rendered level to prevent re-rendering
 
 function MainApp() {
-  const getRegionNameByZoom = (address: string, zoom: number) => {
-    if (!address) return '';
-    const parts = address.split(' ');
-    if (parts.length === 0) return '';
-    
-    if (zoom <= 10) {
-      return parts[0];
-    } else if (zoom <= 13) {
-      if (parts[0].includes('세종')) return parts[0];
-      return parts[1] || parts[0];
-    } else {
-      if (parts[0].includes('세종')) return parts[1] || parts[0];
-      return parts[2] || parts[1] || parts[0];
-    }
-  };
+
   // 내 위치 추적용 ID
   const watchIdRef = useRef<number | null>(null);
 
@@ -189,77 +175,12 @@ function MainApp() {
   const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring'>('all');
   const [showRegionFilter, setShowRegionFilter] = useState(false);
   const [sortMode, setSortMode] = useState<'time' | 'name' | 'distance'>('name');
-  const [districtWeathers, setDistrictWeathers] = useState<{name: string; lat: number; lng: number; emoji: string; temp: string}[]>([]);
   const mapRef = useRef<any>(null);
   const isAutoSelectRef = useRef(false);
   const regionsLoaded = useRef(false);
   const regionLabelsRef = useRef<any[]>([]);
 
-  // 전역 행정구역(구/동) 별 날씨 패치 (지도 위 오버레이용)
-  useEffect(() => {
-    if (markers.length === 0) return;
-    
-    let isMounted = true;
-    const fetchMapWeathers = async () => {
-      // 1. 현재 줌 레벨에 맞는 행정구역(시도/시군구/동) 추출
-      const groups = new Map<string, { lat: number; lng: number; count: number }>();
-      markers.forEach(m => {
-        if (!m.address) return;
-        const region = getRegionNameByZoom(m.address, mapZoom);
-        if (!region) return;
-        
-        const group = groups.get(region);
-        if (group) {
-          group.lat += m.lat;
-          group.lng += m.lng;
-          group.count += 1;
-        } else {
-          groups.set(region, { lat: m.lat, lng: m.lng, count: 1 });
-        }
-      });
-      
-      const uniqueRegions = Array.from(groups.entries()).map(([name, data]) => ({
-        name,
-        lat: data.lat / data.count,
-        lng: data.lng / data.count
-      })).slice(0, 10); // 최대 10개 구역까지만 (API 길이 제한 및 렌더링 최적화)
 
-      if (uniqueRegions.length === 0) return;
-
-      const lats = uniqueRegions.map(r => r.lat).join(',');
-      const lngs = uniqueRegions.map(r => r.lng).join(',');
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&current=temperature_2m,weather_code&timezone=Asia%2FSeoul`;
-      
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-        if (!isMounted) return;
-        
-        const dataArray = Array.isArray(data) ? data : [data];
-        const results = dataArray.map((item, idx) => {
-          let emoji = "☀️";
-          const wmo = item.current?.weather_code || 0;
-          if ([51,53,55,61,63,65,80,81,82,95,96,99].includes(wmo)) emoji = "🌧️";
-          if ([71,73,75,77,85,86].includes(wmo)) emoji = "❄️";
-          
-          return {
-            name: uniqueRegions[idx].name,
-            lat: uniqueRegions[idx].lat,
-            lng: uniqueRegions[idx].lng,
-            emoji,
-            temp: Math.round(item.current?.temperature_2m || 0).toString()
-          };
-        });
-        setDistrictWeathers(results);
-      } catch (err) {
-        console.error("Map Weather fetch failed", err);
-      }
-    };
-    
-    // 약간의 지연 후 호출하여 초기 로딩 부하 분산
-    const timer = setTimeout(fetchMapWeathers, 1500);
-    return () => { isMounted = false; clearTimeout(timer); };
-  }, [markers, mapZoom <= 10 ? 0 : mapZoom <= 13 ? 1 : 2]); // 줌 레벨 구간(시도/시군구/동)이 바뀔 때만 재요청
 
   // 컴포넌트 언마운트 시 위치 추적 해제
   useEffect(() => {
@@ -967,44 +888,7 @@ function MainApp() {
   };
 
   // 오늘 방문 예정인지: 특정 날짜로 지정했거나, 반복 요일에 오늘 요일이 포함되면 해당
-  // 행정구역(시군구) 별로 어르신들(오늘 방문 예정자)의 마커 그룹핑하여 날씨 조회용으로 사용
-  const weatherRegions = useMemo(() => {
-    const todays = markers.filter(m => {
-      const now = new Date();
-      const d = new Date();
-      const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      if (m.notes === ymd) return true;
-      if (m.recurring_weekdays) return m.recurring_weekdays.split(',').map(Number).includes(now.getDay());
-      return false;
-    });
-    
-    // 만약 오늘 일정이 없으면 맵 중심을 기준으로 하나만 표시
-    if (todays.length === 0) {
-      return [{ name: '현재 위치', lat: mapCenter.lat, lng: mapCenter.lng }];
-    }
 
-    const groups = new Map();
-    todays.forEach(m => {
-      if (!m.address) return;
-      const regionName = getRegionNameByZoom(m.address, mapZoom);
-      if (!regionName) return;
-      
-      const group = groups.get(regionName);
-      if (group) {
-        group.lat += m.lat;
-        group.lng += m.lng;
-        group.count += 1;
-      } else {
-        groups.set(regionName, { lat: m.lat, lng: m.lng, count: 1 });
-      }
-    });
-    
-    return Array.from(groups.entries()).map(([name, data]) => ({
-      name,
-      lat: data.lat / data.count,
-      lng: data.lng / data.count
-    }));
-  }, [markers, mapCenter, mapZoom]);
 
   const isScheduledToday = (r: Recipient) => {
     const now = new Date();
@@ -1240,7 +1124,7 @@ function MainApp() {
         
 
 
-        <WeatherWidget regions={weatherRegions} />
+        <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
         {/* Region Selectors - Floating Glassmorphism Island */}
         
         {/* Region Filter Toggle Button */}
@@ -1347,24 +1231,6 @@ function MainApp() {
                 )}
                 
                 {/* 전역 행정구역 날씨 맵 마커 (방해되지 않도록 작고 반투명하게) */}
-                {/* 행정구역 보기(showRegions)가 켜져있거나, 지도를 많이 축소했을 때(mapZoom <= 12)만 날씨 표시하여 가림 방지 */}
-                {(showRegions || mapZoom <= 11) && districtWeathers.map((dw, i) => (
-                  <Marker
-                    key={`weather-${i}`}
-                    position={{ lat: dw.lat, lng: dw.lng }}
-                    zIndex={10} // 어르신 마커보다 무조건 아래에 깔리게
-                    icon={{
-                      content: `
-                        <div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface/95 backdrop-blur-xl rounded-full shadow-md shadow-foreground/10 border border-surface-border/80 text-[13px] font-black text-primary pointer-events-none">
-                          <span class="text-[15px] leading-none">${dw.emoji}</span>
-                          <span class="leading-none">${dw.name} ${dw.temp}°C</span>
-                        </div>
-                      `,
-                      anchor: { x: 50, y: 60 } // 마커들 무리에서 위쪽으로 멀찍이 띄워서 가림 방지
-                    }}
-                  />
-                ))}
-
                 {markers.map((marker) => {
                   const isSelected = selectedRecipient?.id === marker.id;
                   return (
