@@ -1302,9 +1302,9 @@ function MainApp() {
                     zIndex={10} // 어르신 마커보다 무조건 아래에 깔리게
                     icon={{
                       content: `
-                        <div class="flex items-center gap-1.5 px-2 py-1 bg-surface/60 backdrop-blur-md rounded-full shadow-sm border border-surface-border/30 text-[11px] font-black text-foreground/60 pointer-events-none transition-opacity" style="opacity: 0.85;">
-                          <span class="text-[12px]">${dw.emoji}</span>
-                          <span>${dw.name} ${dw.temp}°C</span>
+                        <div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface/95 backdrop-blur-xl rounded-full shadow-md shadow-foreground/10 border border-surface-border/80 text-[13px] font-black text-primary pointer-events-none">
+                          <span class="text-[15px] leading-none">${dw.emoji}</span>
+                          <span class="leading-none">${dw.name} ${dw.temp}°C</span>
                         </div>
                       `,
                       anchor: { x: 40, y: 15 } // 약간 오프셋을 줘서 중앙이 가려지지 않게
