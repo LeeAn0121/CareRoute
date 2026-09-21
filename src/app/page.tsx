@@ -866,11 +866,13 @@ function MainApp() {
   };
 
   const handleNavi = (type: 'tmap' | 'kakao' | 'naver', lat: number, lng: number, address: string, detailAddress?: string | null) => {
+    // POI 검색 실패를 방지하기 위해 도착지 명칭을 고정
     const encName = encodeURIComponent('도착지');
     const isAndroid = /Android/i.test(navigator.userAgent);
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isMobile = isAndroid || isIOS;
 
+    // PC 환경 (웹 브라우저 새 탭으로 길찾기 열기)
     if (!isMobile) {
       if (type === 'kakao') {
         window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
@@ -880,17 +882,20 @@ function MainApp() {
       return;
     }
 
-    // 모바일 딥링크: 브라우저 타이머(setTimeout) 폴백은 '앱 열기' 확인창 대기 시간과 겹쳐 오작동(네이버 맵 강제 이동 등)을 유발하므로 모두 제거하고,
-    // OS 단에서 확실하게 처리되는 Intent 및 각 사의 공식 Universal Web Link로 완전 대체합니다.
-
+    // 모바일 환경 (Android는 Intent로 완벽한 앱 실행 및 마켓 폴백 지원, iOS는 커스텀 스키마 직접 호출)
     if (type === 'kakao') {
-      // 카카오 공식 웹-투-앱 브릿지 링크. 앱이 있으면 자동으로 열리고 없으면 완벽한 웹 길찾기로 연결됨
-      window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
+      if (isAndroid) {
+        window.location.href = `intent://navigate?name=${encName}&x=${lng}&y=${lat}&coord_type=wgs84#Intent;scheme=kakaonavi;package=com.locnall.KimGiSa;end;`;
+      } else {
+        window.location.href = `kakaonavi://navigate?name=${encName}&x=${lng}&y=${lat}&coord_type=wgs84`;
+      }
     } else if (type === 'naver') {
-      // 네이버 공식 앱 구동 유니버설 링크
-      window.location.href = `https://app.map.naver.com/launchApp/?version=11&menu=navigation&elat=${lat}&elng=${lng}&etitle=${encName}`;
+      if (isAndroid) {
+        window.location.href = `intent://route/car?dlat=${lat}&dlng=${lng}&dname=${encName}&appname=com.careroute#Intent;scheme=nmap;package=com.nhn.android.nmap;end;`;
+      } else {
+        window.location.href = `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${encName}&appname=com.careroute`;
+      }
     } else if (type === 'tmap') {
-      // T맵은 공식 유니버설 링크가 없으므로 안드로이드는 확실한 Intent를, iOS는 커스텀 스키마를 직접 호출
       if (isAndroid) {
         window.location.href = `intent://route?goalname=${encName}&goalx=${lng}&goaly=${lat}#Intent;scheme=tmap;package=com.skt.tmap.ku;end;`;
       } else {
