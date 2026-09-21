@@ -860,6 +860,48 @@ function MainApp() {
   };
 
   // 오늘 방문 예정인지: 특정 날짜로 지정했거나, 반복 요일에 오늘 요일이 포함되면 해당
+  // 행정구역(시군구) 별로 어르신들(오늘 방문 예정자)의 마커 그룹핑하여 날씨 조회용으로 사용
+  const weatherRegions = useMemo(() => {
+    const todays = markers.filter(m => {
+      const now = new Date();
+      const d = new Date();
+      const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (m.notes === ymd) return true;
+      if (m.recurring_weekdays) return m.recurring_weekdays.split(',').map(Number).includes(now.getDay());
+      return false;
+    });
+    
+    // 만약 오늘 일정이 없으면 맵 중심을 기준으로 하나만 표시
+    if (todays.length === 0) {
+      return [{ name: '현재 위치', lat: mapCenter.lat, lng: mapCenter.lng }];
+    }
+
+    const groups = new Map();
+    todays.forEach(m => {
+      if (!m.address) return;
+      const parts = m.address.split(' ');
+      if (parts.length < 2) return;
+      // 두번째 단어(강남구, 종로구 등) 추출. 세종특별자치시처럼 시군구가 없는 경우는 첫번째 단어 사용
+      let gu = parts[1];
+      if (parts[0].includes('세종') || parts[0].includes('제주')) gu = parts[0];
+      
+      const group = groups.get(gu);
+      if (group) {
+        group.lat += m.lat;
+        group.lng += m.lng;
+        group.count += 1;
+      } else {
+        groups.set(gu, { lat: m.lat, lng: m.lng, count: 1 });
+      }
+    });
+    
+    return Array.from(groups.entries()).map(([name, data]) => ({
+      name,
+      lat: data.lat / data.count,
+      lng: data.lng / data.count
+    }));
+  }, [markers, mapCenter]);
+
   const isScheduledToday = (r: Recipient) => {
     const now = new Date();
     const ymd = todayYMD();
@@ -1094,7 +1136,7 @@ function MainApp() {
         
 
 
-        <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
+        <WeatherWidget regions={weatherRegions} />
         {/* Region Selectors - Floating Glassmorphism Island */}
         
         {/* Region Filter Toggle Button */}
