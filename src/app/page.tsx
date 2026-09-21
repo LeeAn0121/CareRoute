@@ -1295,7 +1295,8 @@ function MainApp() {
                 defaultZoom={mapZoom}
               >
                                 {/* 전역 행정구역 날씨 맵 마커 (방해되지 않도록 작고 반투명하게) */}
-                {districtWeathers.map((dw, i) => (
+                {/* 행정구역 보기(showRegions)가 켜져있거나, 지도를 많이 축소했을 때(mapZoom <= 12)만 날씨 표시하여 가림 방지 */}
+                {(showRegions || mapZoom <= 11) && districtWeathers.map((dw, i) => (
                   <Marker
                     key={`weather-${i}`}
                     position={{ lat: dw.lat, lng: dw.lng }}
@@ -1307,7 +1308,7 @@ function MainApp() {
                           <span class="leading-none">${dw.name} ${dw.temp}°C</span>
                         </div>
                       `,
-                      anchor: { x: 40, y: 15 } // 약간 오프셋을 줘서 중앙이 가려지지 않게
+                      anchor: { x: 50, y: 60 } // 마커들 무리에서 위쪽으로 멀찍이 띄워서 가림 방지
                     }}
                   />
                 ))}
