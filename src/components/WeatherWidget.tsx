@@ -9,7 +9,6 @@ interface WeatherWidgetProps {
 
 export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
   const [weather, setWeather] = useState<any>(null);
-  const [regionName, setRegionName] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,21 +44,6 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
             pm25: aqiData.current?.pm2_5 || 0,
           });
         }
-
-        if (window.naver && window.naver.maps && window.naver.maps.Service) {
-          window.naver.maps.Service.reverseGeocode({
-            coords: new window.naver.maps.LatLng(lat, lng),
-          }, function(status: any, response: any) {
-            if (status === window.naver.maps.Service.Status.OK && isMounted) {
-              const result = response.v2;
-              if (result && result.results && result.results.length > 0) {
-                const region = result.results[0].region;
-                const dong = region.area3 ? region.area3.name : '';
-                setRegionName(dong);
-              }
-            }
-          });
-        }
       } catch (err) {
         console.error("Weather fetch failed", err);
       } finally {
@@ -87,49 +71,39 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
   else if (weather.pty === "4") { emoji = "⚡"; desc = "번개"; }
 
   const getAqiText = (val: number) => {
-    if (val <= 30) return <span className="text-blue-500 font-bold">좋음</span>;
-    if (val <= 80) return <span className="text-emerald-500 font-bold">보통</span>;
-    if (val <= 150) return <span className="text-orange-500 font-bold">나쁨</span>;
-    return <span className="text-red-500 font-bold">최악</span>;
+    if (val <= 30) return <span className="text-blue-500">좋음</span>;
+    if (val <= 80) return <span className="text-emerald-500">보통</span>;
+    if (val <= 150) return <span className="text-orange-500">나쁨</span>;
+    return <span className="text-red-500">최악</span>;
   };
 
   const getAqiText25 = (val: number) => {
-    if (val <= 15) return <span className="text-blue-500 font-bold">좋음</span>;
-    if (val <= 35) return <span className="text-emerald-500 font-bold">보통</span>;
-    if (val <= 75) return <span className="text-orange-500 font-bold">나쁨</span>;
-    return <span className="text-red-500 font-bold">최악</span>;
+    if (val <= 15) return <span className="text-blue-500">좋음</span>;
+    if (val <= 35) return <span className="text-emerald-500">보통</span>;
+    if (val <= 75) return <span className="text-orange-500">나쁨</span>;
+    return <span className="text-red-500">최악</span>;
   };
 
   return (
-    <div className="w-full flex flex-col gap-1.5 animate-in fade-in">
-      
-      {/* Row 1: Dong Name, Status, Temp */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-[20px] leading-none drop-shadow-sm">{emoji}</span>
-          <span className="text-[15px] font-black text-foreground/90 tracking-tight">
-            {regionName || '현위치'} {desc}
-          </span>
-        </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-[20px] font-black text-primary tracking-tighter leading-none">{weather.temp}°</span>
-          <span className="text-[12px] font-bold text-foreground/50">체감 {weather.tempApparent}°</span>
-        </div>
+    <div className="flex items-center gap-3 text-[13px] font-bold text-foreground/80 animate-in fade-in py-0.5">
+      {/* 날씨 및 온도 */}
+      <div className="flex items-center gap-1.5">
+        <span className="text-[16px] leading-none drop-shadow-sm">{emoji}</span>
+        <span className="text-[14px] font-black text-foreground">{weather.temp}°</span>
       </div>
 
-      {/* Row 2: Min/Max & Dust */}
-      <div className="flex items-center justify-between text-[11px] font-bold bg-foreground/[0.03] rounded-xl px-2.5 py-1.5 border border-white/10">
-        <div className="flex items-center gap-2">
-          <span className="text-blue-500">최저 {weather.tempMin}°</span>
-          <span className="text-foreground/20">|</span>
-          <span className="text-red-500">최고 {weather.tempMax}°</span>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <span className="flex items-center gap-0.5 text-foreground/60"><IconWind size={12}/> 미세 {getAqiText(weather.pm10)}</span>
-          <span className="flex items-center gap-0.5 text-foreground/60"><IconCloud size={12}/> 초미세 {getAqiText25(weather.pm25)}</span>
-        </div>
+      {/* 최저/최고 온도 */}
+      <div className="flex items-center gap-1 border-l border-foreground/10 pl-3">
+        <span className="text-blue-500">{weather.tempMin}°</span>
+        <span className="text-foreground/20">/</span>
+        <span className="text-red-500">{weather.tempMax}°</span>
       </div>
 
+      {/* 미세먼지 */}
+      <div className="flex items-center gap-2 border-l border-foreground/10 pl-3">
+        <span className="flex items-center gap-1"><IconWind size={14} className="text-foreground/40"/> {getAqiText(weather.pm10)}</span>
+        <span className="flex items-center gap-1 ml-1"><IconCloud size={14} className="text-foreground/40"/> {getAqiText25(weather.pm25)}</span>
+      </div>
     </div>
   );
 }

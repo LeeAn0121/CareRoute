@@ -1213,7 +1213,7 @@ function MainApp() {
           </button>
 
           {/* Integrated Compact Weather */}
-          <div className="px-4 pb-4 pt-1 border-t border-white/10 dark:border-white/5">
+          <div className="px-5 pb-3 pt-0 flex justify-start">
             <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
           </div>
           
