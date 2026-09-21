@@ -1473,7 +1473,7 @@ function MainApp() {
                           <div className="flex gap-4 items-center">
                             <div className="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
                               {marker.photo_url ? (
-                                <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                                <img src={marker.photo_url} alt="" className="w-full h-full object-contain" />
                               ) : (
                                 <IconUser size={28} color='var(--primary)' />
                               )}
@@ -1517,7 +1517,7 @@ function MainApp() {
                         <div className="flex justify-between items-start mb-3">
                           <div className="w-12 h-12 bg-primary/5 rounded-full flex items-center justify-center overflow-hidden">
                             {marker.photo_url ? (
-                              <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                              <img src={marker.photo_url} alt="" className="w-full h-full object-contain" />
                             ) : (
                               <IconUser size={24} color='var(--primary)' />
                             )}
@@ -1543,7 +1543,7 @@ function MainApp() {
                       <div className="p-3 flex items-center gap-3">
                         <div className="w-10 h-10 bg-primary/5 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                           {marker.photo_url ? (
-                            <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                            <img src={marker.photo_url} alt="" className="w-full h-full object-contain" />
                           ) : (
                             <IconUser size={20} color='var(--primary)' />
                           )}
@@ -1625,7 +1625,7 @@ function MainApp() {
                         <div className="flex gap-3 items-start">
                           <div className="w-12 h-12 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
                             {marker.photo_url ? (
-                              <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                              <img src={marker.photo_url} alt="" className="w-full h-full object-contain" />
                             ) : (
                               <IconUser size={24} color='var(--primary)' />
                             )}
@@ -1786,7 +1786,7 @@ function MainApp() {
               <div className="absolute left-5 -bottom-12 w-24 h-24 rounded-2xl bg-primary/5 border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
                 {selectedRecipient.photo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={selectedRecipient.photo_url} alt="" className="w-full h-full object-cover" />
+                  <img src={selectedRecipient.photo_url} alt="" className="w-full h-full object-contain" />
                 ) : (
                   <IconUser size={40} color='var(--primary)' />
                 )}
@@ -1890,8 +1890,8 @@ function MainApp() {
                     onClick={() => handleNavi('tmap', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    <div className="w-12 h-12 rounded-[14px] shadow-md overflow-hidden border border-black/5">
-                      <img src="/CareRoute/navi/tmap.png" alt="T맵" className="w-full h-full object-cover" />
+                    <div className="w-12 h-12 rounded-[14px] shadow-sm bg-white overflow-hidden border border-surface-border flex items-center justify-center p-1.5">
+                      <img src="https://www.tmapmobility.com/favicon.ico" alt="T맵" className="w-full h-full object-contain" />
                     </div>
                     <span className="text-[10px] font-bold text-foreground/70">T맵</span>
                   </button>
@@ -1900,8 +1900,8 @@ function MainApp() {
                     onClick={() => handleNavi('kakao', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    <div className="w-12 h-12 rounded-[14px] shadow-md overflow-hidden border border-black/5">
-                      <img src="/CareRoute/navi/kakao.png" alt="카카오내비" className="w-full h-full object-cover" />
+                    <div className="w-12 h-12 rounded-[14px] shadow-sm bg-white overflow-hidden border border-surface-border flex items-center justify-center p-1.5">
+                      <img src="https://map.kakao.com/favicon.ico" alt="카카오내비" className="w-full h-full object-contain" />
                     </div>
                     <span className="text-[10px] font-bold text-foreground/70">카카오내비</span>
                   </button>
@@ -1910,8 +1910,8 @@ function MainApp() {
                     onClick={() => handleNavi('naver', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    <div className="w-12 h-12 rounded-[14px] shadow-md overflow-hidden border border-black/5">
-                      <img src="/CareRoute/navi/naver.png" alt="네이버지도" className="w-full h-full object-cover" />
+                    <div className="w-12 h-12 rounded-[14px] shadow-sm bg-white overflow-hidden border border-surface-border flex items-center justify-center p-1.5">
+                      <img src="https://ssl.pstatic.net/static/maps/assets/icons/favicon.ico" alt="네이버지도" className="w-full h-full object-contain" />
                     </div>
                     <span className="text-[10px] font-bold text-foreground/70">네이버지도</span>
                   </button>
