@@ -83,6 +83,21 @@ const renderedFeatureKeys: any = { sido: new Set(), sigungu: new Set(), dong: ne
 let currentRenderedLevel = ''; // Track currently rendered level to prevent re-rendering
 
 function MainApp() {
+  const getRegionNameByZoom = (address: string, zoom: number) => {
+    if (!address) return '';
+    const parts = address.split(' ');
+    if (parts.length === 0) return '';
+    
+    if (zoom <= 10) {
+      return parts[0];
+    } else if (zoom <= 13) {
+      if (parts[0].includes('세종')) return parts[0];
+      return parts[1] || parts[0];
+    } else {
+      if (parts[0].includes('세종')) return parts[1] || parts[0];
+      return parts[2] || parts[1] || parts[0];
+    }
+  };
   const handleMyLocation = () => {
     if (!navigator.geolocation) {
       alert("GPS를 지원하지 않는 기기입니다.");
@@ -170,14 +185,12 @@ function MainApp() {
     
     let isMounted = true;
     const fetchMapWeathers = async () => {
-      // 1. 모든 마커의 시군구(혹은 동) 추출하여 중심 좌표 계산
+      // 1. 현재 줌 레벨에 맞는 행정구역(시도/시군구/동) 추출
       const groups = new Map<string, { lat: number; lng: number; count: number }>();
       markers.forEach(m => {
         if (!m.address) return;
-        const parts = m.address.split(' ');
-        if (parts.length < 2) return;
-        let region = parts[1];
-        if (parts[0].includes('세종') || parts[0].includes('제주')) region = parts[0];
+        const region = getRegionNameByZoom(m.address, mapZoom);
+        if (!region) return;
         
         const group = groups.get(region);
         if (group) {
@@ -230,7 +243,7 @@ function MainApp() {
     // 약간의 지연 후 호출하여 초기 로딩 부하 분산
     const timer = setTimeout(fetchMapWeathers, 1500);
     return () => { isMounted = false; clearTimeout(timer); };
-  }, [markers]);
+  }, [markers, mapZoom <= 10 ? 0 : mapZoom <= 13 ? 1 : 2]); // 줌 레벨 구간(시도/시군구/동)이 바뀔 때만 재요청
 
   // Programmatic Pan & Zoom (React State -> Map API)
   useEffect(() => {
@@ -948,19 +961,16 @@ function MainApp() {
     const groups = new Map();
     todays.forEach(m => {
       if (!m.address) return;
-      const parts = m.address.split(' ');
-      if (parts.length < 2) return;
-      // 두번째 단어(강남구, 종로구 등) 추출. 세종특별자치시처럼 시군구가 없는 경우는 첫번째 단어 사용
-      let gu = parts[1];
-      if (parts[0].includes('세종') || parts[0].includes('제주')) gu = parts[0];
+      const regionName = getRegionNameByZoom(m.address, mapZoom);
+      if (!regionName) return;
       
-      const group = groups.get(gu);
+      const group = groups.get(regionName);
       if (group) {
         group.lat += m.lat;
         group.lng += m.lng;
         group.count += 1;
       } else {
-        groups.set(gu, { lat: m.lat, lng: m.lng, count: 1 });
+        groups.set(regionName, { lat: m.lat, lng: m.lng, count: 1 });
       }
     });
     
@@ -969,7 +979,7 @@ function MainApp() {
       lat: data.lat / data.count,
       lng: data.lng / data.count
     }));
-  }, [markers, mapCenter]);
+  }, [markers, mapCenter, mapZoom]);
 
   const isScheduledToday = (r: Recipient) => {
     const now = new Date();
