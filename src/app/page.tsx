@@ -1194,23 +1194,29 @@ function MainApp() {
       <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col gap-3 mt-3 pointer-events-none">
         
         {/* Dynamic Island Style Address & Weather Combined */}
-        <div className="flex flex-col gap-3 pointer-events-auto">
+        <div className="flex flex-col pointer-events-auto bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 overflow-hidden transition-all">
           
-          <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
-
-          {/* Location Pill */}
+          {/* Location Pill (Header) */}
           <button 
             onClick={() => setShowRegionFilter(!showRegionFilter)}
-            className="self-start flex items-center gap-2 px-4 py-2.5 bg-surface/75 supports-[backdrop-filter]:bg-surface/50 backdrop-blur-3xl saturate-150 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.08)] border border-surface-border/50 transition-transform active:scale-95"
+            className="flex items-center justify-between w-full px-5 py-3.5 bg-foreground/[0.02] hover:bg-foreground/[0.06] active:bg-foreground/[0.08] transition-colors"
           >
-            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-              <IconMapPin size={14} className="text-primary" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center">
+                <IconMapPin size={14} className="text-primary" />
+              </div>
+              <span className="text-[15px] font-black tracking-tight text-foreground/90">
+                {selectedSido ? `${sidos.find(s=>s.code===selectedSido)?.name || ''} ${sigungus.find(s=>s.code===selectedSigungu)?.name?.split(' ').pop() || ''} ${dongs.find(s=>s.code===selectedDong)?.name?.split(' ').pop() || ''}`.trim() : '전체 지역 (검색하려면 탭하세요)'}
+              </span>
             </div>
-            <span className="text-[14px] font-black tracking-tight text-foreground/90">
-              {selectedSido ? `${sidos.find(s=>s.code===selectedSido)?.name || ''} ${sigungus.find(s=>s.code===selectedSigungu)?.name?.split(' ').pop() || ''} ${dongs.find(s=>s.code===selectedDong)?.name?.split(' ').pop() || ''}`.trim() : '어디로 갈까요?'}
-            </span>
-            <IconChevronRight size={16} className="text-foreground/40 ml-1" />
+            <IconChevronRight size={18} className="text-foreground/40" />
           </button>
+
+          {/* Integrated Compact Weather */}
+          <div className="px-4 pb-4 pt-1 border-t border-white/10 dark:border-white/5">
+            <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
+          </div>
+          
         </div>
 
         {/* Region Filter Dropdown - iOS Menu Style */}
