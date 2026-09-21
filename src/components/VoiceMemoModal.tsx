@@ -22,15 +22,19 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, recipientName 
       if (SpeechRecognition) {
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
+        recognitionRef.current.interimResults = false;
         recognitionRef.current.lang = 'ko-KR';
 
         recognitionRef.current.onresult = (event: any) => {
           let currentTranscript = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
-            currentTranscript += event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              currentTranscript += event.results[i][0].transcript;
+            }
           }
-          setTranscript(prev => prev + ' ' + currentTranscript);
+          if (currentTranscript) {
+            setTranscript(prev => prev + (prev ? ' ' : '') + currentTranscript.trim());
+          }
         };
 
         recognitionRef.current.onerror = (event: any) => {

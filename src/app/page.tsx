@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
 import VoiceMemoModal from '@/components/VoiceMemoModal';
@@ -1890,8 +1890,8 @@ function MainApp() {
                     onClick={() => handleNavi('tmap', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    <div className="w-12 h-12 rounded-[14px] shadow-md overflow-hidden border border-black/5">
-                      <img src="/navi/tmap.png" alt="T맵" className="w-full h-full object-cover" />
+                    <div className="w-12 h-12 rounded-[14px] shadow-md bg-[#000000] text-white flex items-center justify-center border border-black/5">
+                      <IconCar size={26} strokeWidth={2} />
                     </div>
                     <span className="text-[10px] font-bold text-foreground/70">T맵</span>
                   </button>
@@ -1900,8 +1900,8 @@ function MainApp() {
                     onClick={() => handleNavi('kakao', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    <div className="w-12 h-12 rounded-[14px] shadow-md overflow-hidden border border-black/5">
-                      <img src="/navi/kakao.png" alt="카카오내비" className="w-full h-full object-cover" />
+                    <div className="w-12 h-12 rounded-[14px] shadow-md bg-[#FEE500] text-[#3C1E1E] flex items-center justify-center border border-black/5">
+                      <IconMessageCircle size={28} strokeWidth={2.5} className="fill-[#3C1E1E] text-[#FEE500]" />
                     </div>
                     <span className="text-[10px] font-bold text-foreground/70">카카오내비</span>
                   </button>
@@ -1910,8 +1910,8 @@ function MainApp() {
                     onClick={() => handleNavi('naver', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    <div className="w-12 h-12 rounded-[14px] shadow-md overflow-hidden border border-black/5">
-                      <img src="/navi/naver.png" alt="네이버지도" className="w-full h-full object-cover" />
+                    <div className="w-12 h-12 rounded-[14px] shadow-md bg-[#03C75A] text-white flex items-center justify-center border border-black/5">
+                      <IconMapPin size={26} strokeWidth={2} />
                     </div>
                     <span className="text-[10px] font-bold text-foreground/70">네이버지도</span>
                   </button>
