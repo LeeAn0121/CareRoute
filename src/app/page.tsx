@@ -874,8 +874,8 @@ function MainApp() {
       if (type === 'kakao') {
         window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
       } else {
-        // Tmap은 PC 웹 길찾기가 마땅치 않아 네이버로 통일
-        window.open(`https://map.naver.com/v5/api/transit/directions/point-to-point?goal=${lng},${lat}`, '_blank');
+        // PC 웹 길찾기는 네이버 모바일웹 URL이 가장 깔끔하게 렌더링됨
+        window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
       }
       return;
     }
@@ -1883,36 +1883,41 @@ function MainApp() {
                 </div>
               )}
 
-              <div className="mt-4 flex flex-col gap-2">
-                <span className="text-[12px] font-black text-foreground/50 ml-1">원클릭 길안내</span>
-                <div className="flex gap-2">
-                  <Button
-                    fullWidth
-                    variant="dark"
-                    startIcon={<IconNavigation size={18} />}
+              <div className="mt-5 flex flex-col gap-2.5">
+                <span className="text-[12px] font-black text-foreground/50 ml-1">원클릭 길안내 (앱 연결)</span>
+                <div className="flex gap-4 px-1">
+                  <button
                     onClick={() => handleNavi('tmap', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
-                    className="py-3 text-[14px] bg-[#000000] text-white hover:bg-[#333]"
+                    className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    T맵
-                  </Button>
-                  <Button
-                    fullWidth
-                    variant="dark"
-                    startIcon={<IconNavigation size={18} />}
+                    <div className="w-12 h-12 rounded-[14px] bg-[#000000] shadow-md flex items-center justify-center border border-black/10">
+                      <span className="text-white font-black text-xl italic tracking-tighter pr-1">T</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-foreground/70">T맵</span>
+                  </button>
+
+                  <button
                     onClick={() => handleNavi('kakao', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
-                    className="py-3 text-[14px] bg-[#FFE812] text-[#3c1e1e] hover:bg-[#F4DC00]"
+                    className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    카카오내비
-                  </Button>
-                  <Button
-                    fullWidth
-                    variant="dark"
-                    startIcon={<IconNavigation size={18} />}
+                    <div className="w-12 h-12 rounded-[14px] bg-[#FEE500] shadow-md flex items-center justify-center border border-[#FEE500]/50 relative">
+                      {/* 카카오 심볼 형태 */}
+                      <div className="w-6 h-5 bg-[#3C1E1E] rounded-[10px] relative">
+                        <div className="absolute -bottom-1 left-1.5 w-2 h-2 bg-[#3C1E1E] rotate-45"></div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-foreground/70">카카오내비</span>
+                  </button>
+
+                  <button
                     onClick={() => handleNavi('naver', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
-                    className="py-3 text-[14px] bg-[#03C75A] text-white hover:bg-[#02b350]"
+                    className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
-                    네이버지도
-                  </Button>
+                    <div className="w-12 h-12 rounded-[14px] bg-[#03C75A] shadow-md flex items-center justify-center border border-[#03C75A]/50">
+                      <span className="text-white font-black text-lg uppercase">N</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-foreground/70">네이버지도</span>
+                  </button>
                 </div>
               </div>
             </div>
