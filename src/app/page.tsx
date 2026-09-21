@@ -863,21 +863,38 @@ function MainApp() {
 
   const handleNavi = (type: 'tmap' | 'kakao' | 'naver', lat: number, lng: number, name: string) => {
     const encName = encodeURIComponent(name + ' 어르신댁');
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // 모바일 딥링크: 앱이 없으면 스토어로 이동하거나 동작하지 않을 수 있지만, 
-    // 대부분의 실무자들은 내비 앱이 깔려있음.
+    // PC(Mac/Windows 등)에서 클릭한 경우 딥링크가 작동하지 않으므로 바로 웹 버전으로 이동
+    if (!isMobile) {
+      if (type === 'kakao') {
+        window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
+      } else {
+        // Tmap은 PC 웹 길찾기가 마땅치 않아 네이버로 통일
+        window.open(`https://map.naver.com/v5/api/transit/directions/point-to-point?goal=${lng},${lat}`, '_blank');
+      }
+      return;
+    }
+
+    // 모바일인 경우 해당 앱의 딥링크 호출
     if (type === 'tmap') {
       window.location.href = `tmap://route?goalname=${encName}&goalx=${lng}&goaly=${lat}`;
-      // 안드로이드 intent 방식 대비책이 필요할 수 있으나 기본 scheme부터 적용
-    } else if (type === 'kakao') {
-      window.location.href = `kakaonavi://navigate?ep=${lng},${lat}&name=${encName}`;
-    } else if (type === 'naver') {
-      window.location.href = `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${encName}&appname=com.careroute`;
-      
-      // 웹 폴백 (앱이 없거나 PC일 때)
+      // Tmap 앱이 없을 경우를 대비한 폴백 (네이버 웹 길찾기로 연결)
       setTimeout(() => {
         window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
-      }, 500);
+      }, 1000);
+    } else if (type === 'kakao') {
+      window.location.href = `kakaonavi://navigate?ep=${lng},${lat}&name=${encName}`;
+      // 카카오내비 앱이 없을 경우 카카오맵 웹버전으로 연결
+      setTimeout(() => {
+        window.open(`https://map.kakao.com/link/to/${encName},${lat},${lng}`, '_blank');
+      }, 1000);
+    } else if (type === 'naver') {
+      window.location.href = `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${encName}&appname=com.careroute`;
+      // 네이버지도 앱이 없을 경우 네이버맵 웹버전으로 연결
+      setTimeout(() => {
+        window.open(`https://m.map.naver.com/route.nhn?menu=route&ename=${encName}&ex=${lng}&ey=${lat}&pathType=0&showMap=true`, '_blank');
+      }, 1000);
     }
   };
 
