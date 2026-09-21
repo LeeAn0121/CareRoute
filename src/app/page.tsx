@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconMenu2, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
 import VoiceMemoModal from '@/components/VoiceMemoModal';
@@ -1191,10 +1191,10 @@ function MainApp() {
 
       {/* iOS / One UI 6 Styled Floating Header */}
       {activeTab === 'map' && (
-      <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col gap-3 mt-3 pointer-events-none">
+      <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex items-start gap-3 mt-3 pointer-events-none">
         
         {/* Dynamic Island Style Address & Weather Combined */}
-        <div className="flex flex-col pointer-events-auto bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 overflow-hidden transition-all">
+        <div className="flex-1 flex flex-col pointer-events-auto bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 overflow-hidden transition-all">
           
           {/* Location Pill (Header) */}
           <button 
@@ -1216,8 +1216,15 @@ function MainApp() {
           <div className="px-5 pb-3 pt-0 flex justify-start">
             <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
           </div>
-          
         </div>
+
+        {/* Top-Right User Menu / Settings Button */}
+        <button 
+          onClick={() => setActiveTab('settings')}
+          className="pointer-events-auto flex-shrink-0 w-12 h-12 flex items-center justify-center bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 hover:bg-foreground/[0.04] transition-all active:scale-90"
+        >
+          <IconMenu2 size={24} className="text-foreground/80" strokeWidth={2.5} />
+        </button>
 
         {/* Region Filter Dropdown - iOS Menu Style */}
         {showRegionFilter && (
@@ -1686,7 +1693,7 @@ function MainApp() {
         <SettingsView onReplayTutorial={() => {
           setActiveTab('map');
           setTimeout(() => setShowOnboarding(true), 100);
-        }} />
+        }} onBack={() => setActiveTab('map')} />
       )}
 
       {/* Floating Action Button (Add Recipient) */}
@@ -1927,14 +1934,14 @@ function MainApp() {
       </Modal>
 
       {/* Redesigned Bottom Navigation */}
-      <div className="absolute bottom-6 left-4 right-4 z-50 px-2 pb-safe">
+      <div className={`absolute bottom-6 left-4 right-4 z-50 px-2 pb-safe transition-transform duration-500 ${activeTab === 'settings' ? 'translate-y-[150%]' : 'translate-y-0'}`}>
         <div id="tour-bottom-nav" className="rounded-[36px] overflow-hidden shadow-[0_20px_40px_rgba(0,0,0,0.12)] bg-surface/75 backdrop-blur-[40px] saturate-200 border border-white/20 dark:border-white/10 supports-[backdrop-filter]:bg-surface/50">
           <div className="flex h-16">
           {([
             { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
             { key: 'list' as const, label: '명단 보기', Icon: IconList },
             { key: 'route' as const, label: '오늘의 경로', Icon: IconNavigation },
-            { key: 'settings' as const, label: '설정', Icon: IconSettings },
+            
           ]).map(({ key, label, Icon }) => (
             <button
               key={key}

@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 
 interface SettingsViewProps {
   onReplayTutorial: () => void;
+  onBack: () => void;
 }
 
 const colorThemes = [
@@ -16,7 +17,7 @@ const colorThemes = [
   { id: 'theme-teal', name: '틸', color: 'bg-[#32ADE6]' },
 ];
 
-export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
+export default function SettingsView({ onReplayTutorial, onBack }: SettingsViewProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [colorTheme, setColorTheme] = useState('theme-navy');
@@ -63,8 +64,14 @@ export default function SettingsView({ onReplayTutorial }: SettingsViewProps) {
       animate={{ opacity: 1, y: 0 }}
       className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-surface-muted/50 supports-[backdrop-filter]:bg-surface-muted/30 backdrop-blur-[40px] saturate-200 text-foreground transition-colors duration-500"
     >
-      <div className="mb-8 px-2">
-        <h2 className="text-[34px] font-black tracking-tighter text-foreground">설정</h2>
+      <div className="flex items-center gap-4 mb-8 px-2">
+        <button 
+          onClick={onBack}
+          className="w-10 h-10 flex items-center justify-center rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08] transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <h2 className="text-[34px] font-black tracking-tighter text-foreground">메뉴</h2>
       </div>
 
       <div className="space-y-8">
