@@ -1247,45 +1247,48 @@ function MainApp() {
 
       {/* iOS / One UI 6 Styled Floating Header */}
       {activeTab === 'map' && (
-      <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex items-start gap-3 mt-3 pointer-events-none">
+      <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col items-start gap-3 mt-3 pointer-events-none">
         
-        {/* Dynamic Island Style Address & Weather Combined */}
-        <div className="flex-1 flex flex-col pointer-events-auto bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 overflow-hidden transition-all">
-          
-          {/* Location Pill (Header) */}
-          <button 
-            onClick={() => setShowRegionFilter(!showRegionFilter)}
-            className="flex items-center justify-between w-full px-5 py-3.5 bg-foreground/[0.02] hover:bg-foreground/[0.06] active:bg-foreground/[0.08] transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center">
-                <IconMapPin size={14} className="text-primary" />
+        {/* Top Row: Address Pill + Hamburger Menu */}
+        <div id="tour-header" className="flex w-full items-start gap-3">
+          {/* Dynamic Island Style Address & Weather Combined */}
+          <div className="flex-1 flex flex-col pointer-events-auto bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 overflow-hidden transition-all">
+            
+            {/* Location Pill (Header) */}
+            <button 
+              onClick={() => setShowRegionFilter(!showRegionFilter)}
+              className="flex items-center justify-between w-full px-5 py-3.5 bg-foreground/[0.02] hover:bg-foreground/[0.06] active:bg-foreground/[0.08] transition-colors"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center">
+                  <IconMapPin size={14} className="text-primary" />
+                </div>
+                <span className="text-[15px] font-black tracking-tight text-foreground/90 truncate max-w-[200px] sm:max-w-[300px]">
+                  {selectedSido ? `${sidos.find(s=>s.code===selectedSido)?.name || ''} ${sigungus.find(s=>s.code===selectedSigungu)?.name?.split(' ').pop() || ''} ${dongs.find(s=>s.code===selectedDong)?.name?.split(' ').pop() || ''}`.trim() : currentAddress}
+                </span>
               </div>
-              <span className="text-[15px] font-black tracking-tight text-foreground/90 truncate max-w-[200px] sm:max-w-[300px]">
-                {selectedSido ? `${sidos.find(s=>s.code===selectedSido)?.name || ''} ${sigungus.find(s=>s.code===selectedSigungu)?.name?.split(' ').pop() || ''} ${dongs.find(s=>s.code===selectedDong)?.name?.split(' ').pop() || ''}`.trim() : currentAddress}
-              </span>
+              <IconChevronRight size={18} className="text-foreground/40" />
+            </button>
+
+            {/* Integrated Compact Weather */}
+            <div className="px-5 pb-3 pt-0 flex justify-start">
+              <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
             </div>
-            <IconChevronRight size={18} className="text-foreground/40" />
-          </button>
-
-          {/* Integrated Compact Weather */}
-          <div className="px-5 pb-3 pt-0 flex justify-start">
-            <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
           </div>
-        </div>
 
-        {/* Top-Right User Menu / Settings Button */}
-        <button 
-          id="tour-user-menu"
-          onClick={() => setActiveTab('settings')}
-          className="pointer-events-auto flex-shrink-0 w-12 h-12 flex items-center justify-center bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 hover:bg-foreground/[0.04] transition-all active:scale-90"
-        >
-          <IconMenu2 size={24} className="text-foreground/80" strokeWidth={2.5} />
-        </button>
+          {/* Top-Right User Menu / Settings Button */}
+          <button 
+            id="tour-user-menu"
+            onClick={() => setActiveTab('settings')}
+            className="pointer-events-auto flex-shrink-0 w-12 h-12 flex items-center justify-center bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 hover:bg-foreground/[0.04] transition-all active:scale-90"
+          >
+            <IconMenu2 size={24} className="text-foreground/80" strokeWidth={2.5} />
+          </button>
+        </div>
 
         {/* Region Filter Dropdown - iOS Menu Style */}
         {showRegionFilter && (
-        <div id="tour-header" className="mt-1 p-5 bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[32px] shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-surface-border/50 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[320px]">
+        <div className="mt-1 p-5 bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[32px] shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-surface-border/50 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[320px]">
           <div className="flex items-center justify-between pb-4 border-b border-surface-border/40 mb-4">
             <span className="text-[17px] font-bold text-foreground tracking-tight">지역 설정</span>
             <button 
