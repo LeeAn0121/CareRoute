@@ -865,8 +865,9 @@ function MainApp() {
     }
   };
 
-  const handleNavi = (type: 'tmap' | 'kakao' | 'naver', lat: number, lng: number, name: string) => {
-    const encName = encodeURIComponent(name + ' 어르신댁');
+  const handleNavi = (type: 'tmap' | 'kakao' | 'naver', lat: number, lng: number, address: string, detailAddress?: string | null) => {
+    const fullAddress = detailAddress ? `${address} ${detailAddress}` : address;
+    const encName = encodeURIComponent(fullAddress);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     // PC(Mac/Windows 등)에서 클릭한 경우 딥링크가 작동하지 않으므로 바로 웹 버전으로 이동
@@ -902,8 +903,8 @@ function MainApp() {
     }
   };
 
-  const handleDirections = (lat: number, lng: number, name: string) => {
-    handleNavi('naver', lat, lng, name);
+  const handleDirections = (lat: number, lng: number, address: string, detail: string | null = null) => {
+    handleNavi('naver', lat, lng, address, detail);
   };
 
 
@@ -1505,7 +1506,7 @@ function MainApp() {
                           <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} className="flex-1 py-3.5 text-[15px] font-bold rounded-2xl border border-surface-border/60 text-foreground/80">
                             수정
                           </Button>
-                          <Button variant="dark" startIcon={<IconNavigation size={18} />} onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }} className="flex-[2] py-3.5 text-[15px] font-black rounded-2xl shadow-md shadow-primary/20 hover:bg-primary/90 transition-colors">
+                          <Button variant="dark" startIcon={<IconNavigation size={18} />} onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} className="flex-[2] py-3.5 text-[15px] font-black rounded-2xl shadow-md shadow-primary/20 hover:bg-primary/90 transition-colors">
                             길안내
                           </Button>
                         </div>
@@ -1533,7 +1534,7 @@ function MainApp() {
                         <p className="text-xs text-foreground/60 font-medium line-clamp-2 mb-4 flex-1">
                           {marker.address}
                         </p>
-                        <Button variant="dark" onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }} className="py-2 text-xs w-full mt-auto">
+                        <Button variant="dark" onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} className="py-2 text-xs w-full mt-auto">
                           길안내
                         </Button>
                       </div>
@@ -1557,7 +1558,7 @@ function MainApp() {
                             {marker.visit_time.substring(0, 5) === '00:00' ? '미정' : marker.visit_time.substring(0, 5)} · {marker.address}
                           </p>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }} className="p-2 bg-surface-muted text-foreground/60 rounded-full hover:bg-surface-border transition-colors flex-shrink-0">
+                        <button onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} className="p-2 bg-surface-muted text-foreground/60 rounded-full hover:bg-surface-border transition-colors flex-shrink-0">
                           <IconNavigation size={18} />
                         </button>
                       </div>
@@ -1660,7 +1661,7 @@ function MainApp() {
                           
                           {!completed && (
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address); }}
+                              onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }}
                               className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-bold bg-foreground text-background hover:opacity-90 transition-opacity"
                             >
                               <IconNavigation size={16} />
@@ -1887,7 +1888,7 @@ function MainApp() {
                 <span className="text-[12px] font-black text-foreground/50 ml-1">원클릭 길안내 (앱 연결)</span>
                 <div className="flex gap-4 px-1">
                   <button
-                    onClick={() => handleNavi('tmap', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
+                    onClick={() => handleNavi('tmap', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
                     <div className="w-12 h-12 rounded-[14px] shadow-sm bg-white overflow-hidden border border-surface-border flex items-center justify-center p-1.5">
@@ -1897,7 +1898,7 @@ function MainApp() {
                   </button>
 
                   <button
-                    onClick={() => handleNavi('kakao', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
+                    onClick={() => handleNavi('kakao', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
                     <div className="w-12 h-12 rounded-[14px] shadow-sm bg-white overflow-hidden border border-surface-border flex items-center justify-center p-1.5">
@@ -1907,7 +1908,7 @@ function MainApp() {
                   </button>
 
                   <button
-                    onClick={() => handleNavi('naver', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.name)}
+                    onClick={() => handleNavi('naver', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
                     className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
                   >
                     <div className="w-12 h-12 rounded-[14px] shadow-sm bg-white overflow-hidden border border-surface-border flex items-center justify-center p-1.5">
