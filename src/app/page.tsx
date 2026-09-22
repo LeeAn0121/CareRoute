@@ -1264,7 +1264,7 @@ function MainApp() {
                   <IconMapPin size={14} className="text-primary" />
                 </div>
                 <span className="text-[15px] font-black tracking-tight text-foreground/90 text-left whitespace-normal break-words leading-snug min-w-0 flex-1 w-full">
-                  {selectedSido ? `${sidos.find(s=>s.code===selectedSido)?.name || ''} ${sigungus.find(s=>s.code===selectedSigungu)?.name?.split(' ').pop() || ''} ${dongs.find(s=>s.code===selectedDong)?.name?.split(' ').pop() || ''}`.trim() : currentAddress}
+                  {currentAddress}
                 </span>
               </div>
               <IconChevronRight size={18} className="shrink-0 text-foreground/40" />
