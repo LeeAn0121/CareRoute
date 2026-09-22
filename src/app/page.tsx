@@ -842,40 +842,39 @@ function MainApp() {
     if (showOnboarding) return;
     if (mapLoaded && navigator.geolocation && !gpsInitRef.current) {
       gpsInitRef.current = true;
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          // 사용자가 이미 다른 곳을 클릭해서 이동 중이라면 방해하지 않음
-          if (selectedSido || selectedSigungu || selectedDong) return;
-          
-          setMapCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
-          setMapZoom(15); // 주변 동네가 보이도록 줌인
+      
+      const onSuccess = (position: GeolocationPosition) => {
+        // 사용자가 이미 다른 곳을 클릭해서 이동 중이라면 방해하지 않음
+        if (selectedSido || selectedSigungu || selectedDong) return;
+        
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setMapCenter({ lat, lng });
+        setMyLocation({ lat, lng });
+        setMapZoom(16); // GPS 위치로 자동 포커싱 시 조금 더 상세하게 줌인
 
-          // 내 위치의 행정구역으로 드롭다운 자동 세팅 (Reverse Geocoding)
-          if (window.naver && window.naver.maps && window.naver.maps.Service) {
-            // @ts-ignore
-            window.naver.maps.Service.reverseGeocode({
-              coords: new window.naver.maps.LatLng(position.coords.latitude, position.coords.longitude),
-              orders: [window.naver.maps.Service.OrderType.LEGAL_CODE].join(',')
-            }, function(status: any, response: any) {
-              if (status === 200 && response.v2.results.length > 0) {
-                const bcode = response.v2.results[0].code.id;
-                if (bcode && bcode.length === 10) {
-                  const sido = bcode.substring(0, 2) + '00000000';
-                  const sigungu = bcode.substring(0, 5) + '00000';
-                  const dong = bcode;
-                  isAutoSelectRef.current = true;
-                  setSelectedSido(sido);
-                  setTimeout(() => { isAutoSelectRef.current = true; setSelectedSigungu(sigungu); }, 200);
-                  setTimeout(() => { isAutoSelectRef.current = true; setSelectedDong(dong); }, 400);
-                }
-              }
-            });
-          }
-        },
+        if (watchIdRef.current === null) {
+          watchIdRef.current = navigator.geolocation.watchPosition(
+            (pos) => setMyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            (err) => console.warn("Watch position error:", err),
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+          );
+        }
+      };
+
+      // 1. 고정밀 모드로 5초 대기 (자동 포커싱용)
+      navigator.geolocation.getCurrentPosition(
+        onSuccess,
         (error) => {
-          console.warn('초기 위치 정보를 가져올 수 없습니다.', error);
+          if (error.code === error.PERMISSION_DENIED) return;
+          // 2. 실패 시 저정밀/캐시 모드로 재시도
+          navigator.geolocation.getCurrentPosition(
+            onSuccess,
+            (err2) => console.warn('초기 위치 정보를 가져올 수 없습니다.', err2),
+            { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 }
+          );
         },
-        { enableHighAccuracy: false, maximumAge: 60000, timeout: 5000 }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
       );
     }
   }, [mapLoaded]);
