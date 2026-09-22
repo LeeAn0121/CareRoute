@@ -1259,15 +1259,15 @@ function MainApp() {
               onClick={() => setShowRegionFilter(!showRegionFilter)}
               className="flex items-center justify-between w-full px-5 py-3.5 bg-foreground/[0.02] hover:bg-foreground/[0.06] active:bg-foreground/[0.08] transition-colors"
             >
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center">
+              <div className="flex items-center gap-2.5 flex-1">
+                <div className="w-6 h-6 shrink-0 rounded-full bg-primary/15 flex items-center justify-center">
                   <IconMapPin size={14} className="text-primary" />
                 </div>
-                <span className="text-[15px] font-black tracking-tight text-foreground/90 truncate max-w-[200px] sm:max-w-[300px]">
+                <span className="text-[15px] font-black tracking-tight text-foreground/90 text-left break-keep leading-snug">
                   {selectedSido ? `${sidos.find(s=>s.code===selectedSido)?.name || ''} ${sigungus.find(s=>s.code===selectedSigungu)?.name?.split(' ').pop() || ''} ${dongs.find(s=>s.code===selectedDong)?.name?.split(' ').pop() || ''}`.trim() : currentAddress}
                 </span>
               </div>
-              <IconChevronRight size={18} className="text-foreground/40" />
+              <IconChevronRight size={18} className="shrink-0 text-foreground/40" />
             </button>
 
             {/* Integrated Compact Weather */}
