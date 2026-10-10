@@ -19,9 +19,10 @@ interface Props {
   date: Date;
   allRecipients: Recipient[];
   onSuccess: () => void;
+  onSelectRecipient: (r: Recipient) => void;
 }
 
-export default function ScheduleAddModal({ isOpen, onClose, date, allRecipients, onSuccess }: Props) {
+export default function ScheduleAddModal({ isOpen, onClose, date, allRecipients, onSelectRecipient }: Props) {
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -42,26 +43,9 @@ export default function ScheduleAddModal({ isOpen, onClose, date, allRecipients,
     );
   }, [allRecipients, search, date]);
 
-  const handleAdd = async (r: Recipient) => {
-    setLoadingId(r.id);
-    try {
-      // Append the date to notes (which we are using to store specific dates)
-      const existingDates = r.notes ? r.notes.split(',').map(s => s.trim()).filter(Boolean) : [];
-      if (!existingDates.includes(ymd)) {
-        existingDates.push(ymd);
-      }
-      const newNotes = existingDates.join(',');
-
-      const { error } = await supabase.from('recipients').update({ notes: newNotes }).eq('id', r.id);
-      if (error) throw error;
-      
-      onSuccess();
-    } catch (e) {
-      console.error(e);
-      alert('일정 추가 중 오류가 발생했습니다.');
-    } finally {
-      setLoadingId(null);
-    }
+  const handleAdd = (r: Recipient) => {
+    onClose();
+    onSelectRecipient(r);
   };
 
   return (

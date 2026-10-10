@@ -37,9 +37,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   const [address, setAddress] = useState('');
   const [detailAddress, setDetailAddress] = useState('');
   const [bcode, setBcode] = useState('');
-  const [visitTime, setVisitTime] = useState('');
+  
   const [visitDate, setVisitDate] = useState('');
-  const [recurringDays, setRecurringDays] = useState<number[]>([]);
+  
   const [doorPasscode, setDoorPasscode] = useState('');
   const [parkingMemo, setParkingMemo] = useState('');
   const [healthTags, setHealthTags] = useState<string[]>([]);
@@ -71,9 +71,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setAddress(recipientToEdit.address);
         setDetailAddress(recipientToEdit.detail_address || '');
         setBcode(recipientToEdit.dong);
-        setVisitTime((recipientToEdit.visit_time && recipientToEdit.visit_time.substring(0, 5) !== '00:00') ? recipientToEdit.visit_time.substring(0, 5) : '');
         setVisitDate(recipientToEdit.notes || '');
-        setRecurringDays(recipientToEdit.recurring_weekdays ? recipientToEdit.recurring_weekdays.split(',').map(Number) : []);
+        
       // @ts-ignore
       setDoorPasscode(recipientToEdit.door_passcode || '');
       // @ts-ignore
@@ -86,9 +85,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setAddress('');
         setDetailAddress('');
         setBcode('');
-        setVisitTime('');
+        
         setVisitDate('');
-        setRecurringDays([]);
+        
       setDoorPasscode('');
       setParkingMemo('');
       setHealthTags([]);
@@ -212,9 +211,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         dong: bcode,
         lat: coords.lat,
         lng: coords.lng,
-        visit_time: visitTime ? `${visitTime}:00` : '00:00:00',
+        visit_time: recipientToEdit?.visit_time || '00:00:00',
         notes: recipientToEdit?.notes || null, // Preserve existing specific dates
-        recurring_weekdays: recurringDays.length > 0 ? [...recurringDays].sort().join(',') : null,
+        recurring_weekdays: recipientToEdit?.recurring_weekdays || null,
         photo_url: photoUrl,
       };
 
@@ -433,58 +432,6 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             />
           </div>
 
-          <div className="h-px bg-surface-muted" />
-
-          <div className="flex flex-col gap-3">
-            <p className="text-[13px] font-black text-primary/80 tracking-tight">방문 일정</p>
-
-
-            <div>
-              <span className="block text-sm font-bold text-foreground/70 mb-1">반복 요일 (선택)</span>
-              <div className="flex gap-1.5">
-                {WEEKDAY_LABELS.map((label, day) => {
-                  const active = recurringDays.includes(day);
-                  return (
-                    <motion.button
-                      key={day}
-                      type="button"
-                      whileTap={{ scale: 0.88 }}
-                      disabled={isSubmitting}
-                      onClick={() => {
-                        setRecurringDays((prev) =>
-                          prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-                        );
-                      }}
-                      animate={{
-                        backgroundColor: active ? 'var(--accent)' : 'var(--color-surface-muted)',
-                        color: active ? 'var(--primary)' : 'var(--color-foreground)',
-                      }}
-                      transition={{ duration: 0.15 }}
-                      className="w-9 h-9 rounded-full text-sm font-bold"
-                    >
-                      {label}
-                    </motion.button>
-                  );
-                })}
-              </div>
-              {recurringDays.length > 0 && (
-                <p className="text-xs text-foreground/50 mt-1.5">매주 {recurringDays.slice().sort().map((d) => WEEKDAY_LABELS[d]).join(', ')}요일마다 방문 예정에 자동으로 포함됩니다.</p>
-              )}
-            </div>
-
-            <TextField
-              label="방문 예정 서비스 시간 (선택)"
-              type="time"
-              value={visitTime}
-              onChange={(e) => setVisitTime(e.target.value)}
-              disabled={isSubmitting}
-              endAdornment={visitTime ? (
-                <IconButton onClick={() => setVisitTime('')} aria-label="방문 예정 서비스 시간 지우기">
-                  <IconX size={16} />
-                </IconButton>
-              ) : null}
-            />
-          </div>
         </div>
 
         <div className="px-5 pb-5 pt-2">

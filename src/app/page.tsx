@@ -5,6 +5,7 @@ import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, Ic
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
 import ScheduleAddModal from '@/components/ScheduleAddModal';
+import ScheduleManageModal from '@/components/ScheduleManageModal';
 import MonthCalendar from '@/components/MonthCalendar';
 import VoiceMemoModal from '@/components/VoiceMemoModal';
 import Tour from '@/components/Tour';
@@ -171,6 +172,7 @@ function MainApp() {
   const [completingRecipient, setCompletingRecipient] = useState<Recipient | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(null);
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
+  const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
   
   const [activeTab, setActiveTab] = useState<'map' | 'list' | 'route' | 'settings'>('map');
   const [listViewMode, setListViewMode] = useState<'list' | 'grid' | 'compact'>('list');
@@ -1879,6 +1881,12 @@ function MainApp() {
                               길안내
                             </button>
                           )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setManagingScheduleRecipient(marker); }}
+                            className="flex-shrink-0 flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-bold bg-surface-muted text-foreground/70 hover:bg-surface-border transition-colors"
+                          >
+                            일정 관리
+                          </button>
                           
                           <button
                             onClick={(e) => { e.stopPropagation(); handleRemoveFromSchedule(marker, scheduleDate); }}
@@ -2160,11 +2168,24 @@ function MainApp() {
           date={scheduleDate as Date}
           allRecipients={markers}
           onSuccess={() => {
-            fetchMarkers(); // refresh data
+            fetchMarkers();
             setIsScheduleAddOpen(false);
+          }}
+          onSelectRecipient={(r: any) => {
+            setManagingScheduleRecipient(r);
           }}
         />
       )}
+      <ScheduleManageModal
+        isOpen={Boolean(managingScheduleRecipient)}
+        onClose={() => setManagingScheduleRecipient(null)}
+        recipient={managingScheduleRecipient}
+        currentDate={scheduleDate || new Date()}
+        onSuccess={() => {
+          fetchMarkers();
+          setManagingScheduleRecipient(null);
+        }}
+      />
       
       <RecipientModal 
         isOpen={isModalOpen} 
