@@ -1855,7 +1855,7 @@ function MainApp() {
                       </div>
                       
                       {/* Card Content */}
-                      <div className={`flex-1 rounded-2xl border ${isNext ? 'border-primary shadow-md shadow-primary/10' : 'border-surface-border shadow-sm shadow-foreground/5'} bg-surface p-4 active:scale-[0.98] transition-transform`}>
+                      <div className={`flex-1 min-w-0 rounded-2xl border ${isNext ? 'border-primary shadow-md shadow-primary/10' : 'border-surface-border shadow-sm shadow-foreground/5'} bg-surface p-4 active:scale-[0.98] transition-transform`}>
                         <div className="flex gap-3 items-start">
                           <div className="w-12 h-12 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
                             {marker.photo_url ? (
@@ -1883,38 +1883,43 @@ function MainApp() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-2 mt-4" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
-                            className={`flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${completed ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
-                          >
-                            <IconCheck size={16} />
-                            {completed ? '완료 취소' : '방문 완료'}
-                          </button>
-                          
-                          {!completed && (
+                        <div className="flex flex-wrap gap-2 mt-4" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex flex-1 gap-2 min-w-[140px]">
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }}
-                              className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-bold bg-foreground text-background hover:opacity-90 transition-opacity"
+                              onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
+                              className={`flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-bold transition-colors whitespace-nowrap ${completed ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
                             >
-                              <IconNavigation size={16} />
-                              길안내
+                              <IconCheck size={16} />
+                              {completed ? '완료 취소' : '방문 완료'}
                             </button>
-                          )}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setManagingScheduleRecipient(marker); }}
-                            className="flex-shrink-0 flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-bold bg-surface-muted text-foreground/70 hover:bg-surface-border transition-colors"
-                          >
-                            일정 관리
-                          </button>
+                            
+                            {!completed && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }}
+                                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-bold bg-foreground text-background hover:opacity-90 transition-opacity whitespace-nowrap"
+                              >
+                                <IconNavigation size={16} />
+                                길안내
+                              </button>
+                            )}
+                          </div>
                           
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleRemoveFromSchedule(marker, scheduleDate); }}
-                            className="flex-shrink-0 flex items-center justify-center w-10 py-2.5 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
-                            aria-label="일정에서 제외"
-                          >
-                            <IconX size={16} strokeWidth={3} />
-                          </button>
+                          <div className="flex gap-2 min-w-fit flex-1 sm:flex-none justify-end">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setManagingScheduleRecipient(marker); }}
+                              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-bold bg-surface-muted text-foreground/70 hover:bg-surface-border transition-colors whitespace-nowrap"
+                            >
+                              일정 관리
+                            </button>
+                            
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleRemoveFromSchedule(marker, scheduleDate); }}
+                              className="flex-shrink-0 flex items-center justify-center w-10 py-2.5 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                              aria-label="일정에서 제외"
+                            >
+                              <IconX size={16} strokeWidth={3} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
