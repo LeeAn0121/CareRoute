@@ -169,7 +169,7 @@ function MainApp() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   const [completingRecipient, setCompletingRecipient] = useState<Recipient | null>(null);
-  const [scheduleDate, setScheduleDate] = useState(new Date());
+  const [scheduleDate, setScheduleDate] = useState<Date | null>(null);
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'map' | 'list' | 'route' | 'settings'>('map');
@@ -1081,6 +1081,7 @@ function MainApp() {
   // 거리가 가장 적게 늘어나는 위치에 끼워넣는 방식(최근접 삽입 휴리스틱)으로
   // 순서를 정한다. 실제 도로 거리가 아닌 직선 거리 기준의 근사치.
   const scheduleRoute = useMemo(() => {
+    if (!scheduleDate) return [];
     const todays = markers.filter(r => getScheduledForDate(r, scheduleDate));
     const timed = todays
       .filter((r) => r.visit_time && r.visit_time !== '00:00:00')
@@ -1154,8 +1155,17 @@ function MainApp() {
   const handleSyncToCalendar = async () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     if (!clientId) return;
-    if (scheduleRoute.length === 0) {
-      alert('선택한 날짜에 방문 예정인 어르신이 없어서 동기화할 서비스 일정이 없습니다.');
+    
+    let targetRoute = scheduleRoute;
+    let syncDate = scheduleDate;
+    
+    if (!syncDate) {
+      syncDate = new Date();
+      targetRoute = markers.filter(r => getScheduledForDate(r, syncDate as Date));
+    }
+    
+    if (targetRoute.length === 0) {
+      alert(scheduleDate ? '선택한 날짜에 방문 예정인 어르신이 없어서 동기화할 서비스 일정이 없습니다.' : '오늘 방문 예정인 어르신이 없어서 동기화할 서비스 일정이 없습니다.');
       return;
     }
 
@@ -1175,7 +1185,7 @@ function MainApp() {
         tokenClient.requestAccessToken();
       });
 
-      const ymd = todayYMD();
+      const ymd = `${(syncDate as Date).getFullYear()}-${String((syncDate as Date).getMonth() + 1).padStart(2, '0')}-${String((syncDate as Date).getDate()).padStart(2, '0')}`;
       const authHeaders = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
 
       // 같은 날짜로 이미 동기화한 이벤트가 있으면 지우고 새로 만들어서
@@ -1192,7 +1202,7 @@ function MainApp() {
         });
       }
 
-      for (const marker of scheduleRoute) {
+      for (const marker of targetRoute) {
         const hasTime = marker.visit_time && marker.visit_time !== '00:00:00';
         const body: any = {
           summary: `${marker.name} 어르신 방문`,
@@ -1219,7 +1229,7 @@ function MainApp() {
         });
       }
 
-      alert(`오늘의 경로 ${scheduleRoute.length}건을 구글 캘린더에 동기화했습니다.`);
+      alert(`${(syncDate as Date).getMonth()+1}월 ${(syncDate as Date).getDate()}일 방문 일정 ${targetRoute.length}건을 구글 캘린더에 동기화했습니다.`);
     } catch (err: any) {
       console.error(err);
       alert('구글 캘린더 동기화에 실패했습니다: ' + (err?.message || err));
@@ -1772,23 +1782,18 @@ function MainApp() {
         {activeTab === 'route' && (
           <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background flex flex-col">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-lg font-black text-primary">
-                  {scheduleDate.toDateString() === new Date().toDateString() ? '오늘의 ' : `${scheduleDate.getMonth() + 1}월 ${scheduleDate.getDate()}일 `}
-                  방문 일정
-                </p>
-                <p className="text-sm text-foreground/50 font-semibold">
-                  총 {scheduleRoute.length}곳 방문 예정
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                loading={isSyncingCalendar}
-                onClick={handleSyncToCalendar}
-                className="py-2 text-sm whitespace-nowrap"
-              >
-                구글 캘린더 동기화
-              </Button>
+              {scheduleDate && (
+                <div>
+                  <p className="text-lg font-black text-primary">
+                    {scheduleDate.toDateString() === new Date().toDateString() ? '오늘의 ' : `${scheduleDate.getMonth() + 1}월 ${scheduleDate.getDate()}일 `}
+                    방문 일정
+                  </p>
+                  <p className="text-sm text-foreground/50 font-semibold">
+                    총 {scheduleRoute.length}곳 방문 예정
+                  </p>
+                </div>
+              )}
+
             </div>
 
             {/* Month Grid Calendar */}
@@ -1798,8 +1803,16 @@ function MainApp() {
               hasSchedule={(d) => markers.some(r => getScheduledForDate(r, d))}
             />
 
-            {scheduleRoute.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-12 pb-16">
+            {!scheduleDate ? (
+              <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-12 pb-16 animate-fade-in-up">
+                <div className="w-20 h-20 bg-surface rounded-full flex items-center justify-center shadow-sm mb-4">
+                  <IconCalendarEvent size={32} className="text-primary/20" />
+                </div>
+                <p className="font-bold text-lg text-foreground/60 mb-1">달력에서 날짜를 선택해주세요.</p>
+                <p className="text-sm text-foreground/40">해당 날짜의 방문 일정을 확인하고 관리할 수 있습니다.</p>
+              </div>
+            ) : scheduleRoute.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-12 pb-16 animate-fade-in-up">
                 <div className="w-20 h-20 bg-surface rounded-full flex items-center justify-center shadow-sm mb-4">
                   <IconCalendarEvent size={32} className="text-slate-300" />
                 </div>
@@ -1890,18 +1903,23 @@ function MainApp() {
             )}
             
             {/* FAB for adding to schedule */}
-            <button
-              onClick={() => setIsScheduleAddOpen(true)}
-              className="fixed bottom-[100px] right-5 z-40 w-[60px] h-[60px] flex items-center justify-center rounded-[24px] shadow-[0_16px_32px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200"
-            >
-              <IconPlus size={32} strokeWidth={2.5} />
-            </button>
+            {scheduleDate && (
+              <button
+                onClick={() => setIsScheduleAddOpen(true)}
+                className="fixed bottom-[100px] right-5 z-40 w-[60px] h-[60px] flex items-center justify-center rounded-[24px] shadow-[0_16px_32px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200 animate-fade-in-up"
+              >
+                <IconPlus size={32} strokeWidth={2.5} />
+              </button>
+            )}
           </div>
         )}
       </div>
       
       {activeTab === 'settings' && (
-        <SettingsView onReplayTutorial={() => {
+        <SettingsView 
+          onSyncCalendar={handleSyncToCalendar}
+          isSyncingCalendar={isSyncingCalendar}
+          onReplayTutorial={() => {
           setActiveTab('map');
           setTimeout(() => setShowOnboarding(true), 100);
         }} onBack={() => setActiveTab('map')} />
@@ -2146,7 +2164,7 @@ function MainApp() {
         <ScheduleAddModal 
           isOpen={isScheduleAddOpen}
           onClose={() => setIsScheduleAddOpen(false)}
-          date={scheduleDate}
+          date={scheduleDate as Date}
           allRecipients={markers}
           onSuccess={() => {
             fetchMarkers(); // refresh data

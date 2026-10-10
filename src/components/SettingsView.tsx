@@ -6,6 +6,8 @@ import { motion } from 'motion/react';
 interface SettingsViewProps {
   onReplayTutorial: () => void;
   onBack: () => void;
+  onSyncCalendar?: () => void;
+  isSyncingCalendar?: boolean;
 }
 
 const colorThemes = [
@@ -17,7 +19,7 @@ const colorThemes = [
   { id: 'theme-teal', name: '틸', color: 'bg-[#32ADE6]' },
 ];
 
-export default function SettingsView({ onReplayTutorial, onBack }: SettingsViewProps) {
+export default function SettingsView({ onReplayTutorial, onBack, onSyncCalendar, isSyncingCalendar }: SettingsViewProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [colorTheme, setColorTheme] = useState('theme-navy');
@@ -168,7 +170,7 @@ export default function SettingsView({ onReplayTutorial, onBack }: SettingsViewP
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-[10px] bg-foreground flex items-center justify-center text-surface"><IconBrandGithub size={18} /></div>
                 <div className="flex flex-col">
-                  <span className="font-bold text-[16px] tracking-tight">버전 정보 (v1.2.0)</span>
+                  <span className="font-bold text-[16px] tracking-tight">버전 정보 (v1.2.1)</span>
                   <span className="text-[12px] text-foreground/50 font-bold">업데이트 노트 확인</span>
                 </div>
               </div>

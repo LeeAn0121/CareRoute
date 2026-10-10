@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 
 interface MonthCalendarProps {
-  selectedDate: Date;
+  selectedDate: Date | null;
   onSelectDate: (date: Date) => void;
   // If we want to show dots for scheduled days, we can pass a function or array
   hasSchedule?: (date: Date) => boolean;
@@ -12,7 +12,8 @@ const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule }: MonthCalendarProps) {
   // Start with the month of the selected date
-  const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+  const initialDate = selectedDate || new Date();
+  const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
 
   const prevMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
@@ -48,6 +49,7 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
   };
 
   const isSelected = (d: number) => {
+    if (!selectedDate) return false;
     return selectedDate.getDate() === d && selectedDate.getMonth() === month && selectedDate.getFullYear() === year;
   };
 
