@@ -5,6 +5,7 @@ import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, Ic
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
 import ScheduleAddModal from '@/components/ScheduleAddModal';
+import MonthCalendar from '@/components/MonthCalendar';
 import VoiceMemoModal from '@/components/VoiceMemoModal';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
@@ -1788,28 +1789,12 @@ function MainApp() {
               </Button>
             </div>
 
-            {/* Horizontal Calendar Scroller */}
-            <div className="flex overflow-x-auto gap-2 py-3 mb-2 scrollbar-hide snap-x">
-              {Array.from({length: 30}, (_, i) => {
-                const d = new Date();
-                d.setDate(d.getDate() - 15 + i);
-                return d;
-              }).map(date => {
-                const isSelected = date.toDateString() === scheduleDate.toDateString();
-                const isToday = date.toDateString() === new Date().toDateString();
-                const dayStr = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
-                return (
-                  <div
-                    key={date.getTime()}
-                    onClick={() => setScheduleDate(date)}
-                    className={`flex flex-col items-center justify-center w-14 h-[72px] rounded-2xl flex-shrink-0 cursor-pointer snap-center transition-all ${isSelected ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-105' : isToday ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-surface text-foreground/70 border border-surface-border active:scale-95'}`}
-                  >
-                    <span className="text-[11px] font-bold mb-0.5 opacity-80">{dayStr}</span>
-                    <span className="text-lg font-black">{date.getDate()}</span>
-                  </div>
-                );
-              })}
-            </div>
+            {/* Month Grid Calendar */}
+            <MonthCalendar 
+              selectedDate={scheduleDate} 
+              onSelectDate={setScheduleDate} 
+              hasSchedule={(d) => markers.some(r => getScheduledForDate(r, d))}
+            />
 
             {scheduleRoute.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-12 pb-16">
