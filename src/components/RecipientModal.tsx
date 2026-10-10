@@ -213,7 +213,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         lat: coords.lat,
         lng: coords.lng,
         visit_time: visitTime ? `${visitTime}:00` : '00:00:00',
-        notes: visitDate,
+        notes: recipientToEdit?.notes || null, // Preserve existing specific dates
         recurring_weekdays: recurringDays.length > 0 ? [...recurringDays].sort().join(',') : null,
         photo_url: photoUrl,
       };
@@ -437,18 +437,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
           <div className="flex flex-col gap-3">
             <p className="text-[13px] font-black text-primary/80 tracking-tight">방문 일정</p>
-            <TextField
-              label="방문 예정일 (선택)"
-              type="date"
-              value={visitDate}
-              onChange={(e) => setVisitDate(e.target.value)}
-              disabled={isSubmitting}
-              endAdornment={visitDate ? (
-                <IconButton onClick={() => setVisitDate('')} aria-label="방문 예정일 지우기">
-                  <IconX size={16} />
-                </IconButton>
-              ) : null}
-            />
+
 
             <div>
               <span className="block text-sm font-bold text-foreground/70 mb-1">반복 요일 (선택)</span>

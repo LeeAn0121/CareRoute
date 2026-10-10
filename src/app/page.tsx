@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconUser, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import RecipientModal from '@/components/RecipientModal';
+import ScheduleAddModal from '@/components/ScheduleAddModal';
 import VoiceMemoModal from '@/components/VoiceMemoModal';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
@@ -167,6 +168,8 @@ function MainApp() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   const [completingRecipient, setCompletingRecipient] = useState<Recipient | null>(null);
+  const [scheduleDate, setScheduleDate] = useState(new Date());
+  const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'map' | 'list' | 'route' | 'settings'>('map');
   const [listViewMode, setListViewMode] = useState<'list' | 'grid' | 'compact'>('list');
@@ -913,6 +916,38 @@ function MainApp() {
     }
   }, [selectedSigungu]);
 
+  const handleRemoveFromSchedule = async (r: Recipient, date: Date) => {
+    if (!window.confirm('해당 어르신을 이 날짜의 방문 일정에서 제외하시겠습니까?')) return;
+    
+    const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const day = date.getDay();
+    
+    try {
+      let newNotes = r.notes || '';
+      if (newNotes.includes(ymd)) {
+        newNotes = newNotes.split(',').map(s => s.trim()).filter(s => s && s !== ymd).join(',');
+      }
+      
+      let newRecurring = r.recurring_weekdays || '';
+      if (newRecurring.split(',').map(Number).includes(day)) {
+        newRecurring = newRecurring.split(',').map(Number).filter(d => d !== day).join(',');
+      }
+      
+      const { error } = await supabase.from('recipients').update({ 
+        notes: newNotes || null,
+        recurring_weekdays: newRecurring || null
+      }).eq('id', r.id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setMarkers(prev => prev.map(m => m.id === r.id ? { ...m, notes: newNotes || null, recurring_weekdays: newRecurring || null } : m));
+    } catch (e) {
+      console.error(e);
+      alert('일정 제외 중 오류가 발생했습니다.');
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       await supabase.from('recipients').delete().eq('id', id);
@@ -971,6 +1006,10 @@ function MainApp() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
+  const isCompletedForDate = (r: Recipient, date: Date) => {
+    const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    return r.last_completed_key === ymd;
+  };
   const isCompletedToday = (r: Recipient) => r.last_completed_key === todayYMD();
   const toggleCompleted = async (r: Recipient) => {
     if (isCompletedToday(r)) {
@@ -1013,15 +1052,14 @@ function MainApp() {
     await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null }).eq('id', rId);
   };
 
-  // 오늘 방문 예정인지: 특정 날짜로 지정했거나, 반복 요일에 오늘 요일이 포함되면 해당
+  // 선택한 날짜에 방문 예정인지: 특정 날짜로 지정했거나, 반복 요일에 오늘 요일이 포함되면 해당
 
 
-  const isScheduledToday = (r: Recipient) => {
-    const now = new Date();
-    const ymd = todayYMD();
-    if (r.notes === ymd) return true;
+  const getScheduledForDate = (r: Recipient, date: Date) => {
+    const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    if (r.notes && r.notes.includes(ymd)) return true;
     if (r.recurring_weekdays) {
-      return r.recurring_weekdays.split(',').map(Number).includes(now.getDay());
+      return r.recurring_weekdays.split(',').map(Number).includes(date.getDay());
     }
     return false;
   };
@@ -1029,8 +1067,8 @@ function MainApp() {
   // 오늘의 경로: 시간이 정해진 일정을 뼈대로 두고, 시간 미정인 곳은 이동
   // 거리가 가장 적게 늘어나는 위치에 끼워넣는 방식(최근접 삽입 휴리스틱)으로
   // 순서를 정한다. 실제 도로 거리가 아닌 직선 거리 기준의 근사치.
-  const todayRoute = useMemo(() => {
-    const todays = markers.filter(isScheduledToday);
+  const scheduleRoute = useMemo(() => {
+    const todays = markers.filter(r => getScheduledForDate(r, scheduleDate));
     const timed = todays
       .filter((r) => r.visit_time && r.visit_time !== '00:00:00')
       .sort((a, b) => a.visit_time.localeCompare(b.visit_time));
@@ -1079,7 +1117,7 @@ function MainApp() {
       route.splice(bestPos, 0, chosen);
     }
     return route;
-  }, [markers, mapCenter]);
+  }, [markers, mapCenter, scheduleDate]);
 
   // Google 캘린더 동기화: Google Identity Services(GIS)로 액세스 토큰만 받아서
   // Calendar REST API를 직접 호출한다 (무거운 gapi 클라이언트 라이브러리 불필요).
@@ -1103,8 +1141,8 @@ function MainApp() {
   const handleSyncToCalendar = async () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     if (!clientId) return;
-    if (todayRoute.length === 0) {
-      alert('오늘 방문 예정인 어르신이 없어서 동기화할 서비스 일정이 없습니다.');
+    if (scheduleRoute.length === 0) {
+      alert('선택한 날짜에 방문 예정인 어르신이 없어서 동기화할 서비스 일정이 없습니다.');
       return;
     }
 
@@ -1141,7 +1179,7 @@ function MainApp() {
         });
       }
 
-      for (const marker of todayRoute) {
+      for (const marker of scheduleRoute) {
         const hasTime = marker.visit_time && marker.visit_time !== '00:00:00';
         const body: any = {
           summary: `${marker.name} 어르신 방문`,
@@ -1168,7 +1206,7 @@ function MainApp() {
         });
       }
 
-      alert(`오늘의 경로 ${todayRoute.length}건을 구글 캘린더에 동기화했습니다.`);
+      alert(`오늘의 경로 ${scheduleRoute.length}건을 구글 캘린더에 동기화했습니다.`);
     } catch (err: any) {
       console.error(err);
       alert('구글 캘린더 동기화에 실패했습니다: ' + (err?.message || err));
@@ -1493,7 +1531,7 @@ function MainApp() {
                     .filter((marker) => {
                       const q = searchQuery.trim();
                       if (q && !marker.name.includes(q) && !marker.address.includes(q)) return false;
-                      if (listFilter === 'today' && !isScheduledToday(marker)) return false;
+                      if (listFilter === 'today' && !getScheduledForDate(marker, new Date())) return false;
                       if (listFilter === 'incomplete' && isCompletedToday(marker)) return false;
                       if (listFilter === 'completed' && !isCompletedToday(marker)) return false;
                       if (listFilter === 'recurring' && !marker.recurring_weekdays) return false;
@@ -1645,12 +1683,15 @@ function MainApp() {
         {/* 오늘의 경로: 오늘 방문 예정(날짜 지정 또는 반복 요일)인 곳만 모아
             최근접 삽입 휴리스틱으로 방문 순서를 매겨 보여준다. */}
         {activeTab === 'route' && (
-          <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background">
-            <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background flex flex-col">
+            <div className="mb-2 flex items-center justify-between gap-3">
               <div>
-                <p className="text-lg font-black text-primary">오늘의 방문 순서</p>
+                <p className="text-lg font-black text-primary">
+                  {scheduleDate.toDateString() === new Date().toDateString() ? '오늘의 ' : `${scheduleDate.getMonth() + 1}월 ${scheduleDate.getDate()}일 `}
+                  방문 일정
+                </p>
                 <p className="text-sm text-foreground/50 font-semibold">
-                  직선거리 기준 추천 순서예요 · 총 {todayRoute.length}곳
+                  총 {scheduleRoute.length}곳 방문 예정
                 </p>
               </div>
               <Button
@@ -1663,21 +1704,45 @@ function MainApp() {
               </Button>
             </div>
 
-            {todayRoute.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-16">
+            {/* Horizontal Calendar Scroller */}
+            <div className="flex overflow-x-auto gap-2 py-3 mb-2 scrollbar-hide snap-x">
+              {Array.from({length: 30}, (_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - 15 + i);
+                return d;
+              }).map(date => {
+                const isSelected = date.toDateString() === scheduleDate.toDateString();
+                const isToday = date.toDateString() === new Date().toDateString();
+                const dayStr = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+                return (
+                  <div
+                    key={date.getTime()}
+                    onClick={() => setScheduleDate(date)}
+                    className={`flex flex-col items-center justify-center w-14 h-[72px] rounded-2xl flex-shrink-0 cursor-pointer snap-center transition-all ${isSelected ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-105' : isToday ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-surface text-foreground/70 border border-surface-border active:scale-95'}`}
+                  >
+                    <span className="text-[11px] font-bold mb-0.5 opacity-80">{dayStr}</span>
+                    <span className="text-lg font-black">{date.getDate()}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {scheduleRoute.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-12 pb-16">
                 <div className="w-20 h-20 bg-surface rounded-full flex items-center justify-center shadow-sm mb-4">
-                  <IconNavigation size={32} className="text-slate-300" />
+                  <IconCalendarEvent size={32} className="text-slate-300" />
                 </div>
-                <p className="font-bold text-lg text-foreground/60">오늘 방문 예정인 어르신이 없습니다.</p>
+                <p className="font-bold text-lg text-foreground/60 mb-1">일정이 없습니다.</p>
+                <p className="text-sm text-foreground/40">우측 하단 + 버튼을 눌러 어르신을 추가하세요.</p>
               </div>
             ) : (
               <div className="relative pl-6 space-y-5 mt-4">
                 {/* Vertical Timeline Line */}
                 <div className="absolute top-4 bottom-8 left-[11px] w-[2px] bg-surface-border rounded-full" />
                 
-                {todayRoute.map((marker, i) => {
-                  const completed = isCompletedToday(marker);
-                  const isNext = !completed && (i === 0 || isCompletedToday(todayRoute[i-1]));
+                {scheduleRoute.map((marker, i) => {
+                  const completed = isCompletedForDate(marker, scheduleDate);
+                  const isNext = !completed && (i === 0 || isCompletedForDate(scheduleRoute[i-1], scheduleDate));
 
                   return (
                     <div
@@ -1737,6 +1802,14 @@ function MainApp() {
                               길안내
                             </button>
                           )}
+                          
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleRemoveFromSchedule(marker, scheduleDate); }}
+                            className="flex-shrink-0 flex items-center justify-center w-10 py-2.5 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                            aria-label="일정에서 제외"
+                          >
+                            <IconX size={16} strokeWidth={3} />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1744,10 +1817,18 @@ function MainApp() {
                 })}
               </div>
             )}
+            
+            {/* FAB for adding to schedule */}
+            <button
+              onClick={() => setIsScheduleAddOpen(true)}
+              className="fixed bottom-[100px] right-5 z-40 w-[60px] h-[60px] flex items-center justify-center rounded-[24px] shadow-[0_16px_32px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200"
+            >
+              <IconPlus size={32} strokeWidth={2.5} />
+            </button>
           </div>
         )}
       </div>
-
+      
       {activeTab === 'settings' && (
         <SettingsView onReplayTutorial={() => {
           setActiveTab('map');
@@ -1959,7 +2040,7 @@ function MainApp() {
           {([
             { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
             { key: 'list' as const, label: '명단 보기', Icon: IconList },
-            { key: 'route' as const, label: '오늘의 경로', Icon: IconNavigation },
+            { key: 'route' as const, label: '방문 일정', Icon: IconCalendarEvent },
             
           ]).map(({ key, label, Icon }) => (
             <button
@@ -1990,6 +2071,19 @@ function MainApp() {
         recipientName={completingRecipient?.name || ''}
       />
 
+            {isScheduleAddOpen && (
+        <ScheduleAddModal 
+          isOpen={isScheduleAddOpen}
+          onClose={() => setIsScheduleAddOpen(false)}
+          date={scheduleDate}
+          allRecipients={markers}
+          onSuccess={() => {
+            fetchMarkers(); // refresh data
+            setIsScheduleAddOpen(false);
+          }}
+        />
+      )}
+      
       <RecipientModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
