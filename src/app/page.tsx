@@ -695,7 +695,8 @@ function MainApp() {
         setMapLoaded(true);
         clearInterval(checkMap);
       }
-      if (attempts > 20) {
+      if (attempts > 50) { // Increase timeout to 5 seconds
+        setMapLoaded(true); // Force unlock map
         clearInterval(checkMap);
       }
     }, 500);
@@ -805,6 +806,7 @@ function MainApp() {
         } catch {}
         setIsOffline(true);
       }
+      setDataLoaded(true); // Always unlock loading screen
     });
   };
 
