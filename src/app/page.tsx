@@ -1381,12 +1381,23 @@ function MainApp() {
         </div>
       )}
 
+      {/* Global Top-Right User Menu Button */}
+      {activeTab !== 'settings' && (
+        <button 
+          id="tour-user-menu"
+          onClick={() => setActiveTab('settings')}
+          className="absolute top-[calc(env(safe-area-inset-top,0px)+12px)] right-4 z-50 flex-shrink-0 w-12 h-12 flex items-center justify-center bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 hover:bg-foreground/[0.04] transition-all active:scale-90 animate-fade-in-down"
+        >
+          <IconMenu2 size={24} className="text-foreground/80" strokeWidth={2.5} />
+        </button>
+      )}
+
       {/* iOS / One UI 6 Styled Floating Header */}
       {activeTab === 'map' && (
       <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col items-start gap-3 mt-3 pointer-events-none">
         
         {/* Top Row: Address Pill + Hamburger Menu */}
-        <div id="tour-header" className="flex w-full items-start gap-3">
+        <div id="tour-header" className="flex w-full items-start gap-3 pr-[52px]">
           {/* Dynamic Island Style Address & Weather Combined */}
           <div className="flex-1 flex flex-col pointer-events-auto bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 overflow-hidden transition-all">
             
@@ -1412,14 +1423,7 @@ function MainApp() {
             </div>
           </div>
 
-          {/* Top-Right User Menu / Settings Button */}
-          <button 
-            id="tour-user-menu"
-            onClick={() => setActiveTab('settings')}
-            className="pointer-events-auto flex-shrink-0 w-12 h-12 flex items-center justify-center bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 hover:bg-foreground/[0.04] transition-all active:scale-90"
-          >
-            <IconMenu2 size={24} className="text-foreground/80" strokeWidth={2.5} />
-          </button>
+
         </div>
 
         {/* Region Filter Dropdown - iOS Menu Style */}
@@ -1488,6 +1492,17 @@ function MainApp() {
                 ref={mapRef}
                 defaultCenter={mapCenter}
                 defaultZoom={mapZoom}
+                onIdle={() => {
+                  if (mapRef.current) {
+                    const center = mapRef.current.getCenter();
+                    const zoom = mapRef.current.getZoom();
+                    // Prevent circular updates by checking difference
+                    if (Math.abs(center.y - mapCenter.lat) > 0.0001 || Math.abs(center.x - mapCenter.lng) > 0.0001) {
+                      setMapCenter({ lat: center.y, lng: center.x });
+                    }
+                    if (zoom !== mapZoom) setMapZoom(zoom);
+                  }
+                }}
               >
                                                 {/* 내 위치 (파란 점) */}
                 {myLocation && (
