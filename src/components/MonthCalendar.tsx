@@ -54,7 +54,7 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
   };
 
   return (
-    <div className="bg-surface rounded-[24px] shadow-sm border border-surface-border p-4 mb-4">
+    <div className="bg-surface rounded-[24px] shadow-sm border border-surface-border p-3 mb-4 flex-1 flex flex-col min-h-[350px]">
       {/* Header */}
       <div className="flex items-center justify-between mb-4 px-1">
         <div className="flex items-center gap-1">
@@ -106,9 +106,9 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
       </div>
 
       {/* Days Grid */}
-      <div className="grid grid-cols-7 gap-y-2 gap-x-1">
+      <div className="grid grid-cols-7 gap-y-1 gap-x-1 flex-1">
         {days.map((d, i) => {
-          if (d === null) return <div key={`empty-${i}`} className="h-10" />;
+          if (d === null) return <div key={`empty-${i}`} className="h-full min-h-[3rem]" />;
           
           const selected = isSelected(d);
           const today = isToday(d);
@@ -120,7 +120,7 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
             <button
               key={d}
               onClick={() => handleSelect(d)}
-              className={`relative h-10 flex flex-col items-center justify-center rounded-2xl transition-all active:scale-95
+              className={`relative h-full min-h-[3rem] w-full flex flex-col items-center justify-center rounded-2xl transition-all active:scale-95
                 ${selected 
                   ? 'bg-primary text-white shadow-md shadow-primary/20 font-black' 
                   : today 

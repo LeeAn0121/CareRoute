@@ -170,7 +170,7 @@ function MainApp() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   const [completingRecipient, setCompletingRecipient] = useState<Recipient | null>(null);
-  const [scheduleDate, setScheduleDate] = useState<Date | null>(null);
+  const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
   
