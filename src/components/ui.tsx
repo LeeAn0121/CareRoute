@@ -4,12 +4,6 @@ import { ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion } from 'motion/react';
 
-// MUI를 대체하는 최소한의 Tailwind 기반 UI 프리미티브.
-// 디자인 토큰(네이비/앰버)을 직접 통제하기 위해 외부 컴포넌트 라이브러리 대신
-// 이 앱에 필요한 만큼만 직접 구현한다.
-// 접근성이 까다로운 다이얼로그류(Modal/BottomSheet)는 Radix UI의 검증된
-// 포커스 트랩/스크롤 락/Esc 처리를 그대로 쓰고, 시각 스타일만 Tailwind로 입힌다.
-
 export function Spinner({ size = 20, className = '' }: { size?: number; className?: string }) {
   return (
     <span
@@ -22,11 +16,11 @@ export function Spinner({ size = 20, className = '' }: { size?: number; classNam
 type ButtonVariant = 'primary' | 'dark' | 'ghost' | 'danger-ghost' | 'plain';
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: 'bg-accent text-primary shadow-sm hover:brightness-95',
-  dark: 'bg-primary text-white shadow-sm hover:bg-primary/80',
-  ghost: 'bg-surface-muted text-foreground/70 hover:bg-surface-border',
-  'danger-ghost': 'bg-red-50 text-red-600 hover:bg-red-100',
-  plain: 'bg-surface text-primary border border-surface-border hover:bg-surface-muted',
+  primary: 'bg-primary text-primary-foreground shadow-[0_8px_20px_rgba(var(--primary),0.25)] hover:opacity-95 border border-white/20',
+  dark: 'bg-foreground text-background shadow-md hover:opacity-90',
+  ghost: 'bg-surface-muted/80 text-foreground/80 hover:bg-surface-border/60 border border-surface-border/40',
+  'danger-ghost': 'bg-red-500/10 text-red-600 hover:bg-red-500/20 border border-red-500/20',
+  plain: 'bg-surface text-foreground border border-surface-border hover:bg-surface-muted shadow-sm',
 };
 
 export function Button({
@@ -51,15 +45,17 @@ export function Button({
   startIcon?: ReactNode;
 }) {
   return (
-    <button
+    <motion.button
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[0.95rem] font-bold transition-transform active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none ${buttonVariants[variant]} ${fullWidth ? 'w-full' : ''} ${className}`}
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 400 }}
+      className={`inline-flex items-center justify-center gap-2 rounded-[20px] px-4 py-3 text-[15px] font-black transition-all disabled:opacity-40 disabled:pointer-events-none ${buttonVariants[variant]} ${fullWidth ? 'w-full' : ''} ${className}`}
     >
       {loading ? <Spinner size={18} /> : startIcon}
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -79,15 +75,17 @@ export function IconButton({
   'aria-label'?: string;
 }) {
   return (
-    <button
+    <motion.button
       type={type}
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
-      className={`inline-flex items-center justify-center rounded-2xl p-2.5 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none ${className}`}
+      whileTap={{ scale: 0.92 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 400 }}
+      className={`inline-flex items-center justify-center rounded-[20px] p-2.5 transition-colors disabled:opacity-40 disabled:pointer-events-none ${className}`}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -115,8 +113,9 @@ export function Fab({
       disabled={disabled}
       aria-label={ariaLabel}
       style={{ width: size, height: size }}
-      whileTap={{ scale: 0.92 }}
-      className={`inline-flex items-center justify-center rounded-2xl shadow-lg transition-colors disabled:opacity-50 ${buttonVariants[variant]} ${className}`}
+      whileTap={{ scale: 0.90 }}
+      transition={{ type: 'spring', damping: 22, stiffness: 350 }}
+      className={`inline-flex items-center justify-center rounded-[24px] shadow-2xl transition-all disabled:opacity-50 ${buttonVariants[variant]} ${className}`}
     >
       {children}
     </motion.button>
@@ -133,7 +132,7 @@ export function Chip({
   className?: string;
 }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-extrabold whitespace-nowrap ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black tracking-tight whitespace-nowrap shadow-xs border border-white/10 ${className}`}>
       {icon}
       {children}
     </span>
@@ -165,7 +164,7 @@ export function TextField({
 }) {
   return (
     <label className="block">
-      <span className="block text-sm font-bold text-foreground/70 mb-1">
+      <span className="block text-[13px] font-bold text-foreground/70 mb-1.5 pl-1">
         {label}
       </span>
       <div className="relative">
@@ -178,10 +177,10 @@ export function TextField({
           required={required}
           disabled={disabled}
           placeholder={placeholder}
-          className="w-full rounded-2xl border border-surface-border/80 bg-surface px-4 py-3.5 text-[0.95rem] font-medium text-primary disabled:bg-surface-muted disabled:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
+          className="w-full rounded-[20px] border border-surface-border/60 bg-surface/90 px-4 py-3.5 text-[15px] font-bold text-foreground placeholder:text-foreground/35 disabled:bg-surface-muted disabled:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent transition-all shadow-xs"
         />
         {endAdornment && (
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">{endAdornment}</div>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">{endAdornment}</div>
         )}
       </div>
     </label>
@@ -206,7 +205,7 @@ export function NativeSelect({
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className={`w-full rounded-2xl bg-surface-muted/50 px-4 py-4 text-[15px] font-black text-primary shadow-sm border border-surface-border/50 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer  ${className}`}
+      className={`w-full rounded-[20px] bg-surface/90 px-4 py-3.5 text-[15px] font-black text-foreground shadow-xs border border-surface-border/60 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all cursor-pointer ${className}`}
     >
       {children}
     </select>
@@ -241,12 +240,12 @@ export function Modal({
           <Dialog.Portal forceMount>
             <Dialog.Overlay asChild>
               <motion.div
-                className="fixed inset-0 z-[100] bg-black/40"
+                className="fixed inset-0 z-[100] bg-black/45 backdrop-blur-md"
                 variants={overlayVariants}
                 initial="hidden"
                 animate="visible"
                 exit="hidden"
-                transition={{ duration: 0.15 }}
+                transition={{ duration: 0.2 }}
               />
             </Dialog.Overlay>
             <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
@@ -268,12 +267,16 @@ export function Modal({
                 }}
               >
                 <motion.div
-                  className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-[32px] bg-surface shadow-2xl shadow-black/20 pointer-events-auto border border-surface-border/40"
-                  initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                  className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-[36px] sm:rounded-[36px] bg-surface shadow-[0_24px_60px_rgba(0,0,0,0.3)] pointer-events-auto border border-white/20 dark:border-white/10"
+                  initial={{ opacity: 0, scale: 0.95, y: 16 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.97, y: 4 }}
-                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                  exit={{ opacity: 0, scale: 0.96, y: 16 }}
+                  transition={{ type: 'spring', damping: 28, stiffness: 350 }}
                 >
+                  {/* One UI Pull Handle Indicator for Mobile */}
+                  <div className="pt-3 pb-1 flex justify-center sm:hidden">
+                    <div className="w-10 h-1.5 rounded-full bg-foreground/20" />
+                  </div>
                   <Dialog.Title className="sr-only">대화 상자</Dialog.Title>
                   <Dialog.Description className="sr-only">CareRoute 다이얼로그</Dialog.Description>
                   {children}
@@ -308,7 +311,7 @@ export function BottomSheet({
           <Dialog.Portal forceMount>
             <Dialog.Overlay asChild>
               <motion.div
-                className="fixed inset-0 z-[90] bg-black/30"
+                className="fixed inset-0 z-[90] bg-black/45 backdrop-blur-md"
                 variants={overlayVariants}
                 initial="hidden"
                 animate="visible"
@@ -328,12 +331,15 @@ export function BottomSheet({
               }}
             >
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[90] rounded-t-[32px] bg-surface shadow-2xl shadow-black/30 border-t border-surface-border/40"
+                className="fixed inset-x-0 bottom-0 z-[90] rounded-t-[36px] bg-surface shadow-[0_-12px_40px_rgba(0,0,0,0.25)] border-t border-white/20 dark:border-white/10 max-h-[85vh] overflow-y-auto"
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 32, stiffness: 320 }}
               >
+                <div className="pt-3 pb-1 flex justify-center">
+                  <div className="w-12 h-1.5 rounded-full bg-foreground/20" />
+                </div>
                 <Dialog.Title className="sr-only">상세 정보</Dialog.Title>
                 <Dialog.Description className="sr-only">CareRoute 상세 시트</Dialog.Description>
                 {children}

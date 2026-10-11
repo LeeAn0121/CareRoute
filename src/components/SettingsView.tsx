@@ -399,7 +399,7 @@ export default function SettingsView({ onReplayTutorial, onBack, onSyncCalendar,
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-[10px] bg-foreground flex items-center justify-center text-surface"><IconBrandGithub size={18} /></div>
                 <div className="flex flex-col">
-                  <span className="font-bold text-[16px] tracking-tight">버전 정보 (v1.3.0)</span>
+                  <span className="font-bold text-[16px] tracking-tight">버전 정보 (v1.4.0)</span>
                   <span className="text-[12px] text-foreground/50 font-bold">업데이트 노트 확인</span>
                 </div>
               </div>

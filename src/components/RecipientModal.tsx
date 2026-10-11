@@ -239,33 +239,37 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       onClose={() => { if (!isSubmitting && !isAddressSearchOpen) onClose(); }}
       closeOnBackdrop={!isSubmitting && !isAddressSearchOpen}
     >
-      <div className="flex items-center justify-between px-5 pt-5 pb-2">
-        <h2 className="text-lg font-extrabold text-primary">
-          {recipientToEdit ? '어르신 정보 수정' : '새 어르신 등록'}
-        </h2>
-        <IconButton onClick={onClose} disabled={isSubmitting} className="hover:bg-surface-muted" aria-label="닫기">
-          <IconX size={20} />
+      <div className="flex items-center justify-between px-6 pt-6 pb-2">
+        <div>
+          <h2 className="text-[20px] font-black text-foreground tracking-tight">
+            {recipientToEdit ? '어르신 정보 수정' : '새 어르신 등록'}
+          </h2>
+          <p className="text-[12px] font-bold text-foreground/50">방문 관리에 필요한 필수 정보를 입력해주세요</p>
+        </div>
+        <IconButton onClick={onClose} disabled={isSubmitting} className="w-9 h-9 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="닫기">
+          <IconX size={18} />
         </IconButton>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="flex flex-col gap-5 px-5 py-3">
-          <div className="flex justify-center">
+        <div className="flex flex-col gap-4 px-6 py-3">
+          {/* Avatar Upload Pebble */}
+          <div className="flex justify-center my-2">
             <div className="relative">
               <button
                 type="button"
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isSubmitting}
-                className="w-24 h-24 rounded-full overflow-hidden bg-primary/5 flex items-center justify-center border-2 border-dashed border-surface-border transition-colors hover:border-amber-400"
+                className="w-24 h-24 rounded-[28px] overflow-hidden bg-primary/5 flex items-center justify-center border-2 border-dashed border-surface-border/80 transition-colors hover:border-primary shadow-2xs"
                 aria-label="사진 선택"
               >
                 {photoPreview ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photoPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="flex flex-col items-center gap-1 text-foreground/50">
+                  <div className="flex flex-col items-center gap-1 text-foreground/45">
                     <IconUser size={32} />
-                    <span className="text-[11px] font-bold">사진 추가</span>
+                    <span className="text-[11px] font-black">사진 등록</span>
                   </div>
                 )}
               </button>
@@ -274,10 +278,10 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                 whileTap={{ scale: 0.9 }}
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isSubmitting}
-                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center border-2 border-surface shadow-md"
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-surface shadow-md"
                 aria-label="사진 촬영/선택"
               >
-                <IconCamera size={16} />
+                <IconCamera size={15} />
               </motion.button>
               {photoPreview && (
                 <motion.button
@@ -285,10 +289,10 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                   whileTap={{ scale: 0.9 }}
                   onClick={() => { setPhotoFile(null); setExistingPhotoUrl(null); if (photoInputRef.current) photoInputRef.current.value = ''; }}
                   disabled={isSubmitting}
-                  className="absolute top-0 right-0 w-6 h-6 rounded-full bg-surface text-red-500 shadow flex items-center justify-center"
+                  className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-surface text-red-500 shadow-md border border-surface-border flex items-center justify-center"
                   aria-label="사진 제거"
                 >
-                  <IconX size={14} />
+                  <IconX size={13} strokeWidth={2.5} />
                 </motion.button>
               )}
               <input
@@ -302,16 +306,16 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <p className="text-[13px] font-black text-primary/80 tracking-tight">기본 정보</p>
+          {/* Grouped Inset: Basic Info */}
+          <div className="bg-foreground/[0.03] dark:bg-white/[0.04] p-4 rounded-[26px] border border-surface-border/40 flex flex-col gap-3.5">
+            <p className="text-[13px] font-black text-primary tracking-tight pl-1">기본 정보</p>
             <TextField
               label="성함"
               required
+              placeholder="예: 김순자"
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={() => {
-                // 신규 등록 시 성함을 입력하고 다음 항목으로 넘어가면
-                // 바로 주소 검색을 띄워 한 번에 이어서 입력할 수 있게 한다.
                 if (!recipientToEdit && name.trim() && !address) {
                   handleSearchAddress();
                 }
@@ -321,21 +325,22 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
             <div className="flex items-end gap-2">
               <div className="flex-1">
-                <TextField label="기본 주소" required value={address} disabled />
+                <TextField label="기본 주소" required value={address} placeholder="도로명 또는 지번 주소" disabled />
               </div>
               <Button
                 type="button"
                 onClick={handleSearchAddress}
                 disabled={isSubmitting}
                 startIcon={<IconSearch size={18} />}
-                className="mb-[1px]"
+                className="mb-[1px] rounded-[18px] px-5 font-black text-sm"
               >
                 검색
               </Button>
             </div>
 
             <TextField
-              label="상세 주소 (선택)"
+              label="상세 주소 (동/호수, 층 등)"
+              placeholder="예: 101동 302호"
               value={detailAddress}
               onChange={(e) => setDetailAddress(e.target.value)}
               disabled={isSubmitting}
@@ -343,13 +348,10 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             />
           </div>
 
-          <div className="h-px bg-surface-muted" />
-
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <p className="text-[13px] font-black text-primary/80 tracking-tight">어르신 특이사항 (건강 해시태그)</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+          {/* Grouped Inset: Health Tags */}
+          <div className="bg-foreground/[0.03] dark:bg-white/[0.04] p-4 rounded-[26px] border border-surface-border/40 flex flex-col gap-3">
+            <p className="text-[13px] font-black text-primary tracking-tight pl-1">건강 및 케어 특이사항</p>
+            <div className="flex flex-wrap gap-1.5">
               {['치매', '당뇨', '고혈압', '거동불편', '청각장애', '시각장애', '와상'].map(tag => {
                 const isActive = healthTags.includes(tag);
                 return (
@@ -360,17 +362,21 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                       if (isActive) setHealthTags(prev => prev.filter(t => t !== tag));
                       else setHealthTags(prev => [...prev, tag]);
                     }}
-                    className={`px-3 py-1.5 rounded-full text-[12px] font-bold border transition-colors ${isActive ? 'bg-red-100 text-red-700 border-red-200' : 'bg-surface text-foreground/60 border-surface-border'}`}
+                    className={`px-3 py-1.5 rounded-full text-[12px] font-black border transition-all active:scale-95 ${
+                      isActive 
+                        ? 'bg-red-500/15 text-red-600 border-red-500/30 shadow-2xs' 
+                        : 'bg-surface text-foreground/60 border-surface-border/60 hover:bg-surface-muted'
+                    }`}
                   >
                     #{tag}
                   </button>
                 );
               })}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-1">
               <input
                 type="text"
-                placeholder="직접 입력 (예: 식사보조)"
+                placeholder="직접 태그 입력 (예: 식사보조)"
                 value={customTag}
                 onChange={(e) => setCustomTag(e.target.value)}
                 onKeyDown={(e) => {
@@ -382,7 +388,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                     }
                   }
                 }}
-                className="flex-1 px-3 py-2 text-[13px] border border-surface-border rounded-lg bg-surface focus:outline-none focus:border-primary"
+                className="flex-1 px-4 py-2.5 text-[13px] font-bold border border-surface-border/60 rounded-[16px] bg-surface/90 focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <button
                 type="button"
@@ -392,19 +398,18 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                     setCustomTag('');
                   }
                 }}
-                className="px-4 py-2 bg-primary/10 text-primary rounded-lg text-[13px] font-bold"
+                className="px-4 py-2.5 bg-primary/10 hover:bg-primary/15 text-primary rounded-[16px] text-[13px] font-black active:scale-95 transition-all"
               >
                 추가
               </button>
             </div>
-            {/* Custom added tags that are not in the preset list */}
             {healthTags.filter(t => !['치매', '당뇨', '고혈압', '거동불편', '청각장애', '시각장애', '와상'].includes(t)).length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-1">
+              <div className="flex flex-wrap gap-1.5 mt-1">
                 {healthTags.filter(t => !['치매', '당뇨', '고혈압', '거동불편', '청각장애', '시각장애', '와상'].includes(t)).map(tag => (
-                  <div key={tag} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-bold bg-red-100 text-red-700 border border-red-200">
+                  <div key={tag} className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-black bg-red-500/15 text-red-600 border border-red-500/30">
                     <span>#{tag}</span>
                     <button type="button" onClick={() => setHealthTags(prev => prev.filter(t => t !== tag))} className="text-red-400 hover:text-red-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                      <IconX size={13} strokeWidth={2.5} />
                     </button>
                   </div>
                 ))}
@@ -412,10 +417,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             )}
           </div>
 
-          <div className="h-px bg-surface-muted" />
-
-          <div className="flex flex-col gap-3">
-            <p className="text-[13px] font-black text-primary/80 tracking-tight">현장 편의 정보</p>
+          {/* Grouped Inset: Door & Parking Info */}
+          <div className="bg-foreground/[0.03] dark:bg-white/[0.04] p-4 rounded-[26px] border border-surface-border/40 flex flex-col gap-3">
+            <p className="text-[13px] font-black text-primary tracking-tight pl-1">현장 출입 편의 정보</p>
             <TextField
               label="공동현관 비밀번호 (선택)"
               placeholder="예: 🔔1234#"
@@ -425,7 +429,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             />
             <TextField
               label="주차 꿀팁 메모 (선택)"
-              placeholder="예: 빌라 뒤쪽 공터에 주차 가능"
+              placeholder="예: 빌라 뒤편 1층 지정 주차구역"
               value={parkingMemo}
               onChange={(e) => setParkingMemo(e.target.value)}
               disabled={isSubmitting}
@@ -434,9 +438,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
         </div>
 
-        <div className="px-5 pb-5 pt-2">
-          <Button type="submit" fullWidth loading={isSubmitting} className="py-3 text-base">
-            저장하기
+        <div className="px-6 pb-6 pt-2">
+          <Button type="submit" fullWidth loading={isSubmitting} className="py-3.5 text-[16px] font-black rounded-[22px] shadow-lg shadow-primary/20">
+            {recipientToEdit ? '수정 내용 저장하기' : '어르신 등록 완료'}
           </Button>
         </div>
       </form>

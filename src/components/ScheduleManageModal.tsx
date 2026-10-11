@@ -67,40 +67,45 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
 
   return (
     <Modal open={isOpen} onClose={onClose}>
-      <div className="flex items-center justify-between p-5 border-b border-surface-border">
+      <div className="flex items-center justify-between p-6 border-b border-surface-border/60">
         <div>
           <h2 className="text-xl font-black text-primary tracking-tight">{recipient.name} 어르신 일정</h2>
-          <p className="text-sm font-semibold text-foreground/50">방문 시간 및 요일을 설정하세요.</p>
+          <p className="text-xs font-semibold text-foreground/50 mt-0.5">방문 시간 및 요일을 설정하세요.</p>
         </div>
-        <IconButton onClick={onClose} className="bg-surface-muted hover:bg-surface-border">
+        <IconButton onClick={onClose} className="rounded-[18px] bg-foreground/[0.04] hover:bg-foreground/[0.08]">
           <IconX size={20} />
         </IconButton>
       </div>
 
-      <div className="p-5 space-y-6">
+      <div className="p-6 space-y-6">
         {/* Specific Date Toggle */}
-        <div className="flex items-center justify-between p-4 bg-primary/5 rounded-2xl border border-primary/10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <IconCalendarEvent size={20} />
+        <div className="flex items-center justify-between p-4 bg-primary/5 rounded-[24px] border border-primary/10 shadow-sm">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-[18px] bg-primary/10 flex items-center justify-center text-primary shadow-xs">
+              <IconCalendarEvent size={22} />
             </div>
             <div>
-              <p className="font-bold text-foreground">선택한 날짜에 방문</p>
+              <p className="font-bold text-foreground text-sm">선택한 날짜에 방문</p>
               <p className="text-xs text-foreground/50">{currentDate.getMonth() + 1}월 {currentDate.getDate()}일 일정에 포함합니다.</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={() => setIsOnCurrentDate(!isOnCurrentDate)}
-            className={`w-12 h-6 rounded-full transition-colors relative ${isOnCurrentDate ? 'bg-primary' : 'bg-surface-border'}`}
+            className={`w-13 h-7 rounded-full transition-colors relative p-1 ${isOnCurrentDate ? 'bg-primary' : 'bg-surface-border'}`}
           >
-            <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${isOnCurrentDate ? 'left-7' : 'left-1'}`} />
+            <motion.div
+              layout
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className={`w-5 h-5 rounded-full bg-white shadow-md ${isOnCurrentDate ? 'ml-auto' : 'mr-auto'}`}
+            />
           </button>
         </div>
 
         {/* Recurring Days */}
-        <div>
-          <span className="block text-sm font-bold text-foreground/70 mb-2">매주 반복 방문 (선택)</span>
-          <div className="flex gap-1.5">
+        <div className="bg-foreground/[0.03] dark:bg-white/[0.03] p-4.5 rounded-[24px] border border-surface-border/40 space-y-3">
+          <span className="block text-xs font-bold text-foreground/70 uppercase tracking-wider">매주 반복 방문 (선택)</span>
+          <div className="flex gap-2">
             {WEEKDAY_LABELS.map((label, day) => {
               const active = recurringDays.includes(day);
               return (
@@ -114,12 +119,11 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
                       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
                     );
                   }}
-                  animate={{
-                    backgroundColor: active ? 'var(--accent)' : 'var(--color-surface-muted)',
-                    color: active ? 'var(--primary)' : 'var(--color-foreground)',
-                  }}
-                  transition={{ duration: 0.15 }}
-                  className="w-10 h-10 flex-1 rounded-xl text-sm font-bold border border-surface-border/50"
+                  className={`flex-1 h-11 rounded-[18px] text-sm font-bold border transition-all ${
+                    active
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-surface text-foreground border-surface-border/60 hover:bg-surface-muted'
+                  }`}
                 >
                   {label}
                 </motion.button>
@@ -127,33 +131,34 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
             })}
           </div>
           {recurringDays.length > 0 && (
-            <p className="text-xs text-foreground/50 mt-2">매주 {recurringDays.slice().sort().map((d) => WEEKDAY_LABELS[d]).join(', ')}요일마다 자동으로 일정에 추가됩니다.</p>
+            <p className="text-xs text-foreground/50 font-medium">매주 {recurringDays.slice().sort().map((d) => WEEKDAY_LABELS[d]).join(', ')}요일마다 자동으로 일정에 추가됩니다.</p>
           )}
         </div>
 
         {/* Visit Time */}
-        <div>
-          <span className="block text-sm font-bold text-foreground/70 mb-2">방문 예정 시간 (선택)</span>
+        <div className="bg-foreground/[0.03] dark:bg-white/[0.03] p-4.5 rounded-[24px] border border-surface-border/40 space-y-2">
+          <span className="block text-xs font-bold text-foreground/70 uppercase tracking-wider">방문 예정 시간 (선택)</span>
           <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/40 pointer-events-none">
               <IconClock size={18} />
             </div>
             <input
               type="time"
               value={visitTime}
               onChange={(e) => setVisitTime(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-surface border border-surface-border rounded-xl outline-none focus:border-primary transition-colors text-foreground font-bold"
+              className="w-full pl-10 pr-4 py-3 bg-surface border border-surface-border/80 rounded-[18px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground font-bold"
             />
           </div>
         </div>
 
-        <button
+        <motion.button
+          whileTap={{ scale: 0.97 }}
           onClick={handleSave}
           disabled={isSubmitting}
-          className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-black text-lg active:scale-95 transition-transform disabled:opacity-50"
+          className="w-full py-4 rounded-[22px] bg-primary text-primary-foreground font-black text-base shadow-md hover:shadow-lg transition-all disabled:opacity-50"
         >
           {isSubmitting ? '저장 중...' : '일정 저장하기'}
-        </button>
+        </motion.button>
       </div>
     </Modal>
   );

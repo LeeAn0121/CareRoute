@@ -1488,45 +1488,51 @@ function MainApp() {
       {/* iOS / One UI 6 Styled Floating Header */}
       {activeTab === 'map' && (
       <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col items-start gap-3 mt-3 pointer-events-none">
-        
-        {/* Top Row: Address Pill + Hamburger Menu */}
+        {/* One UI 9.0 NowBar: Address Pill + Hamburger Menu */}
         <div id="tour-header" className="flex w-full items-start gap-3 pr-[52px]">
-          {/* Dynamic Island Style Address & Weather Combined */}
-          <div className="flex-1 flex flex-col pointer-events-auto bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 overflow-hidden transition-all">
+          {/* Dynamic NowBar Capsule */}
+          <div className="flex-1 flex flex-col pointer-events-auto bg-surface/85 supports-[backdrop-filter]:bg-surface/70 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_16px_40px_rgba(0,0,0,0.1)] border border-white/30 dark:border-white/10 overflow-hidden transition-all">
             
-            {/* Location Pill (Header) */}
+            {/* Location Pill Button */}
             <button 
               onClick={() => setShowRegionFilter(!showRegionFilter)}
-              className="flex items-center justify-between w-full px-5 py-3.5 bg-foreground/[0.02] hover:bg-foreground/[0.06] active:bg-foreground/[0.08] transition-colors"
+              className="flex items-center justify-between w-full px-5 py-3.5 hover:bg-foreground/[0.03] active:bg-foreground/[0.06] transition-colors"
             >
-              <div className="flex items-start gap-2.5 flex-1 min-w-0 w-full">
-                <div className="w-6 h-6 mt-0.5 shrink-0 rounded-full bg-primary/15 flex items-center justify-center">
-                  <IconMapPin size={14} className="text-primary" />
+              <div className="flex items-start gap-3 flex-1 min-w-0 w-full">
+                <div className="w-8 h-8 mt-0.5 shrink-0 rounded-[14px] bg-primary/10 flex items-center justify-center text-primary shadow-xs">
+                  <IconMapPin size={18} strokeWidth={2.5} />
                 </div>
-                <span className="text-[15px] font-black tracking-tight text-foreground/90 text-left whitespace-normal break-words leading-snug min-w-0 flex-1 w-full">
-                  {currentAddress}
-                </span>
+                <div className="flex-1 min-w-0 text-left">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-primary/70 block">현재 탐색 지역</span>
+                  <span className="text-[15px] font-black tracking-tight text-foreground text-left whitespace-normal break-words leading-snug block">
+                    {currentAddress}
+                  </span>
+                </div>
               </div>
-              <IconChevronRight size={18} className="shrink-0 text-foreground/40" />
+              <div className="w-7 h-7 rounded-full bg-foreground/[0.04] flex items-center justify-center shrink-0 ml-2">
+                <IconChevronRight size={16} className="text-foreground/50" />
+              </div>
             </button>
 
-            {/* Integrated Compact Weather */}
-            <div className="px-5 pb-3 pt-0 flex justify-start">
+            {/* Integrated Live Weather Widget Capsule */}
+            <div className="px-5 pb-3.5 pt-0 flex justify-start">
               <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
             </div>
           </div>
-
-
         </div>
 
-        {/* Region Filter Dropdown - iOS Menu Style */}
+        {/* Region Filter Dropdown - One UI 9.0 Grouped Inset Card */}
         {showRegionFilter && (
-        <div className="mt-1 p-5 bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[32px] shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-surface-border/50 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[320px]">
-          <div className="flex items-center justify-between pb-4 border-b border-surface-border/40 mb-4">
-            <span className="text-[17px] font-bold text-foreground tracking-tight">지역 설정</span>
+        <div className="mt-1 p-5 bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/30 dark:border-white/10 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[340px]">
+          <div className="flex items-center justify-between pb-3.5 border-b border-surface-border/40 mb-4">
+            <div>
+              <span className="text-[17px] font-black text-foreground tracking-tight block">지역 직접 선택</span>
+              <span className="text-[12px] font-bold text-foreground/50">원하는 행정구역으로 이동합니다</span>
+            </div>
             <button 
               onClick={() => setShowRegionFilter(false)} 
               className="w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 text-foreground/50 hover:bg-foreground/10 transition-colors"
+              aria-label="닫기"
             >
               <IconX size={18} />
             </button>
@@ -1534,7 +1540,7 @@ function MainApp() {
           
           <div className="flex flex-col gap-3">
             <NativeSelect
-              className="w-full !bg-foreground/5 !border-0 !rounded-2xl !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
+              className="w-full !bg-foreground/[0.04] !border-0 !rounded-[20px] !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
               value={selectedSido}
               onChange={(e) => {
                 setSelectedSido(e.target.value);
@@ -1547,7 +1553,7 @@ function MainApp() {
             </NativeSelect>
 
             <NativeSelect
-              className="w-full !bg-foreground/5 !border-0 !rounded-2xl !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
+              className="w-full !bg-foreground/[0.04] !border-0 !rounded-[20px] !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
               value={selectedSigungu}
               onChange={(e) => {
                 setSelectedSigungu(e.target.value);
@@ -1560,7 +1566,7 @@ function MainApp() {
             </NativeSelect>
 
             <NativeSelect
-              className="w-full !bg-foreground/5 !border-0 !rounded-2xl !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
+              className="w-full !bg-foreground/[0.04] !border-0 !rounded-[20px] !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
               value={selectedDong}
               onChange={(e) => setSelectedDong(e.target.value)}
               disabled={!selectedSigungu}
@@ -1663,59 +1669,81 @@ function MainApp() {
         {activeTab === 'list' && (
           <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background">
             
-            {/* 검색바 */}
-            <div className="mb-3 relative">
+            {/* One UI 9.0 Search Capsule */}
+            <div className="mb-3.5 relative">
               <input
                 type="text"
-                placeholder="이름 또는 주소 검색..."
+                placeholder="어르신 성함 또는 주소 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-surface border border-surface-border/60 rounded-full py-4 pl-12 pr-10 shadow-sm text-[16px] shadow-sm font-semibold text-foreground/80 placeholder:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+                className="w-full bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-2xl border border-white/30 dark:border-white/10 rounded-full py-4 pl-12 pr-11 shadow-[0_8px_30px_rgba(0,0,0,0.05)] text-[16px] font-bold text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent transition-all"
               />
-              <IconSearch size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/50" />
+              <IconSearch size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/45" />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-foreground/70 bg-surface-muted p-1 rounded-full"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-foreground/80 bg-foreground/[0.06] p-1.5 rounded-full transition-colors"
+                  aria-label="검색어 지우기"
                 >
-                  <IconX size={16} />
+                  <IconX size={14} />
                 </button>
               )}
             </div>
 
-            {/* 뷰 모드 + 정렬 */}
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex bg-surface-muted/80 p-1.5 rounded-full shadow-inner border border-surface-border/40">
-                <button onClick={() => setListViewMode('list')} className={`p-1.5 rounded-lg transition-colors ${listViewMode === 'list' ? 'bg-surface text-primary shadow-sm' : 'text-foreground/40 hover:text-foreground/70'}`}><IconList size={18} /></button>
-                <button onClick={() => setListViewMode('grid')} className={`p-1.5 rounded-lg transition-colors ${listViewMode === 'grid' ? 'bg-surface text-primary shadow-sm' : 'text-foreground/40 hover:text-foreground/70'}`}><IconLayoutGrid size={18} /></button>
-                <button onClick={() => setListViewMode('compact')} className={`p-1.5 rounded-lg transition-colors ${listViewMode === 'compact' ? 'bg-surface text-primary shadow-sm' : 'text-foreground/40 hover:text-foreground/70'}`}><IconListDetails size={18} /></button>
+            {/* View Mode Segmented Pill & Sort Dropdown */}
+            <div className="flex items-center justify-between gap-2 mb-3.5 px-0.5">
+              <div className="flex bg-foreground/[0.04] dark:bg-white/[0.06] p-1 rounded-full border border-surface-border/40 shadow-2xs">
+                <button 
+                  onClick={() => setListViewMode('list')} 
+                  className={`p-2 rounded-full transition-all ${listViewMode === 'list' ? 'bg-surface text-primary shadow-xs font-black' : 'text-foreground/40 hover:text-foreground/70'}`}
+                  title="목록 보기"
+                >
+                  <IconList size={18} />
+                </button>
+                <button 
+                  onClick={() => setListViewMode('grid')} 
+                  className={`p-2 rounded-full transition-all ${listViewMode === 'grid' ? 'bg-surface text-primary shadow-xs font-black' : 'text-foreground/40 hover:text-foreground/70'}`}
+                  title="그리드 보기"
+                >
+                  <IconLayoutGrid size={18} />
+                </button>
+                <button 
+                  onClick={() => setListViewMode('compact')} 
+                  className={`p-2 rounded-full transition-all ${listViewMode === 'compact' ? 'bg-surface text-primary shadow-xs font-black' : 'text-foreground/40 hover:text-foreground/70'}`}
+                  title="심플 보기"
+                >
+                  <IconListDetails size={18} />
+                </button>
               </div>
+
               <select
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
-                className="bg-surface border border-surface-border/60 rounded-full px-4 py-2 text-[13px] font-bold text-foreground/80 focus:outline-none shadow-sm"
+                className="bg-surface/90 border border-white/30 dark:border-white/10 rounded-full px-4 py-2.5 text-[13px] font-black text-foreground/80 focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-xs cursor-pointer"
               >
-                <option value="time">서비스 시간순</option>
-                <option value="name">이름순</option>
-                <option value="distance">거리순</option>
+                <option value="time">방문 시간순</option>
+                <option value="name">어르신 이름순</option>
+                <option value="distance">현재 거리순</option>
               </select>
             </div>
 
-            {/* 필터 칩 */}
+            {/* One UI 9.0 Filter Chips Carousel */}
             <div className="flex items-center gap-2 mb-5">
-              <div className="flex gap-1.5 overflow-x-auto pb-1">
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                 {([
                   { key: 'all', label: '전체' },
                   { key: 'today', label: '오늘 방문' },
-                  { key: 'incomplete', label: '미완료' },
-                  { key: 'completed', label: '완료' },
-                  { key: 'recurring', label: '반복 서비스 일정' },
+                  { key: 'incomplete', label: '미방문' },
+                  { key: 'completed', label: '방문 완료' },
+                  { key: 'recurring', label: '정기 일정' },
                 ] as const).map((f) => (
                   <button
                     key={f.key}
                     onClick={() => setListFilter(f.key)}
-                    className={`px-4 py-2 rounded-full text-[13px] font-black whitespace-nowrap shadow-sm transition-all active:scale-95 ${
-                      listFilter === f.key ? 'bg-primary text-white' : 'bg-surface text-foreground/60 border border-surface-border'
+                    className={`px-4 py-2 rounded-full text-[13px] font-black whitespace-nowrap transition-all active:scale-95 shadow-2xs ${
+                      listFilter === f.key 
+                        ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.3)] scale-[1.02]' 
+                        : 'bg-surface/80 text-foreground/60 border border-surface-border/60 hover:bg-surface'
                     }`}
                   >
                     {f.label}
@@ -1725,14 +1753,15 @@ function MainApp() {
             </div>
 
             {(markers.length === 0) ? (
-              <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-16">
-                <div className="w-20 h-20 bg-surface rounded-full flex items-center justify-center shadow-sm mb-4">
-                  <IconUser size={32} className="text-slate-300" />
+              <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-16 p-8 bg-surface/60 rounded-[32px] border border-surface-border/40 text-center">
+                <div className="w-20 h-20 bg-primary/5 rounded-[24px] flex items-center justify-center shadow-xs mb-4 text-primary">
+                  <IconUser size={36} />
                 </div>
-                <p className="font-bold text-lg text-foreground/60">이 지역엔 등록된 어르신이 없습니다.</p>
+                <p className="font-black text-lg text-foreground/80 mb-1">등록된 어르신이 없습니다.</p>
+                <p className="text-sm text-foreground/50">우측 상단 또는 지도 화면에서 새로운 어르신을 추가해보세요.</p>
               </div>
             ) : (
-              <div className={listViewMode === 'grid' ? "grid grid-cols-2 gap-3" : "space-y-4"}>
+              <div className={listViewMode === 'grid' ? "grid grid-cols-2 gap-3.5" : "space-y-4"}>
                 {(() => {
                   const filteredMarkers = markers
                     .filter((marker) => {
@@ -1756,9 +1785,10 @@ function MainApp() {
 
                   if (filteredMarkers.length === 0) {
                     return (
-                      <div className="flex flex-col items-center justify-center text-foreground/50 mt-12 bg-surface rounded-xl py-12 shadow-sm border border-surface-border">
-                        <IconSearch size={40} className="text-slate-200 mb-4" />
-                        <p className="font-bold text-lg text-foreground/60">조건에 맞는 어르신이 없습니다.</p>
+                      <div className="flex flex-col items-center justify-center text-foreground/50 mt-12 bg-surface/80 rounded-[32px] py-12 px-6 shadow-xs border border-surface-border text-center">
+                        <IconSearch size={44} className="text-foreground/20 mb-3" />
+                        <p className="font-black text-lg text-foreground/70 mb-1">검색 조건에 맞는 어르신이 없습니다.</p>
+                        <p className="text-xs text-foreground/40">검색어나 필터 조건을 변경해보세요.</p>
                       </div>
                     );
                   }
@@ -1774,7 +1804,7 @@ function MainApp() {
                     exit={{ opacity: 0, scale: 0.96 }}
                     transition={{ duration: 0.22, delay: Math.min(index, 8) * 0.03, ease: [0.16, 1, 0.3, 1] }}
                     whileTap={{ scale: 0.98 }}
-                    className={`rounded-3xl ${listViewMode === 'list' ? 'mb-3' : ''} border border-surface-border/50 shadow-md shadow-foreground/5 cursor-pointer bg-surface overflow-hidden flex flex-col hover:shadow-lg transition-all`}
+                    className={`rounded-[32px] ${listViewMode === 'list' ? 'mb-3.5' : ''} border border-white/30 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.05)] cursor-pointer bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-xl overflow-hidden flex flex-col hover:shadow-xl transition-all`}
                     onClick={() => {
                       setMapCenter({ lat: marker.lat, lng: marker.lng });
                       setMapZoom(17);
@@ -1782,97 +1812,147 @@ function MainApp() {
                       setSelectedRecipient(marker);
                     }}
                   >
+                    {/* One UI 9.0 Inset List Card */}
                     {listViewMode === 'list' && (
-                      <div className="p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <div className="flex gap-4 items-center">
-                            <div className="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <div className="p-5">
+                        <div className="flex justify-between items-start mb-3.5">
+                          <div className="flex gap-3.5 items-center min-w-0">
+                            <div className="w-14 h-14 bg-primary/5 rounded-[22px] flex items-center justify-center shrink-0 overflow-hidden border border-surface-border/40 shadow-2xs">
                               {marker.photo_url ? (
-                                <img src={marker.photo_url} alt="" className="w-full h-full object-contain" />
+                                <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                               ) : (
-                                <IconUser size={28} color='var(--primary)' />
+                                <IconUser size={28} className="text-primary" />
                               )}
                             </div>
-                            <div>
-                              <p className="text-lg font-black text-primary tracking-tight">
+                            <div className="min-w-0">
+                              <p className="text-[19px] font-black text-foreground tracking-tight truncate">
                                 {marker.name} 어르신
                               </p>
-                              <Chip icon={<IconClock size={14} color="#8A5A00" />} className="mt-1 bg-accent/20 text-foreground/80 font-bold">
-                                {`${marker.notes ? marker.notes.substring(5) + ' ' : ''}${marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}`}
-                              </Chip>
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-accent/15 text-accent border border-accent/20">
+                                  <IconClock size={12} strokeWidth={2.5} />
+                                  {marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}
+                                </span>
+                                {isCompletedToday(marker) && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-600 border border-emerald-500/20">
+                                    <IconCheck size={12} strokeWidth={3} />
+                                    방문 완료
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <div className="flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
-                            <IconButton onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} className={isCompletedToday(marker) ? 'bg-[#4C7A6B] text-white' : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'} aria-label="완료">
-                              <IconCheck size={18} />
+
+                          <div className="flex flex-col gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                            <IconButton 
+                              onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} 
+                              className={`w-10 h-10 rounded-[18px] transition-all ${
+                                isCompletedToday(marker) 
+                                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' 
+                                  : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'
+                              }`} 
+                              aria-label="방문 완료 토글"
+                            >
+                              <IconCheck size={18} strokeWidth={2.5} />
                             </IconButton>
                           </div>
                         </div>
 
-                        <div className="bg-surface-muted/50 rounded-2xl p-4 mb-5 flex gap-3 items-center border border-surface-border/30">
-                          <IconMapPin size={22} color="#94a3b8" className="flex-shrink-0" />
-                          <p className="font-semibold text-foreground/70 leading-snug">
+                        {/* Address Box */}
+                        <div className="bg-foreground/[0.03] dark:bg-white/[0.04] rounded-[22px] p-3.5 mb-4 flex gap-2.5 items-center border border-surface-border/30">
+                          <IconMapPin size={20} className="text-primary/70 shrink-0" />
+                          <p className="font-bold text-foreground/75 leading-snug text-[13px] line-clamp-2">
                             {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
                           </p>
                         </div>
 
+                        {/* Card Action Buttons */}
                         <div className="flex gap-2">
-                          <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} className="flex-1 py-3.5 text-[15px] font-bold rounded-2xl border border-surface-border/60 text-foreground/80">
-                            수정
+                          <Button 
+                            variant="ghost" 
+                            onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} 
+                            className="flex-1 py-3 text-[14px] font-black rounded-[18px]"
+                          >
+                            정보 수정
                           </Button>
-                          <Button variant="dark" startIcon={<IconNavigation size={18} />} onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} className="flex-[2] py-3.5 text-[15px] font-black rounded-2xl shadow-md shadow-primary/20 hover:bg-primary/90 transition-colors">
-                            길안내
+                          <Button 
+                            variant="dark" 
+                            startIcon={<IconNavigation size={17} />} 
+                            onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} 
+                            className="flex-[1.5] py-3 text-[14px] font-black rounded-[18px] shadow-md shadow-foreground/20"
+                          >
+                            길안내 시작
                           </Button>
                         </div>
                       </div>
                     )}
 
+                    {/* One UI 9.0 Inset Grid Card */}
                     {listViewMode === 'grid' && (
                       <div className="p-4 flex flex-col h-full">
                         <div className="flex justify-between items-start mb-3">
-                          <div className="w-12 h-12 bg-primary/5 rounded-full flex items-center justify-center overflow-hidden">
+                          <div className="w-12 h-12 bg-primary/5 rounded-[18px] flex items-center justify-center overflow-hidden border border-surface-border/40 shadow-2xs shrink-0">
                             {marker.photo_url ? (
-                              <img src={marker.photo_url} alt="" className="w-full h-full object-contain" />
+                              <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                             ) : (
-                              <IconUser size={24} color='var(--primary)' />
+                              <IconUser size={24} className="text-primary" />
                             )}
                           </div>
-                          <button onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isCompletedToday(marker) ? 'bg-[#4C7A6B] text-white' : 'bg-surface-muted text-foreground/40 hover:bg-surface-border'}`}>
-                            <IconCheck size={16} />
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} 
+                            className={`w-9 h-9 flex items-center justify-center rounded-[14px] transition-colors ${
+                              isCompletedToday(marker) ? 'bg-emerald-500 text-white shadow-sm' : 'bg-surface-muted text-foreground/40 hover:bg-surface-border'
+                            }`}
+                            aria-label="완료 토글"
+                          >
+                            <IconCheck size={16} strokeWidth={2.5} />
                           </button>
                         </div>
-                        <p className="text-lg font-black text-primary tracking-tight truncate">{marker.name}</p>
-                        <p className="text-xs font-semibold text-accent mb-2 truncate">
+                        <p className="text-[17px] font-black text-foreground tracking-tight truncate">{marker.name} 어르신</p>
+                        <p className="text-xs font-bold text-accent mb-2 truncate">
                           {marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5)}
                         </p>
-                        <p className="text-xs text-foreground/60 font-medium line-clamp-2 mb-4 flex-1">
+                        <p className="text-xs text-foreground/60 font-semibold line-clamp-2 mb-4 flex-1 leading-relaxed">
                           {marker.address}
                         </p>
-                        <Button variant="dark" onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} className="py-2 text-xs w-full mt-auto">
+                        <Button 
+                          variant="dark" 
+                          onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} 
+                          className="py-2.5 text-xs w-full mt-auto rounded-[16px]"
+                        >
                           길안내
                         </Button>
                       </div>
                     )}
 
+                    {/* One UI 9.0 Inset Compact Card */}
                     {listViewMode === 'compact' && (
-                      <div className="p-3 flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary/5 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <div className="p-3.5 flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary/5 rounded-[16px] flex items-center justify-center shrink-0 overflow-hidden border border-surface-border/30">
                           {marker.photo_url ? (
-                            <img src={marker.photo_url} alt="" className="w-full h-full object-contain" />
+                            <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <IconUser size={20} color='var(--primary)' />
+                            <IconUser size={20} className="text-primary" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-black text-primary truncate">{marker.name}</p>
-                            {isCompletedToday(marker) && <IconCheck size={14} className="text-[#4C7A6B]" />}
+                            <p className="font-black text-[15px] text-foreground tracking-tight truncate">{marker.name}</p>
+                            {isCompletedToday(marker) && (
+                              <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                                <IconCheck size={10} strokeWidth={3} />
+                              </span>
+                            )}
                           </div>
-                          <p className="text-xs text-foreground/50 font-semibold truncate">
+                          <p className="text-xs text-foreground/50 font-bold truncate">
                             {marker.visit_time.substring(0, 5) === '00:00' ? '미정' : marker.visit_time.substring(0, 5)} · {marker.address}
                           </p>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} className="p-2 bg-surface-muted text-foreground/60 rounded-full hover:bg-surface-border transition-colors flex-shrink-0">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} 
+                          className="p-2.5 bg-surface-muted/80 text-foreground/70 rounded-[14px] hover:bg-surface-border transition-colors shrink-0 active:scale-95"
+                          aria-label="길안내"
+                        >
                           <IconNavigation size={18} />
                         </button>
                       </div>
@@ -1923,68 +2003,85 @@ function MainApp() {
                   <p className="text-sm text-foreground/40">우측 하단 + 버튼을 눌러 어르신을 추가하세요.</p>
                 </div>
               ) : (
-              <div className="relative pl-6 space-y-5 mt-4">
-                {/* Vertical Timeline Line */}
-                <div className="absolute top-4 bottom-8 left-[11px] w-[2px] bg-surface-border rounded-full" />
+              <div className="relative pl-6 space-y-4 mt-4">
+                {/* Vertical Timeline Gradient Connector Line */}
+                <div className="absolute top-4 bottom-8 left-[11px] w-[3px] bg-gradient-to-b from-primary via-accent to-surface-border rounded-full" />
                 
                 {scheduleRoute.map((marker, i) => {
                   const completed = isCompletedForDate(marker, scheduleDate);
                   const isNext = !completed && (i === 0 || isCompletedForDate(scheduleRoute[i-1], scheduleDate));
 
                   return (
-                    <div
+                    <motion.div
                       key={marker.id}
+                      whileTap={{ scale: 0.99 }}
                       onClick={() => setSelectedRecipient(marker)}
-                      className={`relative flex gap-4 items-start cursor-pointer transition-all ${completed ? 'opacity-60' : 'opacity-100'}`}
+                      className={`relative flex gap-3.5 items-start cursor-pointer transition-all ${completed ? 'opacity-60' : 'opacity-100'}`}
                     >
-                      {/* Timeline Dot */}
-                      <div className={`absolute -left-[24px] top-1.5 w-[24px] h-[24px] rounded-full flex items-center justify-center z-10 ${completed ? 'bg-surface-muted border-2 border-surface-border text-foreground/40' : (isNext ? 'bg-primary border-4 border-primary/20 text-primary-foreground shadow-lg shadow-primary/40' : 'bg-surface border-[3px] border-surface-border text-foreground/60')}`}>
+                      {/* One UI Timeline Node Squircle */}
+                      <div className={`absolute -left-[25px] top-1.5 w-[26px] h-[26px] rounded-[10px] flex items-center justify-center z-10 transition-transform ${
+                        completed 
+                          ? 'bg-surface-muted border-2 border-surface-border text-foreground/40' 
+                          : isNext 
+                            ? 'bg-primary border-2 border-white dark:border-white/20 text-primary-foreground shadow-lg shadow-primary/40 scale-110' 
+                            : 'bg-surface border-2 border-surface-border text-foreground/70 shadow-xs'
+                      }`}>
                         {completed ? <IconCheck size={14} strokeWidth={3} /> : <span className="text-[11px] font-black">{i + 1}</span>}
                       </div>
                       
-                      {/* Card Content */}
-                      <div className={`flex-1 min-w-0 rounded-2xl border ${isNext ? 'border-primary shadow-md shadow-primary/10' : 'border-surface-border shadow-sm shadow-foreground/5'} bg-surface p-4 active:scale-[0.98] transition-transform`}>
-                        <div className="flex gap-3 items-start">
-                          <div className="w-12 h-12 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {/* One UI 9.0 Inset Card Content */}
+                      <div className={`flex-1 min-w-0 rounded-[30px] border ${isNext ? 'border-primary/60 shadow-[0_8px_25px_rgba(var(--primary),0.15)] ring-1 ring-primary/20' : 'border-white/30 dark:border-white/10 shadow-[0_6px_20px_rgba(0,0,0,0.04)]'} bg-surface/90 backdrop-blur-xl p-4.5 transition-all`}>
+                        <div className="flex gap-3.5 items-start">
+                          <div className="w-13 h-13 rounded-[20px] bg-primary/5 flex items-center justify-center shrink-0 overflow-hidden border border-surface-border/40 shadow-2xs">
                             {marker.photo_url ? (
-                              <img src={marker.photo_url} alt="" className="w-full h-full object-contain" />
+                              <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                             ) : (
-                              <IconUser size={24} color='var(--primary)' />
+                              <IconUser size={26} className="text-primary" />
                             )}
                           </div>
                           
                           <div className="flex-1 min-w-0 pt-0.5">
                             <div className="flex items-center gap-2 mb-1">
-                              <p className={`font-black text-lg text-primary tracking-tight truncate ${completed ? 'line-through opacity-80' : ''}`}>{marker.name}</p>
-                              {isNext && <span className="px-2 py-0.5 bg-accent text-accent-foreground text-[10px] font-black rounded-full animate-pulse shadow-sm">NEXT</span>}
+                              <p className={`font-black text-[18px] text-foreground tracking-tight truncate ${completed ? 'line-through opacity-80' : ''}`}>
+                                {marker.name} 어르신
+                              </p>
+                              {isNext && (
+                                <span className="px-2.5 py-0.5 bg-accent text-accent-foreground text-[10px] font-black rounded-full animate-pulse shadow-xs">
+                                  NEXT
+                                </span>
+                              )}
                             </div>
-                            <div className="flex items-center gap-1.5 mb-1 text-xs font-bold text-foreground/60">
-                              <IconClock size={14} className={isNext ? 'text-accent' : ''} />
-                              <span className={isNext ? 'text-accent' : ''}>
+                            <div className="flex items-center gap-1.5 mb-1.5 text-xs font-black text-foreground/60">
+                              <IconClock size={14} className={isNext ? 'text-accent' : 'text-foreground/40'} />
+                              <span className={isNext ? 'text-accent font-black' : ''}>
                                 {marker.visit_time && marker.visit_time !== '00:00:00' ? marker.visit_time.substring(0, 5) : '시간 미정'}
                               </span>
                             </div>
-                            <p className="text-xs text-foreground/60 font-medium truncate">
+                            <p className="text-xs text-foreground/60 font-semibold truncate leading-relaxed">
                               {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
                             </p>
                           </div>
                         </div>
 
-                        {/* Action Buttons */}
+                        {/* One UI Action Buttons */}
                         <div className="flex flex-wrap gap-2 mt-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex flex-1 gap-2 min-w-[140px]">
                             <button
                               onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
-                              className={`flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-bold transition-colors whitespace-nowrap ${completed ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
+                              className={`flex-1 flex items-center justify-center gap-1 py-2.5 rounded-[16px] text-[13px] font-black transition-colors whitespace-nowrap active:scale-95 ${
+                                completed 
+                                  ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border' 
+                                  : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20'
+                              }`}
                             >
-                              <IconCheck size={16} />
+                              <IconCheck size={16} strokeWidth={2.5} />
                               {completed ? '완료 취소' : '방문 완료'}
                             </button>
                             
                             {!completed && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }}
-                                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-bold bg-foreground text-background hover:opacity-90 transition-opacity whitespace-nowrap"
+                                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-[16px] text-[13px] font-black bg-foreground text-background hover:opacity-90 transition-opacity whitespace-nowrap active:scale-95 shadow-xs"
                               >
                                 <IconNavigation size={16} />
                                 길안내
@@ -1995,22 +2092,22 @@ function MainApp() {
                           <div className="flex gap-2 min-w-fit flex-1 sm:flex-none justify-end">
                             <button
                               onClick={(e) => { e.stopPropagation(); setManagingScheduleRecipient(marker); }}
-                              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-bold bg-surface-muted text-foreground/70 hover:bg-surface-border transition-colors whitespace-nowrap"
+                              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 rounded-[16px] text-[13px] font-black bg-surface-muted/90 text-foreground/75 hover:bg-surface-border transition-colors whitespace-nowrap active:scale-95 border border-surface-border/40"
                             >
                               일정 관리
                             </button>
                             
                             <button
                               onClick={(e) => { e.stopPropagation(); handleRemoveFromSchedule(marker, scheduleDate); }}
-                              className="flex-shrink-0 flex items-center justify-center w-10 py-2.5 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                              className="flex-shrink-0 flex items-center justify-center w-10 py-2.5 rounded-[16px] bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors active:scale-95 border border-red-500/20"
                               aria-label="일정에서 제외"
                             >
-                              <IconX size={16} strokeWidth={3} />
+                              <IconX size={16} strokeWidth={2.5} />
                             </button>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -2039,195 +2136,259 @@ function MainApp() {
         }} onBack={() => setActiveTab('map')} />
       )}
 
-      {/* 맵 플로팅 컨트롤 툴바 (레이어 & 내위치) - 통합 및 접근성 개선 */}
+      {/* 맵 플로팅 컨트롤 툴바 (레이어 & 내위치) - One UI 9.0 Squircle Island */}
       {activeTab === 'map' && (
-        <div id="tour-map-controls" className="absolute right-4 bottom-[100px] z-40 flex flex-col items-center gap-4 pointer-events-none">
+        <div id="tour-map-controls" className="absolute right-4 bottom-[104px] z-40 flex flex-col items-center gap-3.5 pointer-events-none">
           
-          <div className="flex flex-col items-center bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[24px] shadow-[0_12px_32px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 pointer-events-auto p-1.5 gap-1.5">
+          <div className="flex flex-col items-center bg-surface/85 supports-[backdrop-filter]:bg-surface/70 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-white/30 dark:border-white/10 pointer-events-auto p-1.5 gap-1.5">
             {/* 행정구역 보기 (Map Layers) */}
-            <button
+            <motion.button
               type="button"
+              whileTap={{ scale: 0.90 }}
               onClick={() => setShowRegions(!showRegions)}
-              className={`w-11 h-11 flex items-center justify-center rounded-[18px] transition-colors active:scale-95 ${showRegions ? 'bg-primary text-white shadow-md' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
+              className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors ${showRegions ? 'bg-primary text-primary-foreground shadow-md' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
+              title="행정구역 경계 토글"
             >
-              <IconMap size={24} strokeWidth={2.5} />
-            </button>
+              <IconMap size={22} strokeWidth={2.5} />
+            </motion.button>
             
-            <div className="w-8 h-[1px] bg-foreground/10" />
+            <div className="w-7 h-[1px] bg-foreground/10" />
 
             {/* 내 위치 */}
-            <button
+            <motion.button
               type="button"
+              whileTap={{ scale: 0.90 }}
               onClick={handleMyLocation}
               disabled={isLocating}
-              className={`w-11 h-11 flex items-center justify-center rounded-[18px] transition-colors active:scale-95 disabled:opacity-60 ${myLocation ? 'text-primary bg-primary/10' : 'text-foreground/80 hover:bg-foreground/[0.04]'}`}
+              className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors disabled:opacity-60 ${myLocation ? 'text-primary bg-primary/10' : 'text-foreground/80 hover:bg-foreground/[0.04]'}`}
+              title="내 위치로 이동"
             >
               {isLocating ? (
-                <Spinner size={20} className="text-primary" />
+                <Spinner size={18} className="text-primary" />
               ) : (
-                <IconCurrentLocation size={24} strokeWidth={2.5} />
+                <IconCurrentLocation size={22} strokeWidth={2.5} />
               )}
-            </button>
+            </motion.button>
           </div>
 
-          {/* 어르신 추가 (강조형 FAB) */}
-          <button
+          {/* 어르신 추가 (One UI 9.0 강조형 Squircle FAB) */}
+          <motion.button
+            whileTap={{ scale: 0.90 }}
             onClick={() => {
               setEditingRecipient(null);
               setIsModalOpen(true);
             }}
             id="tour-add-button"
-            className="w-[60px] h-[60px] flex items-center justify-center rounded-[24px] shadow-[0_16px_32px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200 pointer-events-auto"
+            className="w-[62px] h-[62px] flex items-center justify-center rounded-[28px] shadow-[0_16px_36px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform backdrop-blur-[40px] saturate-200 pointer-events-auto"
+            aria-label="어르신 추가"
           >
-            <IconUserPlus size={30} strokeWidth={2.5} />
-          </button>
-          
+            <IconUserPlus size={28} strokeWidth={2.5} />
+          </motion.button>
         </div>
       )}
 
-      {/* 어르신 상세 팝업 (지도 마커 클릭, 명단 보기 클릭 공용) */}
+      {/* 어르신 상세 팝업 - One UI 9.0 Hero Bottom Sheet / Dialog */}
       <Modal open={Boolean(selectedRecipient && (activeTab === 'map' || activeTab === 'route'))} onClose={() => setSelectedRecipient(null)}>
         {selectedRecipient && (
-          <div>
-            <div className="relative h-28 bg-gradient-to-r from-primary via-primary/90 to-accent/80">
+          <div className="flex flex-col">
+            {/* Header Hero Cover Banner */}
+            <div className="relative h-32 bg-gradient-to-br from-primary via-primary/95 to-accent/90 rounded-t-[34px] p-4 flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white font-black text-xs tracking-tight">
+                  CareRoute 어르신 상세
+                </span>
+              </div>
               <IconButton
                 onClick={() => setSelectedRecipient(null)}
-                className="absolute top-3 right-3 bg-surface/15 text-white hover:bg-surface/25"
+                className="w-9 h-9 rounded-full bg-black/25 text-white hover:bg-black/40 backdrop-blur-md"
                 aria-label="닫기"
               >
-                <IconX size={18} />
+                <IconX size={18} strokeWidth={2.5} />
               </IconButton>
-              <div className="absolute left-5 -bottom-12 w-24 h-24 rounded-2xl bg-primary/5 border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
+
+              {/* Squircle Avatar Profile Photo */}
+              <div className="absolute left-6 -bottom-10 w-22 h-22 rounded-[24px] bg-surface border-4 border-surface shadow-xl overflow-hidden flex items-center justify-center">
                 {selectedRecipient.photo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={selectedRecipient.photo_url} alt="" className="w-full h-full object-contain" />
+                  <img src={selectedRecipient.photo_url} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <IconUser size={40} color='var(--primary)' />
+                  <IconUser size={38} className="text-primary" />
                 )}
               </div>
             </div>
-            <div className="px-5 pb-5 pt-14">
-              <div className="flex items-start justify-between gap-2">
+
+            <div className="px-6 pb-6 pt-12">
+              {/* Senior Title & Health Tags */}
+              <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="min-w-0">
-                  <p className="text-xl font-black text-primary tracking-tight truncate">
-                    {selectedRecipient.name} 어르신
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-2xl font-black text-foreground tracking-tight">
+                      {selectedRecipient.name} 어르신
+                    </p>
+                    {isCompletedToday(selectedRecipient) && (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-600 border border-emerald-500/20">
+                        방문 완료 ✓
+                      </span>
+                    )}
+                  </div>
+
                   {selectedRecipient.health_tags && (
-                    <div className="flex flex-wrap gap-1 mt-1.5 mb-1">
+                    <div className="flex flex-wrap gap-1.5 mt-2">
                       {selectedRecipient.health_tags.split(',').filter(Boolean).map((tag, idx) => (
-                        <span key={idx} className="px-2 py-0.5 bg-red-100 text-red-700 rounded-md text-[11px] font-extrabold tracking-tight border border-red-200">
+                        <span key={idx} className="px-2.5 py-0.5 bg-red-500/10 text-red-600 rounded-full text-xs font-black border border-red-500/20">
                           #{tag.trim()}
                         </span>
                       ))}
                     </div>
                   )}
-                  <Chip icon={<IconClock size={12} color="#8A5A00" />} className="mt-1 bg-accent/20 text-foreground/80 font-bold">
-                    {`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '서비스 시간 미정' : selectedRecipient.visit_time.substring(0, 5) + ' 방문'}`}
-                  </Chip>
+
+                  <div className="mt-2">
+                    <Chip icon={<IconClock size={13} strokeWidth={2.5} className="text-accent" />} className="bg-accent/15 text-accent border border-accent/20 font-black">
+                      {`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '서비스 시간 미정' : selectedRecipient.visit_time.substring(0, 5) + ' 방문'}`}
+                    </Chip>
+                  </div>
                 </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  <IconButton onClick={() => toggleCompleted(selectedRecipient)} className={isCompletedToday(selectedRecipient) ? 'bg-[#4C7A6B] text-white' : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'} aria-label="오늘 방문 완료 체크">
-                    <IconCheck size={18} />
+
+                {/* Quick Toggle Complete & Edit Actions */}
+                <div className="flex gap-1.5 shrink-0">
+                  <IconButton 
+                    onClick={() => toggleCompleted(selectedRecipient)} 
+                    className={`w-11 h-11 rounded-[18px] transition-all ${isCompletedToday(selectedRecipient) ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'}`} 
+                    aria-label="방문 완료 토글"
+                  >
+                    <IconCheck size={20} strokeWidth={2.5} />
                   </IconButton>
-                  <IconButton onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} className="bg-surface-muted text-foreground/60 hover:bg-surface-border">
+                  <IconButton 
+                    onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} 
+                    className="w-11 h-11 rounded-[18px] bg-surface-muted text-foreground/70 hover:bg-surface-border"
+                    aria-label="정보 수정"
+                  >
                     <IconPencil size={18} />
                   </IconButton>
-                  <IconButton onClick={() => handleDelete(selectedRecipient.id)} className="bg-red-50 text-red-500 hover:bg-red-200">
+                  <IconButton 
+                    onClick={() => handleDelete(selectedRecipient.id)} 
+                    className="w-11 h-11 rounded-[18px] bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                    aria-label="삭제"
+                  >
                     <IconTrash size={18} />
                   </IconButton>
                 </div>
               </div>
 
+              {/* One UI 9.0 Quick Action Pill Bar */}
+              <div className="grid grid-cols-3 gap-2.5 my-4">
+                <button
+                  onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
+                  className="py-3 px-2 rounded-[20px] bg-foreground text-background flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
+                >
+                  <IconNavigation size={20} />
+                  <span className="text-[12px] font-black">길안내</span>
+                </button>
+
+                <button
+                  onClick={() => setCompletingRecipient(selectedRecipient)}
+                  className="py-3 px-2 rounded-[20px] bg-primary/10 hover:bg-primary/15 text-primary flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
+                >
+                  <IconMessageCircle size={20} />
+                  <span className="text-[12px] font-black">음성 일지</span>
+                </button>
+
+                <button
+                  onClick={() => handleShareReport(selectedRecipient)}
+                  className="py-3 px-2 rounded-[20px] bg-[#FEE500]/20 hover:bg-[#FEE500]/30 text-amber-900 dark:text-amber-200 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-amber-500/20"
+                >
+                  <IconShare size={20} />
+                  <span className="text-[12px] font-black">안심 공유</span>
+                </button>
+              </div>
+
+              {/* Today Completed Visit Memo Inset */}
               {isCompletedToday(selectedRecipient) && selectedRecipient.last_completed_memo && (
-                <div className="bg-[#4C7A6B]/10 border border-[#4C7A6B]/20 rounded-lg p-4 mt-4 relative">
-                  <div className="absolute -top-3 left-4 bg-surface px-2 text-[11px] font-black text-[#4C7A6B]">오늘의 방문 일지</div>
-                  <p className="text-[13px] font-medium text-foreground/80 whitespace-pre-wrap">
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[24px] p-4 my-3 relative">
+                  <div className="text-[11px] font-black uppercase tracking-wider text-emerald-600 mb-1">오늘의 방문 일지</div>
+                  <p className="text-[14px] font-bold text-foreground/85 whitespace-pre-wrap leading-relaxed">
                     {selectedRecipient.last_completed_memo}
                   </p>
-                  <div className="mt-3 flex justify-end">
-                    <button 
-                      onClick={() => handleShareReport(selectedRecipient)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4C7A6B] text-white rounded-full text-[11px] font-bold shadow-md hover:bg-[#3b6054] transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-                      가족에게 안심 전송
-                    </button>
-                  </div>
                 </div>
               )}
 
-              <div className="bg-surface-muted rounded-lg p-4 mt-4 flex flex-col gap-3">
+              {/* Grouped Inset Address & Nearby Facilities Card */}
+              <div className="bg-foreground/[0.03] dark:bg-white/[0.04] rounded-[24px] p-4 my-3 flex flex-col gap-3 border border-surface-border/40">
                 <div className="flex gap-3 items-center">
-                  <IconMapPin size={20} color="#94a3b8" className="flex-shrink-0" />
-                  <p className="font-semibold text-foreground/70 leading-snug text-sm">
+                  <div className="w-8 h-8 rounded-[12px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <IconMapPin size={18} strokeWidth={2.5} />
+                  </div>
+                  <p className="font-bold text-foreground/80 leading-snug text-sm">
                     {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
                   </p>
                 </div>
-                {/* 긴급/주변 시설 검색 (응급실, 약국) */}
-                <div className="flex gap-2 ml-8">
+
+                <div className="flex gap-2 pt-1 border-t border-surface-border/30">
                   <button
                     onClick={() => window.open(`https://m.map.naver.com/search2/search.naver?query=%EC%95%BD%EA%B5%AD&sm=sug&style=v5&x=${selectedRecipient.lng}&y=${selectedRecipient.lat}`, '_blank')}
-                    className="flex-1 py-1.5 bg-white border border-surface-border rounded text-[11px] font-bold text-foreground/70 flex items-center justify-center gap-1 shadow-sm active:scale-95"
+                    className="flex-1 py-2 bg-surface border border-surface-border/60 rounded-full text-[12px] font-black text-foreground/75 flex items-center justify-center gap-1 shadow-2xs active:scale-95 transition-all"
                   >
                     💊 주변 약국
                   </button>
                   <button
                     onClick={() => window.open(`https://m.map.naver.com/search2/search.naver?query=%EB%B3%91%EC%9B%90&sm=sug&style=v5&x=${selectedRecipient.lng}&y=${selectedRecipient.lat}`, '_blank')}
-                    className="flex-1 py-1.5 bg-white border border-surface-border rounded text-[11px] font-bold text-foreground/70 flex items-center justify-center gap-1 shadow-sm active:scale-95"
+                    className="flex-1 py-2 bg-surface border border-surface-border/60 rounded-full text-[12px] font-black text-foreground/75 flex items-center justify-center gap-1 shadow-2xs active:scale-95 transition-all"
                   >
                     🏥 주변 병원
                   </button>
                 </div>
               </div>
 
+              {/* Grouped Inset Passcode & Parking Memos */}
               {(selectedRecipient.door_passcode || selectedRecipient.parking_memo) && (
-                <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="grid grid-cols-2 gap-2.5 my-3">
                   {selectedRecipient.door_passcode && (
-                    <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                      <span className="text-[11px] font-black text-amber-700 mb-1">공동현관 비밀번호</span>
-                      <span className="text-[15px] font-extrabold text-amber-900">{selectedRecipient.door_passcode}</span>
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-[22px] p-3.5 flex flex-col items-center justify-center text-center">
+                      <span className="text-[11px] font-black text-amber-600 mb-0.5">공동현관 비밀번호</span>
+                      <span className="text-[16px] font-black text-amber-800 dark:text-amber-200 tracking-wider">{selectedRecipient.door_passcode}</span>
                     </div>
                   )}
                   {selectedRecipient.parking_memo && (
-                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                      <span className="text-[11px] font-black text-blue-700 mb-1">주차 꿀팁 메모</span>
-                      <span className="text-[13px] font-bold text-blue-900 leading-tight">{selectedRecipient.parking_memo}</span>
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-[22px] p-3.5 flex flex-col items-center justify-center text-center">
+                      <span className="text-[11px] font-black text-blue-600 mb-0.5">주차 꿀팁 메모</span>
+                      <span className="text-[13px] font-black text-blue-800 dark:text-blue-200 leading-tight">{selectedRecipient.parking_memo}</span>
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="mt-5 flex flex-col gap-2.5">
-                <span className="text-[12px] font-black text-foreground/50 ml-1">원클릭 길안내 (앱 연결)</span>
-                <div className="flex gap-4 px-1">
+              {/* Navigation Deep Link App Launcher */}
+              <div className="mt-4 pt-3 border-t border-surface-border/40">
+                <span className="text-[12px] font-black text-foreground/50 ml-1 block mb-2.5">내비게이션 바로 실행</span>
+                <div className="grid grid-cols-3 gap-2.5">
                   <button
                     onClick={() => handleNavi('tmap', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
-                    className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
+                    className="p-3 bg-surface border border-surface-border/60 rounded-[20px] flex items-center justify-center gap-2 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
                   >
-                    <div className="w-12 h-12 rounded-[14px] shadow-sm bg-white overflow-hidden border border-surface-border flex items-center justify-center p-1.5">
+                    <div className="w-6 h-6 rounded-[8px] overflow-hidden">
                       <img src="https://www.tmapmobility.com/favicon.ico" alt="T맵" className="w-full h-full object-contain" />
                     </div>
-                    <span className="text-[10px] font-bold text-foreground/70">T맵</span>
+                    <span className="text-[13px] font-black text-foreground/80">T맵</span>
                   </button>
 
                   <button
                     onClick={() => handleNavi('kakao', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
-                    className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
+                    className="p-3 bg-surface border border-surface-border/60 rounded-[20px] flex items-center justify-center gap-2 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
                   >
-                    <div className="w-12 h-12 rounded-[14px] shadow-sm bg-white overflow-hidden border border-surface-border flex items-center justify-center p-1.5">
+                    <div className="w-6 h-6 rounded-[8px] overflow-hidden">
                       <img src="https://map.kakao.com/favicon.ico" alt="카카오내비" className="w-full h-full object-contain" />
                     </div>
-                    <span className="text-[10px] font-bold text-foreground/70">카카오내비</span>
+                    <span className="text-[13px] font-black text-foreground/80">카카오</span>
                   </button>
 
                   <button
                     onClick={() => handleNavi('naver', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
-                    className="flex flex-col items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
+                    className="p-3 bg-surface border border-surface-border/60 rounded-[20px] flex items-center justify-center gap-2 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
                   >
-                    <div className="w-12 h-12 rounded-[14px] shadow-sm bg-white overflow-hidden border border-surface-border flex items-center justify-center p-1.5">
+                    <div className="w-6 h-6 rounded-[8px] overflow-hidden">
                       <img src="https://ssl.pstatic.net/static/maps/assets/icons/favicon.ico" alt="네이버지도" className="w-full h-full object-contain" />
                     </div>
-                    <span className="text-[10px] font-bold text-foreground/70">네이버지도</span>
+                    <span className="text-[13px] font-black text-foreground/80">네이버</span>
                   </button>
                 </div>
               </div>
@@ -2236,34 +2397,39 @@ function MainApp() {
         )}
       </Modal>
 
-      {/* Redesigned Bottom Navigation */}
+      {/* One UI 9.0 Floating Dock Navigation */}
       <div className={`absolute bottom-6 left-4 right-4 z-50 px-2 pb-safe transition-transform duration-500 ${activeTab === 'settings' ? 'translate-y-[150%]' : 'translate-y-0'}`}>
-        <div id="tour-bottom-nav" className="rounded-[36px] overflow-hidden shadow-[0_20px_40px_rgba(0,0,0,0.12)] bg-surface/75 backdrop-blur-[40px] saturate-200 border border-white/20 dark:border-white/10 supports-[backdrop-filter]:bg-surface/50">
-          <div className="flex h-16">
-          {([
-            { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
-            { key: 'list' as const, label: '명단 보기', Icon: IconList },
-            { key: 'route' as const, label: '방문 일정', Icon: IconCalendarEvent },
-            
-          ]).map(({ key, label, Icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setActiveTab(key)}
-              className={`relative flex-1 flex flex-col items-center justify-center gap-1 text-xs transition-colors ${activeTab === key ? 'text-primary font-extrabold' : 'text-foreground/50 font-semibold'}`}
-            >
-              {activeTab === key && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute top-0 inset-x-5 h-[4px] rounded-full bg-primary shadow-[0_2px_8px_rgba(var(--primary),0.5)]"
-                  transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-                />
-              )}
-              <Icon size={26} strokeWidth={activeTab === key ? 2.5 : 2} />
-              {label}
-            </button>
-          ))}
-        </div>
+        <div id="tour-bottom-nav" className="rounded-[40px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.18)] bg-surface/80 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 border border-white/30 dark:border-white/10 p-1.5">
+          <div className="flex h-16 items-center">
+            {([
+              { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
+              { key: 'list' as const, label: '명단 보기', Icon: IconList },
+              { key: 'route' as const, label: '방문 일정', Icon: IconCalendarEvent },
+            ]).map(({ key, label, Icon }) => {
+              const isActive = activeTab === key;
+              return (
+                <motion.button
+                  key={key}
+                  type="button"
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => setActiveTab(key)}
+                  className={`relative flex-1 h-full rounded-[30px] flex flex-col items-center justify-center gap-1 text-xs transition-colors ${
+                    isActive ? 'text-primary font-black' : 'text-foreground/50 font-bold hover:text-foreground/80'
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="dock-active-pill"
+                      className="absolute inset-1 rounded-[26px] bg-primary/10 dark:bg-white/15 -z-10 shadow-xs"
+                      transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+                    />
+                  )}
+                  <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                  <span className="tracking-tight text-[11px]">{label}</span>
+                </motion.button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

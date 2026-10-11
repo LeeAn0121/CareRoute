@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
-import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import { IconChevronLeft, IconChevronRight, IconCalendarEvent } from '@tabler/icons-react';
+import { motion } from 'motion/react';
 
 interface MonthCalendarProps {
   selectedDate: Date | null;
   onSelectDate: (date: Date) => void;
-  // If we want to show dots for scheduled days, we can pass a function or array
   hasSchedule?: (date: Date) => boolean;
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule }: MonthCalendarProps) {
-  // Start with the month of the selected date
   const initialDate = selectedDate || new Date();
   const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
 
@@ -34,11 +33,9 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   
   const days = [];
-  // Empty slots for previous month
   for (let i = 0; i < firstDayOfMonth; i++) {
     days.push(null);
   }
-  // Days of current month
   for (let i = 1; i <= daysInMonth; i++) {
     days.push(i);
   }
@@ -54,59 +51,79 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
   };
 
   return (
-    <div className="bg-surface rounded-[24px] shadow-sm border border-surface-border p-3 mb-4 flex-1 flex flex-col min-h-[350px]">
-      {/* Header */}
+    <div className="bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[32px] shadow-[0_16px_40px_rgba(0,0,0,0.06)] border border-white/20 dark:border-white/10 p-4 mb-4 flex-1 flex flex-col min-h-[360px] transition-all">
+      {/* One UI 9.0 Header */}
       <div className="flex items-center justify-between mb-4 px-1">
-        <div className="flex items-center gap-1">
-          <button onClick={prevMonth} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors active:scale-95">
-            <IconChevronLeft size={20} className="text-foreground/70" />
-          </button>
+        {/* Month Selector Capsule */}
+        <div className="flex items-center bg-foreground/[0.04] dark:bg-white/[0.06] rounded-full p-1 border border-surface-border/40 shadow-xs">
+          <motion.button 
+            whileTap={{ scale: 0.88 }}
+            onClick={prevMonth} 
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-foreground/[0.06] transition-colors"
+            aria-label="이전 달"
+          >
+            <IconChevronLeft size={18} className="text-foreground/80" />
+          </motion.button>
           
-          <div className="relative">
+          <div className="relative px-2">
             <input 
               type="month"
               value={`${year}-${String(month + 1).padStart(2, '0')}`}
               onChange={(e) => {
-                if(e.target.value) {
+                if (e.target.value) {
                   const [y, m] = e.target.value.split('-');
                   setCurrentMonth(new Date(parseInt(y), parseInt(m) - 1, 1));
                 }
               }}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full"
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+              title="월 변경"
             />
-            <h2 className="text-[17px] font-black tracking-tight text-primary px-2 cursor-pointer hover:opacity-80">
+            <span className="text-[16px] font-black tracking-tight text-foreground flex items-center gap-1 cursor-pointer select-none">
               {year}년 {month + 1}월
-            </h2>
+            </span>
           </div>
 
-          <button onClick={nextMonth} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors active:scale-95">
-            <IconChevronRight size={20} className="text-foreground/70" />
-          </button>
+          <motion.button 
+            whileTap={{ scale: 0.88 }}
+            onClick={nextMonth} 
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-foreground/[0.06] transition-colors"
+            aria-label="다음 달"
+          >
+            <IconChevronRight size={18} className="text-foreground/80" />
+          </motion.button>
         </div>
         
-        <button 
+        {/* Today Action Pill */}
+        <motion.button 
+          whileTap={{ scale: 0.92 }}
           onClick={() => {
             const today = new Date();
             setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
             onSelectDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
           }}
-          className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary font-bold text-sm active:scale-95 hover:bg-primary/20 transition-colors"
+          className="px-3.5 py-2 rounded-full bg-primary/10 hover:bg-primary/15 text-primary font-black text-xs transition-colors flex items-center gap-1.5 border border-primary/20 shadow-xs"
         >
-          오늘
-        </button>
+          <IconCalendarEvent size={15} />
+          <span>오늘</span>
+        </motion.button>
       </div>
 
-      {/* Weekdays */}
-      <div className="grid grid-cols-7 mb-2">
+      {/* Weekdays Bar */}
+      <div className="grid grid-cols-7 mb-2 text-center">
         {WEEKDAYS.map((day, i) => (
-          <div key={day} className={`text-center text-[11px] font-bold ${i === 0 ? 'text-red-500/80' : i === 6 ? 'text-blue-500/80' : 'text-foreground/50'}`}>
+          <div 
+            key={day} 
+            className={`py-1 text-[12px] font-black tracking-tight ${
+              i === 0 ? 'text-red-500/90' : i === 6 ? 'text-blue-500/90' : 'text-foreground/50'
+            }`}
+          >
             {day}
           </div>
         ))}
       </div>
 
-      {/* Days Grid */}
-      <div className="grid grid-cols-7 gap-y-1 gap-x-1 flex-1">
+      {/* One UI Days Grid with Squircle Pebbles */}
+      <div className="grid grid-cols-7 gap-1.5 flex-1 items-stretch">
         {days.map((d, i) => {
           if (d === null) return <div key={`empty-${i}`} className="h-full min-h-[3rem]" />;
           
@@ -115,26 +132,31 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
           const dateObj = new Date(year, month, d);
           const scheduled = hasSchedule ? hasSchedule(dateObj) : false;
           const isSunday = new Date(year, month, d).getDay() === 0;
+          const isSaturday = new Date(year, month, d).getDay() === 6;
 
           return (
-            <button
+            <motion.button
               key={d}
+              whileTap={{ scale: 0.90 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 450 }}
               onClick={() => handleSelect(d)}
-              className={`relative h-full min-h-[3rem] w-full flex flex-col items-center justify-center rounded-2xl transition-all active:scale-95
+              className={`relative h-full min-h-[3.2rem] w-full flex flex-col items-center justify-center rounded-[20px] transition-all
                 ${selected 
-                  ? 'bg-primary text-white shadow-md shadow-primary/20 font-black' 
+                  ? 'bg-primary text-primary-foreground shadow-[0_8px_20px_rgba(var(--primary),0.35)] font-black scale-[1.04] z-10' 
                   : today 
-                    ? 'bg-primary/10 text-primary font-black border border-primary/20' 
-                    : `hover:bg-surface-muted font-bold ${isSunday ? 'text-red-500/90' : 'text-foreground/80'}`
+                    ? 'bg-primary/10 text-primary font-black border border-primary/30 shadow-xs' 
+                    : `hover:bg-foreground/[0.04] font-bold ${
+                        isSunday ? 'text-red-500/90' : isSaturday ? 'text-blue-500/90' : 'text-foreground/80'
+                      }`
                 }`
               }
             >
-              <span className="text-[15px]">{d}</span>
-              {/* Schedule Indicator Dot */}
+              <span className="text-[15px] tracking-tight">{d}</span>
+              {/* Glowing Indicator Dot for Scheduled Visits */}
               {scheduled && !selected && (
-                <div className="absolute bottom-1.5 w-1 h-1 rounded-full bg-accent" />
+                <div className="absolute bottom-1.5 w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(var(--accent),0.8)]" />
               )}
-            </button>
+            </motion.button>
           );
         })}
       </div>
