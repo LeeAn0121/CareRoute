@@ -1884,27 +1884,42 @@ function MainApp() {
             </div>
 
             {/* One UI 9.0 Filter Chips Carousel */}
-            <div className="flex items-center gap-2 mb-5">
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
                 {([
                   { key: 'all', label: '전체' },
                   { key: 'today', label: '오늘 방문' },
                   { key: 'incomplete', label: '미방문' },
                   { key: 'completed', label: '방문 완료' },
                   { key: 'recurring', label: '정기 일정' },
-                ] as const).map((f) => (
-                  <button
-                    key={f.key}
-                    onClick={() => setListFilter(f.key)}
-                    className={`px-4 py-2 rounded-full text-[13px] font-black whitespace-nowrap transition-all active:scale-95 shadow-2xs ${
-                      listFilter === f.key 
-                        ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.3)] scale-[1.02]' 
-                        : 'bg-surface/80 text-foreground/60 border border-surface-border/60 hover:bg-surface'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
+                ] as const).map((f) => {
+                  const count = markers.filter((m) => {
+                    if (f.key === 'today') return getScheduledForDate(m, new Date());
+                    if (f.key === 'incomplete') return getScheduledForDate(m, new Date()) && !isCompletedToday(m);
+                    if (f.key === 'completed') return isCompletedToday(m);
+                    if (f.key === 'recurring') return Boolean(m.recurring_weekdays);
+                    return true;
+                  }).length;
+
+                  return (
+                    <button
+                      key={f.key}
+                      onClick={() => setListFilter(f.key)}
+                      className={`px-3.5 py-1.5 rounded-full text-[12px] font-black whitespace-nowrap transition-all active:scale-95 shadow-2xs flex items-center gap-1.5 shrink-0 ${
+                        listFilter === f.key 
+                          ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.3)] scale-[1.02]' 
+                          : 'bg-surface/80 text-foreground/60 border border-surface-border/60 hover:bg-surface'
+                      }`}
+                    >
+                      <span>{f.label}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                        listFilter === f.key ? 'bg-white/20 text-white' : 'bg-foreground/[0.06] text-foreground/60'
+                      }`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
