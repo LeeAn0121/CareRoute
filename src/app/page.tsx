@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2 } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2 } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
@@ -1630,14 +1630,24 @@ function MainApp() {
         )}
       </AnimatePresence>
 
-      {/* Global Top-Right User Menu Button */}
+      {/* Global Top-Right Smart Hub Toggle Button */}
       {activeTab !== 'settings' && (
         <button 
           id="tour-user-menu"
           onClick={() => setActiveTab('settings')}
           className="absolute top-[calc(env(safe-area-inset-top,0px)+12px)] right-4 z-50 flex-shrink-0 w-12 h-12 flex items-center justify-center bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 hover:bg-foreground/[0.04] transition-all active:scale-90 animate-fade-in-down"
+          title="전체 메뉴 열기"
+          aria-label="전체 메뉴 열기"
         >
-          <IconMenu2 size={24} className="text-foreground/80" strokeWidth={2.5} />
+          <div className="relative flex items-center justify-center">
+            <IconMenu2 size={24} className="text-foreground/80" strokeWidth={2.5} />
+            {(() => {
+              const remaining = markers.filter(m => getScheduledForDate(m, new Date()) && !isCompletedToday(m)).length;
+              return remaining > 0 ? (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-surface animate-pulse" />
+              ) : null;
+            })()}
+          </div>
         </button>
       )}
 
@@ -2384,9 +2394,19 @@ function MainApp() {
           onSyncCalendar={handleSyncToCalendar}
           isSyncingCalendar={isSyncingCalendar}
           onReplayTutorial={() => {
-          setActiveTab('map');
-          setTimeout(() => setShowOnboarding(true), 100);
-        }} onBack={() => setActiveTab('map')} />
+            setActiveTab('map');
+            setTimeout(() => setShowOnboarding(true), 100);
+          }}
+          onBack={() => setActiveTab('map')}
+          onAddNewRecipient={() => {
+            setEditingRecipient(null);
+            setIsModalOpen(true);
+          }}
+          totalRecipientsCount={markers.length}
+          todayTotalCount={markers.filter(m => getScheduledForDate(m, new Date())).length}
+          todayCompletedCount={markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length}
+          onNavigateTab={(tab) => setActiveTab(tab)}
+        />
       )}
 
       {/* 맵 플로팅 컨트롤 툴바 (레이어 & 내위치) - One UI 9.0 Squircle Island */}
@@ -2653,23 +2673,48 @@ function MainApp() {
         )}
       </Modal>
 
-      {/* One UI 9.0 Floating Dock Navigation */}
-      <div className={`absolute bottom-6 left-4 right-4 z-50 px-2 pb-safe transition-transform duration-500 ${activeTab === 'settings' ? 'translate-y-[150%]' : 'translate-y-0'}`}>
-        <div id="tour-bottom-nav" className="rounded-[40px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.18)] bg-surface/80 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 border border-white/30 dark:border-white/10 p-1.5">
+      {/* One UI 9.0 Floating Dock Navigation (Unified 4-Tab System) */}
+      <div className="absolute bottom-6 left-4 right-4 z-50 px-2 pb-safe pointer-events-auto">
+        <div id="tour-bottom-nav" className="rounded-[40px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.18)] bg-surface/85 supports-[backdrop-filter]:bg-surface/70 backdrop-blur-[40px] saturate-200 border border-white/30 dark:border-white/10 p-1.5">
           <div className="flex h-16 items-center">
             {([
-              { key: 'map' as const, label: '지도 보기', Icon: IconMapPin },
-              { key: 'list' as const, label: '명단 보기', Icon: IconList },
-              { key: 'route' as const, label: '방문 일정', Icon: IconCalendarEvent },
-            ]).map(({ key, label, Icon }) => {
+              { key: 'map' as const, label: '지도', Icon: IconMapPin },
+              { 
+                key: 'list' as const, 
+                label: '명단', 
+                Icon: IconUsers, 
+                badge: markers.length > 0 ? String(markers.length) : undefined,
+                badgeColor: 'bg-foreground/[0.08] text-foreground/70 dark:bg-white/10 dark:text-white/80'
+              },
+              { 
+                key: 'route' as const, 
+                label: '일정', 
+                Icon: IconCalendarEvent, 
+                badge: (() => {
+                  const todayCount = markers.filter(m => getScheduledForDate(m, new Date())).length;
+                  const completedCount = markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length;
+                  const remaining = todayCount - completedCount;
+                  if (todayCount === 0) return undefined;
+                  if (remaining === 0) return '✓';
+                  return String(remaining);
+                })(),
+                badgeColor: (() => {
+                  const todayCount = markers.filter(m => getScheduledForDate(m, new Date())).length;
+                  const completedCount = markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length;
+                  if (todayCount > 0 && todayCount === completedCount) return 'bg-emerald-500 text-white font-black';
+                  return 'bg-amber-500 text-white font-black';
+                })()
+              },
+              { key: 'settings' as const, label: '전체 메뉴', Icon: IconLayoutGrid },
+            ]).map(({ key, label, Icon, badge, badgeColor }) => {
               const isActive = activeTab === key;
               return (
                 <motion.button
                   key={key}
                   type="button"
-                  whileTap={{ scale: 0.92 }}
+                  whileTap={{ scale: 0.90 }}
                   onClick={() => setActiveTab(key)}
-                  className={`relative flex-1 h-full rounded-[30px] flex flex-col items-center justify-center gap-1 text-xs transition-colors ${
+                  className={`relative flex-1 h-full rounded-[30px] flex flex-col items-center justify-center gap-1 text-xs transition-colors select-none ${
                     isActive ? 'text-primary font-black' : 'text-foreground/50 font-bold hover:text-foreground/80'
                   }`}
                 >
@@ -2680,8 +2725,15 @@ function MainApp() {
                       transition={{ type: 'spring', damping: 28, stiffness: 350 }}
                     />
                   )}
-                  <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-                  <span className="tracking-tight text-[11px]">{label}</span>
+                  <div className="relative flex items-center justify-center">
+                    <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                    {badge && (
+                      <span className={`absolute -top-1.5 -right-3 text-[10px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center shadow-2xs leading-none ${badgeColor || 'bg-primary text-white'}`}>
+                        {badge}
+                      </span>
+                    )}
+                  </div>
+                  <span className="tracking-tight text-[11px] leading-none">{label}</span>
                 </motion.button>
               );
             })}
