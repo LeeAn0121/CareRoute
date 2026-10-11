@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { IconWind, IconCloud, IconChevronDown, IconDroplet, IconThermometer, IconSparkles } from '@tabler/icons-react';
+import { IconWind, IconCloud, IconChevronDown, IconDroplet, IconThermometer, IconSparkles, IconX } from '@tabler/icons-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface WeatherWidgetProps {
   lat: number;
@@ -105,69 +106,113 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
   else if (weather.tempApparent >= 28) fieldCareTip = "어르신 수분 섭취와 실내 환기에 유의하세요.";
 
   return (
-    <div className="flex flex-col w-full">
-      {/* 기본 요약 바 (클릭 시 상세 토글) */}
+    <div className="relative">
+      {/* 컴팩트 날씨 캡슐 버튼 (헤더 높이 44px 통일) */}
       <button
         type="button"
         onClick={() => setShowDetail(!showDetail)}
-        className="flex items-center gap-3 text-[13px] font-bold text-foreground/80 hover:text-foreground py-0.5 text-left transition-colors group cursor-pointer"
-        title={`현재 날씨: ${desc} ${weather.temp}° (클릭 시 상세 정보)`}
+        className={`h-11 px-3.5 rounded-[22px] flex items-center gap-1.5 transition-all active:scale-95 border ${
+          showDetail
+            ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/30'
+            : 'bg-surface/90 supports-[backdrop-filter]:bg-surface/80 hover:bg-surface text-foreground/85 border-white/40 dark:border-white/10 shadow-[0_12px_36px_rgba(0,0,0,0.1)]'
+        }`}
+        title={`현재 날씨: ${desc} ${weather.temp}° (터치 시 상세 정보)`}
       >
-        {/* 날씨 및 온도 */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[16px] leading-none drop-shadow-sm group-hover:scale-110 transition-transform">{emoji}</span>
-          <span className="text-[14px] font-black text-foreground">{weather.temp}°</span>
-          <span className="text-[11px] font-bold text-foreground/50 hidden sm:inline">{desc}</span>
-        </div>
-
-        {/* 최저/최고 온도 */}
-        <div className="flex items-center gap-1 border-l border-foreground/10 pl-3">
-          <span className="text-blue-500">{weather.tempMin}°</span>
-          <span className="text-foreground/20">/</span>
-          <span className="text-red-500">{weather.tempMax}°</span>
-        </div>
-
-        {/* 미세먼지 */}
-        <div className="flex items-center gap-2 border-l border-foreground/10 pl-3">
-          <span className="flex items-center gap-1"><IconWind size={14} className="text-foreground/40"/> {getAqiText(weather.pm10)}</span>
-          <span className="flex items-center gap-1 ml-1"><IconCloud size={14} className="text-foreground/40"/> {getAqiText25(weather.pm25)}</span>
-        </div>
-
+        <span className="text-[17px] leading-none drop-shadow-2xs">{emoji}</span>
+        <span className="text-[14px] font-black">{weather.temp}°</span>
         <IconChevronDown
           size={14}
-          className={`text-foreground/40 ml-auto transition-transform duration-200 ${showDetail ? 'rotate-180 text-primary' : 'group-hover:text-foreground/70'}`}
+          className={`transition-transform duration-200 ${showDetail ? 'rotate-180 text-primary-foreground' : 'text-foreground/40'}`}
         />
       </button>
 
-      {/* 펼침 상세 정보 카드 */}
-      {showDetail && (
-        <div className="mt-2.5 p-3 rounded-2xl bg-foreground/[0.04] dark:bg-white/[0.06] border border-foreground/5 dark:border-white/10 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 text-[12px]">
-          <div className="grid grid-cols-2 gap-2 text-foreground/80">
-            <div className="flex items-center gap-1.5 bg-surface/80 rounded-xl px-2.5 py-1.5 border border-surface-border/40">
-              <IconThermometer size={14} className="text-primary shrink-0" />
-              <span>체감 온도: <strong className="text-foreground font-black">{weather.tempApparent}°C</strong></span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-surface/80 rounded-xl px-2.5 py-1.5 border border-surface-border/40">
-              <IconDroplet size={14} className="text-blue-500 shrink-0" />
-              <span>강수량: <strong className="text-foreground font-black">{weather.rn1 ?? 0}mm</strong></span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-surface/80 rounded-xl px-2.5 py-1.5 border border-surface-border/40">
-              <IconWind size={14} className="text-emerald-500 shrink-0" />
-              <span>미세: <strong className="text-foreground font-black">{weather.pm10}</strong> ㎍/㎥</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-surface/80 rounded-xl px-2.5 py-1.5 border border-surface-border/40">
-              <IconCloud size={14} className="text-orange-500 shrink-0" />
-              <span>초미세: <strong className="text-foreground font-black">{weather.pm25}</strong> ㎍/㎥</span>
-            </div>
-          </div>
+      {/* 펼침 상세 정보 플로팅 카드 (독립 오버레이 - 헤더 레이아웃을 절대 깨뜨리지 않음) */}
+      <AnimatePresence>
+        {showDetail && (
+          <>
+            {/* 바깥 클릭 시 닫히는 투명 배경 오버레이 */}
+            <div
+              className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px]"
+              onClick={() => setShowDetail(false)}
+            />
 
-          {/* 방문 케어 가이드 팁 */}
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary/90 bg-primary/10 rounded-xl px-2.5 py-1.5 mt-0.5">
-            <IconSparkles size={13} className="shrink-0 text-primary" />
-            <span className="truncate">{fieldCareTip}</span>
-          </div>
-        </div>
-      )}
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.96 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="absolute top-[52px] right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-50 w-[310px] sm:w-[340px] max-w-[calc(100vw-28px)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[28px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)] border border-white/40 dark:border-white/10 text-foreground animate-in fade-in"
+            >
+              {/* 상단 타이틀 & 닫기 버튼 */}
+              <div className="flex items-center justify-between pb-3 border-b border-surface-border/40 mb-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-2xl leading-none">{emoji}</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[15px] font-black text-foreground">{desc} {weather.temp}°C</span>
+                      <span className="text-[11px] font-bold text-foreground/50">({weather.tempMin}° / {weather.tempMax}°)</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-foreground/50">현장 실시간 기상 안내</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDetail(false)}
+                  className="w-7 h-7 rounded-full bg-foreground/[0.06] hover:bg-foreground/[0.12] text-foreground/60 flex items-center justify-center transition-colors shrink-0 active:scale-95"
+                  aria-label="닫기"
+                >
+                  <IconX size={15} strokeWidth={2.5} />
+                </button>
+              </div>
+
+              {/* 4대 주요 기상 지표 그리드 */}
+              <div className="grid grid-cols-2 gap-2 text-[12px] mb-3">
+                <div className="flex items-center gap-2 bg-surface/80 rounded-[18px] p-2.5 border border-surface-border/40">
+                  <IconThermometer size={16} className="text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-foreground/50 font-bold block">체감 온도</span>
+                    <span className="text-[13px] font-black text-foreground">{weather.tempApparent}°C</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 bg-surface/80 rounded-[18px] p-2.5 border border-surface-border/40">
+                  <IconDroplet size={16} className="text-blue-500 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-foreground/50 font-bold block">강수량</span>
+                    <span className="text-[13px] font-black text-foreground">{weather.rn1 ?? 0}mm</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 bg-surface/80 rounded-[18px] p-2.5 border border-surface-border/40">
+                  <IconWind size={16} className="text-emerald-500 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-foreground/50 font-bold block">미세먼지 ({weather.pm10})</span>
+                    <span className="text-[12px] font-black">{getAqiText(weather.pm10)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 bg-surface/80 rounded-[18px] p-2.5 border border-surface-border/40">
+                  <IconCloud size={16} className="text-orange-500 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-foreground/50 font-bold block">초미세 ({weather.pm25})</span>
+                    <span className="text-[12px] font-black">{getAqiText25(weather.pm25)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 방문 케어 가이드 팁 */}
+              <div className="flex items-start gap-2 text-[11px] font-bold text-primary bg-primary/10 rounded-[18px] p-3 border border-primary/20">
+                <IconSparkles size={16} className="shrink-0 text-primary mt-0.5" />
+                <div className="leading-relaxed">
+                  <span className="font-black block text-primary mb-0.5">방문 케어 안심 수칙</span>
+                  <span>{fieldCareTip}</span>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

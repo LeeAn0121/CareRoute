@@ -1661,28 +1661,28 @@ function MainApp() {
       {activeTab === 'map' && (
       <header className="absolute top-[env(safe-area-inset-top,0px)] left-3.5 right-3.5 z-20 flex flex-col items-start gap-2 mt-2.5 pointer-events-none">
         {/* Dynamic NowBar Capsule */}
-        <div id="tour-header" className="flex w-full items-center gap-2 pointer-events-auto">
+        <div id="tour-header" className="relative flex w-full items-center gap-2 pointer-events-auto">
           {/* Location Button */}
           <button 
             onClick={() => setShowRegionFilter(!showRegionFilter)}
-            className="flex-1 min-w-0 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[36px] saturate-200 rounded-[28px] py-2.5 px-4 shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-between hover:bg-surface active:scale-[0.98] transition-all text-left"
+            className="h-11 flex-1 min-w-0 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[36px] saturate-200 rounded-[22px] px-3.5 shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-between hover:bg-surface active:scale-[0.98] transition-all text-left"
           >
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <div className="w-8 h-8 shrink-0 rounded-[12px] bg-primary/10 flex items-center justify-center text-primary shadow-2xs">
-                <IconMapPin size={17} strokeWidth={2.5} />
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="w-7 h-7 shrink-0 rounded-[10px] bg-primary/10 flex items-center justify-center text-primary shadow-2xs">
+                <IconMapPin size={15} strokeWidth={2.5} />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="text-[10px] font-black uppercase tracking-wider text-primary/70 block leading-tight">탐색 위치</span>
-                <span className="text-[14px] font-extrabold text-foreground truncate block leading-snug">
+                <span className="text-[9px] font-black uppercase tracking-wider text-primary/70 block leading-none">탐색 위치</span>
+                <span className="text-[13px] font-extrabold text-foreground truncate block leading-tight mt-0.5">
                   {currentAddress}
                 </span>
               </div>
             </div>
-            <IconChevronDown size={16} className={`text-foreground/40 shrink-0 ml-1.5 transition-transform ${showRegionFilter ? 'rotate-180' : ''}`} />
+            <IconChevronDown size={15} className={`text-foreground/40 shrink-0 ml-1 transition-transform ${showRegionFilter ? 'rotate-180' : ''}`} />
           </button>
 
           {/* Integrated Live Weather Widget Capsule */}
-          <div className="bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[36px] saturate-200 rounded-[28px] py-2 px-3 shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 shrink-0 flex items-center">
+          <div className="shrink-0">
             <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
           </div>
 
@@ -1692,7 +1692,7 @@ function MainApp() {
               setIsMapSearchOpen(!isMapSearchOpen);
               if (isMapSearchOpen) setMapSearchQuery('');
             }}
-            className={`w-11 h-11 rounded-[24px] shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-center shrink-0 active:scale-95 transition-all ${
+            className={`w-11 h-11 rounded-[22px] shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-center shrink-0 active:scale-95 transition-all ${
               isMapSearchOpen ? 'bg-primary text-primary-foreground shadow-primary/30' : 'bg-surface/90 supports-[backdrop-filter]:bg-surface/80 text-foreground/80 hover:bg-surface'
             }`}
             title="지도에서 어르신 검색"
