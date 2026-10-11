@@ -1779,23 +1779,33 @@ function MainApp() {
                 {/* 전역 행정구역 날씨 맵 마커 (방해되지 않도록 작고 반투명하게) */}
                 {markers.map((marker) => {
                   const isSelected = selectedRecipient?.id === marker.id;
+                  const isCompleted = isCompletedToday(marker);
                   return (
                     <Marker
                       key={marker.id}
                       position={{ lat: marker.lat, lng: marker.lng }}
-                      onClick={() => setSelectedRecipient(marker)}
+                      onClick={() => {
+                        setSelectedRecipient(marker);
+                        setMapCenter({ lat: marker.lat, lng: marker.lng });
+                      }}
                       icon={{
                         content: `
-                          <div class="marker-wrapper relative flex flex-col items-center ${isSelected ? 'scale-110 z-50' : 'scale-100'} transition-transform duration-300">
+                          <div class="marker-wrapper relative flex flex-col items-center ${isSelected ? 'scale-115 z-50' : 'scale-100'} transition-transform duration-300">
                             <div class="relative w-11 h-11 flex items-center justify-center">
                               ${isSelected ? '<div class="absolute -inset-1.5 bg-accent rounded-full opacity-60 animate-ping"></div>' : ''}
-                              <div class="relative w-11 h-11 rounded-full overflow-hidden bg-primary flex items-center justify-center border-2 ${isSelected ? 'border-accent' : 'border-white'} shadow-md shadow-foreground/20 transition-colors duration-300">
+                              <div class="relative w-11 h-11 rounded-full overflow-hidden ${isCompleted ? 'bg-emerald-600' : 'bg-primary'} flex items-center justify-center border-2 ${isSelected ? 'border-accent ring-2 ring-accent/50' : isCompleted ? 'border-emerald-400' : 'border-white'} shadow-md shadow-foreground/20 transition-colors duration-300">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                 ${marker.photo_url ? `<img src="${marker.photo_url}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
                               </div>
+                              ${isCompleted ? `
+                                <div class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border border-white text-white flex items-center justify-center shadow-xs text-[10px] font-black">
+                                  ✓
+                                </div>
+                              ` : ''}
                             </div>
-                            <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-accent text-primary' : 'bg-surface text-primary'} text-[11px] font-bold rounded-md shadow-sm border border-surface-border whitespace-nowrap transition-colors duration-300">
-                              ${marker.name}
+                            <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-accent text-primary font-black' : isCompleted ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700' : 'bg-surface text-primary'} text-[11px] font-bold rounded-md shadow-sm border border-surface-border whitespace-nowrap transition-colors duration-300 flex items-center gap-1">
+                              ${isCompleted ? '<span class="text-emerald-600 dark:text-emerald-400 font-black">✓</span>' : ''}
+                              <span>${marker.name}</span>
                             </div>
                           </div>
                         `,
