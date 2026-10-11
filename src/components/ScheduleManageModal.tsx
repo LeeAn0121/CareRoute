@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, IconButton } from '@/components/ui';
-import { IconX, IconCheck, IconCalendarEvent, IconClock } from '@tabler/icons-react';
+import { IconX, IconCheck, IconCalendarEvent, IconClock, IconArrowRight } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { motion } from 'motion/react';
+import { parseVisitTime, composeNotesWithTime, extractNotesWithoutTime } from '@/lib/visitTime';
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -16,6 +17,7 @@ interface Props {
 
 export default function ScheduleManageModal({ isOpen, onClose, recipient, currentDate, onSuccess }: Props) {
   const [visitTime, setVisitTime] = useState('');
+  const [visitEndTime, setVisitEndTime] = useState('');
   const [recurringDays, setRecurringDays] = useState<number[]>([]);
   const [isOnCurrentDate, setIsOnCurrentDate] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,7 +26,9 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
 
   useEffect(() => {
     if (recipient) {
-      setVisitTime(recipient.visit_time && recipient.visit_time !== '00:00:00' ? recipient.visit_time.substring(0, 5) : '');
+      const parsed = parseVisitTime(recipient.visit_time, recipient.notes);
+      setVisitTime(parsed.startTime);
+      setVisitEndTime(parsed.endTime);
       setRecurringDays(recipient.recurring_weekdays ? recipient.recurring_weekdays.split(',').map(Number) : []);
       setIsOnCurrentDate(recipient.notes && recipient.notes.includes(ymd));
     }
@@ -33,8 +37,8 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
-      let newNotes = recipient.notes || '';
-      const existingDates = newNotes ? newNotes.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+      const cleanDates = extractNotesWithoutTime(recipient.notes);
+      const existingDates = cleanDates ? cleanDates.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
       
       if (isOnCurrentDate && !existingDates.includes(ymd)) {
         existingDates.push(ymd);
@@ -43,14 +47,14 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
         if (idx > -1) existingDates.splice(idx, 1);
       }
 
-      const finalNotes = existingDates.join(',');
+      const finalNotes = composeNotesWithTime(existingDates.join(','), visitTime, visitEndTime);
       const finalTime = visitTime ? `${visitTime}:00` : '00:00:00';
       const finalRecurring = recurringDays.length > 0 ? [...recurringDays].sort().join(',') : null;
 
       const { error } = await supabase.from('recipients').update({
         visit_time: finalTime,
         recurring_weekdays: finalRecurring,
-        notes: finalNotes || null
+        notes: finalNotes
       }).eq('id', recipient.id);
 
       if (error) throw error;
@@ -135,20 +139,58 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
           )}
         </div>
 
-        {/* Visit Time */}
-        <div className="bg-foreground/[0.03] dark:bg-white/[0.03] p-4.5 rounded-[24px] border border-surface-border/40 space-y-2">
-          <span className="block text-xs font-bold text-foreground/70 uppercase tracking-wider">방문 예정 시간 (선택)</span>
-          <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/40 pointer-events-none">
-              <IconClock size={18} />
-            </div>
-            <input
-              type="time"
-              value={visitTime}
-              onChange={(e) => setVisitTime(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-surface border border-surface-border/80 rounded-[18px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground font-bold"
-            />
+        {/* Visit Time Range */}
+        <div className="bg-foreground/[0.03] dark:bg-white/[0.03] p-4.5 rounded-[24px] border border-surface-border/40 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="block text-xs font-bold text-foreground/70 uppercase tracking-wider">방문 예정 시간 범위 (선택)</span>
+            {(visitTime || visitEndTime) && (
+              <button
+                type="button"
+                onClick={() => { setVisitTime(''); setVisitEndTime(''); }}
+                className="text-[11px] font-bold text-foreground/40 hover:text-rose-500 transition-colors"
+              >
+                시간 초기화
+              </button>
+            )}
           </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/40 pointer-events-none">
+                <IconClock size={17} />
+              </div>
+              <input
+                type="time"
+                value={visitTime}
+                onChange={(e) => setVisitTime(e.target.value)}
+                className="w-full pl-10 pr-2 py-3 bg-surface border border-surface-border/80 rounded-[18px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground font-bold text-sm"
+              />
+            </div>
+
+            <div className="flex items-center justify-center text-foreground/40 shrink-0 px-1">
+              <span className="font-black text-sm">~</span>
+            </div>
+
+            <div className="relative flex-1">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/40 pointer-events-none">
+                <IconClock size={17} />
+              </div>
+              <input
+                type="time"
+                value={visitEndTime}
+                onChange={(e) => setVisitEndTime(e.target.value)}
+                className="w-full pl-10 pr-2 py-3 bg-surface border border-surface-border/80 rounded-[18px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground font-bold text-sm"
+              />
+            </div>
+          </div>
+
+          <p className="text-[11px] text-foreground/50 font-medium">
+            {visitTime && visitEndTime
+              ? `${visitTime}부터 ${visitEndTime}까지 방문 예정입니다.`
+              : visitTime
+              ? `${visitTime}에 방문 예정입니다.`
+              : '시간을 설정하지 않으면 순서가 유동적으로 자동 정렬됩니다.'}
+          </p>
         </div>
 
         <motion.button

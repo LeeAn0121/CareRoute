@@ -14,6 +14,7 @@ import SettingsView from '@/components/SettingsView';
 import WeatherWidget from '@/components/WeatherWidget';
 import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/components/ui';
 import { motion, AnimatePresence } from 'motion/react';
+import { parseVisitTime } from '@/lib/visitTime';
 
 interface RegCode {
   code: string;
@@ -595,10 +596,11 @@ function MainApp() {
       const scheduledToday = markers.filter((r) => getScheduledForDate(r, now));
 
       for (const recipient of scheduledToday) {
-        if (!recipient.visit_time || recipient.visit_time === '00:00:00') continue;
-        const timePrefix = recipient.visit_time.substring(0, 5);
+        const parsedTime = parseVisitTime(recipient.visit_time, recipient.notes);
+        if (!parsedTime.hasTime || !parsedTime.startTime) continue;
+        const timePrefix = parsedTime.startTime;
 
-        // 현재 분과 방문 시간이 일치할 때 알림 발송
+        // 현재 분과 방문 시작 시간이 일치할 때 알림 발송
         if (timePrefix === currentHM) {
           const alertKey = `${recipient.id}_${ymd}_${currentHM}`;
           if (!notifiedKeysRef.current.has(alertKey)) {
@@ -609,7 +611,7 @@ function MainApp() {
               if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then((reg) => {
                   reg.showNotification('어르신 방문 예정 시간 알림 🚨', {
-                    body: `${recipient.name} 어르신 방문 시간(${timePrefix})입니다! (${recipient.address})`,
+                    body: `${recipient.name} 어르신 방문 시간(${parsedTime.formattedText})입니다! (${recipient.address})`,
                     icon: '/CareRoute/icon-192.png',
                     badge: '/CareRoute/icon-192.png',
                     tag: `visit-${recipient.id}-${ymd}`,
@@ -620,7 +622,7 @@ function MainApp() {
             }
 
             // 2. 인앱 다이내믹 아일랜드 플로팅 알림 배너 노출
-            setActiveVisitAlert({ recipient, timeStr: timePrefix });
+            setActiveVisitAlert({ recipient, timeStr: parsedTime.formattedText });
           }
         }
       }
@@ -1112,9 +1114,13 @@ function MainApp() {
     if (!scheduleDate) return [];
     const todays = markers.filter(r => getScheduledForDate(r, scheduleDate));
     const timed = todays
-      .filter((r) => r.visit_time && r.visit_time !== '00:00:00')
-      .sort((a, b) => a.visit_time.localeCompare(b.visit_time));
-    const flexible = todays.filter((r) => !r.visit_time || r.visit_time === '00:00:00');
+      .filter((r) => parseVisitTime(r.visit_time, r.notes).hasTime)
+      .sort((a, b) => {
+        const timeA = parseVisitTime(a.visit_time, a.notes).startTime;
+        const timeB = parseVisitTime(b.visit_time, b.notes).startTime;
+        return timeA.localeCompare(timeB);
+      });
+    const flexible = todays.filter((r) => !parseVisitTime(r.visit_time, r.notes).hasTime);
 
     if (flexible.length === 0) return timed;
 
@@ -1253,20 +1259,25 @@ function MainApp() {
       }
 
       for (const marker of targetRoute) {
-        const hasTime = marker.visit_time && marker.visit_time !== '00:00:00';
+        const parsedTime = parseVisitTime(marker.visit_time, marker.notes);
+        const hasTime = parsedTime.hasTime;
         const body: any = {
           summary: `${marker.name} 어르신 방문`,
           location: `${marker.address}${marker.detail_address ? ` ${marker.detail_address}` : ''}`,
           extendedProperties: { private: { careRouteDate: ymd, careRouteRecipientId: marker.id } },
         };
-        if (hasTime) {
-          const startDateTime = `${ymd}T${marker.visit_time}`;
-          const [h, m, s] = marker.visit_time.split(':').map(Number);
-          const endDate = new Date(`${ymd}T${marker.visit_time}`);
-          endDate.setMinutes(endDate.getMinutes() + 30);
-          const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        if (hasTime && parsedTime.startTime) {
+          const startDateTime = `${ymd}T${parsedTime.startTime}:00`;
+          let endDateTime = '';
+          if (parsedTime.endTime) {
+            endDateTime = `${ymd}T${parsedTime.endTime}:00`;
+          } else {
+            const endDate = new Date(startDateTime);
+            endDate.setMinutes(endDate.getMinutes() + 30);
+            endDateTime = `${ymd}T${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}:00`;
+          }
           body.start = { dateTime: startDateTime, timeZone: 'Asia/Seoul' };
-          body.end = { dateTime: `${ymd}T${endTime}`, timeZone: 'Asia/Seoul' };
+          body.end = { dateTime: endDateTime, timeZone: 'Asia/Seoul' };
         } else {
           body.start = { date: ymd };
           body.end = { date: ymd };
@@ -1780,7 +1791,9 @@ function MainApp() {
                         const db = getDistanceFromLatLonInKm(mapCenter.lat, mapCenter.lng, b.lat, b.lng);
                         return da - db;
                       }
-                      return a.visit_time.localeCompare(b.visit_time);
+                      const timeA = parseVisitTime(a.visit_time, a.notes).startTime || '99:99';
+                      const timeB = parseVisitTime(b.visit_time, b.notes).startTime || '99:99';
+                      return timeA.localeCompare(timeB);
                     });
 
                   if (filteredMarkers.length === 0) {
@@ -1831,7 +1844,10 @@ function MainApp() {
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-accent/15 text-accent border border-accent/20">
                                   <IconClock size={12} strokeWidth={2.5} />
-                                  {marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5) + ' 방문'}
+                                  {(() => {
+                                    const parsed = parseVisitTime(marker.visit_time, marker.notes);
+                                    return parsed.hasTime ? `${parsed.formattedText} 방문` : '시간 미정';
+                                  })()}
                                 </span>
                                 {isCompletedToday(marker) && (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-600 border border-emerald-500/20">
@@ -1910,7 +1926,7 @@ function MainApp() {
                         </div>
                         <p className="text-[17px] font-black text-foreground tracking-tight truncate">{marker.name} 어르신</p>
                         <p className="text-xs font-bold text-accent mb-2 truncate">
-                          {marker.visit_time.substring(0, 5) === '00:00' ? '시간 미정' : marker.visit_time.substring(0, 5)}
+                          {parseVisitTime(marker.visit_time, marker.notes).formattedText}
                         </p>
                         <p className="text-xs text-foreground/60 font-semibold line-clamp-2 mb-4 flex-1 leading-relaxed">
                           {marker.address}
@@ -1945,7 +1961,7 @@ function MainApp() {
                             )}
                           </div>
                           <p className="text-xs text-foreground/50 font-bold truncate">
-                            {marker.visit_time.substring(0, 5) === '00:00' ? '미정' : marker.visit_time.substring(0, 5)} · {marker.address}
+                            {parseVisitTime(marker.visit_time, marker.notes).formattedText} · {marker.address}
                           </p>
                         </div>
                         <button 
@@ -2054,7 +2070,7 @@ function MainApp() {
                             <div className="flex items-center gap-1.5 mb-1.5 text-xs font-black text-foreground/60">
                               <IconClock size={14} className={isNext ? 'text-accent' : 'text-foreground/40'} />
                               <span className={isNext ? 'text-accent font-black' : ''}>
-                                {marker.visit_time && marker.visit_time !== '00:00:00' ? marker.visit_time.substring(0, 5) : '시간 미정'}
+                                {parseVisitTime(marker.visit_time, marker.notes).formattedText}
                               </span>
                             </div>
                             <p className="text-xs text-foreground/60 font-semibold truncate leading-relaxed">
@@ -2244,7 +2260,10 @@ function MainApp() {
 
                   <div className="mt-2">
                     <Chip icon={<IconClock size={13} strokeWidth={2.5} className="text-accent" />} className="bg-accent/15 text-accent border border-accent/20 font-black">
-                      {`${selectedRecipient.notes ? selectedRecipient.notes.substring(5) + ' ' : ''}${selectedRecipient.visit_time.substring(0, 5) === '00:00' ? '서비스 시간 미정' : selectedRecipient.visit_time.substring(0, 5) + ' 방문'}`}
+                      {(() => {
+                        const parsed = parseVisitTime(selectedRecipient.visit_time, selectedRecipient.notes);
+                        return parsed.hasTime ? `${parsed.formattedText} 방문` : '서비스 시간 미정';
+                      })()}
                     </Chip>
                   </div>
                 </div>
