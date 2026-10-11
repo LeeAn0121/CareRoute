@@ -7,7 +7,9 @@ import {
   IconAlertTriangle, IconInfoCircle, IconDeviceMobile,
   IconClock, IconBrandGoogle, IconCalendarEvent, IconUsers,
   IconUserPlus, IconMapPin, IconNavigation, IconSparkles,
-  IconHelp, IconArrowRight, IconShare, IconCompass
+  IconHelp, IconArrowRight, IconPhoneCall, IconAmbulance,
+  IconClipboardCheck, IconHeartbeat, IconPill, IconSalad,
+  IconEye, IconMoodSmile
 } from '@tabler/icons-react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,11 +25,9 @@ export interface SettingsViewProps {
   onBack: () => void;
   onSyncCalendar?: () => void;
   isSyncingCalendar?: boolean;
-  onAddNewRecipient?: () => void;
   totalRecipientsCount?: number;
   todayTotalCount?: number;
   todayCompletedCount?: number;
-  onNavigateTab?: (tab: 'map' | 'list' | 'route') => void;
 }
 
 const colorThemes = [
@@ -44,11 +44,9 @@ export default function SettingsView({
   onBack, 
   onSyncCalendar, 
   isSyncingCalendar,
-  onAddNewRecipient,
   totalRecipientsCount = 0,
   todayTotalCount = 0,
-  todayCompletedCount = 0,
-  onNavigateTab
+  todayCompletedCount = 0
 }: SettingsViewProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -59,13 +57,13 @@ export default function SettingsView({
   const [isTestingNotif, setIsTestingNotif] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [showUnblockGuide, setShowUnblockGuide] = useState(false);
+  const [showChecklistGuide, setShowChecklistGuide] = useState(false);
   const [defaultNavi, setDefaultNavi] = useState('naver');
   const [showNaviPicker, setShowNaviPicker] = useState(false);
 
   const remainingVisits = Math.max(0, todayTotalCount - todayCompletedCount);
   const progressPercent = todayTotalCount > 0 ? Math.round((todayCompletedCount / todayTotalCount) * 100) : 0;
 
-  // Format today's date in Korean (e.g., "10월 11일 금요일")
   const todayFormatted = new Intl.DateTimeFormat('ko-KR', {
     month: 'long',
     day: 'numeric',
@@ -156,18 +154,18 @@ export default function SettingsView({
       transition={{ duration: 0.2 }}
       className="absolute inset-0 overflow-y-auto px-4 pt-14 pb-36 bg-[#F2F2F7] dark:bg-[#000000] text-black dark:text-white transition-colors duration-300 font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Text','Pretendard',sans-serif]"
     >
-      {/* iOS Navigation Bar */}
-      <div className="flex items-center justify-between mb-4 px-1">
+      {/* iOS Large Title Header */}
+      <div className="flex items-center justify-between mb-4 px-1 max-w-xl mx-auto">
         <div>
           <span className="text-[12px] font-semibold text-[#8E8E93] dark:text-[#98989D] uppercase tracking-wider block">
-            CareRoute Settings Hub
+            Care Management & Settings
           </span>
           <h1 className="text-[34px] font-extrabold tracking-tight text-black dark:text-white leading-none mt-1">
             메뉴
           </h1>
         </div>
 
-        {/* iOS Native "완료 (Done)" Button */}
+        {/* Done / Close Button */}
         <button 
           onClick={onBack}
           className="px-4 py-2 rounded-full bg-white dark:bg-[#1C1C1E] text-[#007AFF] font-bold text-[15px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] active:opacity-70 transition-opacity"
@@ -178,7 +176,7 @@ export default function SettingsView({
 
       <div className="space-y-6 max-w-xl mx-auto">
         
-        {/* Apple ID Style Profile / Agency Card */}
+        {/* 1. Official Agency Identity Card */}
         <div className="bg-white dark:bg-[#1C1C1E] rounded-[20px] p-4 shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:shadow-none border border-black/[0.04] dark:border-white/[0.08] flex items-center gap-3.5">
           <div className="w-14 h-14 rounded-[14px] bg-[#007AFF]/10 p-1 flex items-center justify-center shrink-0 border border-black/[0.05] dark:border-white/[0.1] shadow-2xs">
             <img src="/CareRoute/icon-192.png" alt="CareRoute Logo" className="w-full h-full object-cover rounded-[11px]" />
@@ -189,17 +187,16 @@ export default function SettingsView({
                 케어루트 (CareRoute)
               </h2>
               <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 bg-[#34C759]/15 text-[#34C759] rounded-md shrink-0">
-                <IconCheck size={11} strokeWidth={3} /> 실시간
+                <IconCheck size={11} strokeWidth={3} /> 실시간 동기화
               </span>
             </div>
             <p className="text-[13px] text-[#8E8E93] dark:text-[#98989D] font-medium truncate mt-0.5">
               스마트 방문요양 & 동선 관리 플랫폼
             </p>
           </div>
-          <IconChevronRight size={18} className="text-[#C7C7CC] dark:text-[#48484A] shrink-0" />
         </div>
 
-        {/* iOS Fitness / Health Rings Style Activity Widget Card */}
+        {/* 2. Today's Care Insights & Activity Summary Card */}
         <div className="bg-white dark:bg-[#1C1C1E] rounded-[22px] p-5 shadow-[0_2px_16px_rgba(0,0,0,0.04)] dark:shadow-none border border-black/[0.04] dark:border-white/[0.08]">
           <div className="flex items-center justify-between mb-3.5">
             <div>
@@ -207,7 +204,7 @@ export default function SettingsView({
                 {todayFormatted}
               </span>
               <h3 className="text-[18px] font-bold text-black dark:text-white tracking-tight mt-0.5">
-                오늘의 방문 케어 활동
+                오늘의 케어 업무 현황
               </h3>
             </div>
             <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
@@ -221,10 +218,10 @@ export default function SettingsView({
             </span>
           </div>
 
-          {/* iOS 3-Column Metrics Stack */}
+          {/* 3-Column Metrics Stack */}
           <div className="grid grid-cols-3 gap-2.5 mb-4">
             <div className="bg-[#F2F2F7] dark:bg-[#2C2C2E] p-3 rounded-[16px]">
-              <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#98989D] block">전체 어르신</span>
+              <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#98989D] block">등록 어르신</span>
               <div className="flex items-baseline gap-1 mt-1">
                 <strong className="text-[22px] font-extrabold text-[#007AFF] tracking-tight">{totalRecipientsCount}</strong>
                 <span className="text-[12px] text-[#8E8E93] font-medium">명</span>
@@ -232,7 +229,7 @@ export default function SettingsView({
             </div>
 
             <div className="bg-[#F2F2F7] dark:bg-[#2C2C2E] p-3 rounded-[16px]">
-              <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#98989D] block">방문 완료</span>
+              <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#98989D] block">오늘 방문 완료</span>
               <div className="flex items-baseline gap-1 mt-1">
                 <strong className="text-[22px] font-extrabold text-[#34C759] tracking-tight">{todayCompletedCount}</strong>
                 <span className="text-[12px] text-[#8E8E93] font-medium">명</span>
@@ -240,7 +237,7 @@ export default function SettingsView({
             </div>
 
             <div className="bg-[#F2F2F7] dark:bg-[#2C2C2E] p-3 rounded-[16px]">
-              <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#98989D] block">남은 방문</span>
+              <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#98989D] block">남은 미방문</span>
               <div className="flex items-baseline gap-1 mt-1">
                 <strong className="text-[22px] font-extrabold text-[#FF9500] tracking-tight">{remainingVisits}</strong>
                 <span className="text-[12px] text-[#8E8E93] font-medium">명</span>
@@ -248,11 +245,11 @@ export default function SettingsView({
             </div>
           </div>
 
-          {/* iOS Health Activity Progress Bar */}
+          {/* Progress Bar */}
           {todayTotalCount > 0 && (
-            <div className="space-y-1.5 mb-4">
+            <div className="space-y-1.5">
               <div className="flex justify-between text-[12px] font-semibold text-[#8E8E93] dark:text-[#98989D]">
-                <span>오늘의 달성률</span>
+                <span>오늘 방문 달성률</span>
                 <span className="text-[#34C759] font-bold">{progressPercent}%</span>
               </div>
               <div className="w-full h-3 bg-[#E5E5EA] dark:bg-[#2C2C2E] rounded-full overflow-hidden p-0.5">
@@ -265,95 +262,154 @@ export default function SettingsView({
               </div>
             </div>
           )}
-
-          {/* Apple Style Inline Action */}
-          <button
-            onClick={() => onNavigateTab ? onNavigateTab('route') : onBack()}
-            className="w-full py-2.5 px-3.5 rounded-[14px] bg-[#007AFF]/10 hover:bg-[#007AFF]/15 text-[#007AFF] font-bold text-[14px] flex items-center justify-center gap-1.5 active:opacity-70 transition-opacity"
-          >
-            <span>오늘의 방문 일정 바로보기</span>
-            <IconChevronRight size={16} strokeWidth={2.5} />
-          </button>
         </div>
 
-        {/* Apple Control Center Style 4-Grid Quick Action Hub */}
+        {/* 3. Emergency & Crisis Contacts (🚨 응급 긴급 지원 센터) */}
         <div>
           <span className="text-[13px] font-semibold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
-            빠른 실행 (QUICK ACTIONS)
+            현장 긴급 연락망 (EMERGENCY CALLS)
           </span>
 
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => {
-                if (onAddNewRecipient) onAddNewRecipient();
-                else onBack();
-              }}
-              className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+            
+            {/* 119 Emergency */}
+            <a
+              href="tel:119"
+              className="px-4 py-3.5 flex items-center justify-between active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
             >
-              <div className="w-10 h-10 rounded-[12px] bg-[#007AFF] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#007AFF]/30">
-                <IconUserPlus size={22} strokeWidth={2.2} />
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#FF3B30] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconAmbulance size={17} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight block">119 응급구조 / 안전신고</span>
+                  <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">어르신 낙상, 실신, 의식 저하 등 응급상황</span>
+                </div>
               </div>
-              <div className="min-w-0">
-                <span className="text-[14px] font-bold text-black dark:text-white tracking-tight block truncate">어르신 등록</span>
-                <span className="text-[11px] text-[#8E8E93] dark:text-[#98989D] block truncate">새 어르신 추가</span>
-              </div>
-            </button>
+              <span className="text-[13px] font-bold text-[#FF3B30] bg-[#FF3B30]/10 px-2.5 py-1 rounded-full flex items-center gap-1">
+                <IconPhoneCall size={13} strokeWidth={2.5} /> 즉시 통화
+              </span>
+            </a>
 
-            <button
-              onClick={onSyncCalendar}
-              disabled={isSyncingCalendar}
-              className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] flex items-center gap-3 text-left active:scale-[0.98] transition-transform disabled:opacity-60"
+            {/* NHIS Long-Term Care Insurance */}
+            <a
+              href="tel:1577-1000"
+              className="px-4 py-3.5 flex items-center justify-between active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
             >
-              <div className="w-10 h-10 rounded-[12px] bg-[#5856D6] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#5856D6]/30">
-                {isSyncingCalendar ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <IconBrandGoogle size={22} strokeWidth={2.2} />
-                )}
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#007AFF] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconPhoneCall size={17} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight block">국민건강보험공단 (1577-1000)</span>
+                  <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">노인장기요양보험 및 등급 전산 문의</span>
+                </div>
               </div>
-              <div className="min-w-0">
-                <span className="text-[14px] font-bold text-black dark:text-white tracking-tight block truncate">캘린더 동기화</span>
-                <span className="text-[11px] text-[#8E8E93] dark:text-[#98989D] block truncate">구글 캘린더 연동</span>
-              </div>
-            </button>
+              <IconChevronRight size={17} className="text-[#C7C7CC] dark:text-[#48484A]" />
+            </a>
 
-            <button
-              onClick={handleTestNotification}
-              disabled={isTestingNotif}
-              className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] flex items-center gap-3 text-left active:scale-[0.98] transition-transform disabled:opacity-60"
+            {/* Comprehensive Support Center for Elderly Living Alone */}
+            <a
+              href="tel:1661-2129"
+              className="px-4 py-3.5 flex items-center justify-between active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
             >
-              <div className="w-10 h-10 rounded-[12px] bg-[#FF9500] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#FF9500]/30">
-                {isTestingNotif ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <IconBellRinging size={22} strokeWidth={2.2} />
-                )}
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#34C759] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconPhoneCall size={17} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight block">독거노인종합지원센터 (1661-2129)</span>
+                  <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">위기 독거 어르신 돌봄 및 안심망 지원</span>
+                </div>
               </div>
-              <div className="min-w-0">
-                <span className="text-[14px] font-bold text-black dark:text-white tracking-tight block truncate">알림 테스트</span>
-                <span className="text-[11px] text-[#8E8E93] dark:text-[#98989D] block truncate">방문 알림 발송</span>
-              </div>
-            </button>
+              <IconChevronRight size={17} className="text-[#C7C7CC] dark:text-[#48484A]" />
+            </a>
 
-            <button
-              onClick={() => onNavigateTab ? onNavigateTab('map') : onBack()}
-              className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
-            >
-              <div className="w-10 h-10 rounded-[12px] bg-[#34C759] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#34C759]/30">
-                <IconMapPin size={22} strokeWidth={2.2} />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[14px] font-bold text-black dark:text-white tracking-tight block truncate">지도 보기</span>
-                <span className="text-[11px] text-[#8E8E93] dark:text-[#98989D] block truncate">실시간 위치 확인</span>
-              </div>
-            </button>
           </div>
         </div>
 
-        {/* iOS Inset Group 1: 길안내 및 서비스 (Navigation & Service) */}
+        {/* 4. Field Care Standard Checklist Guide (📋 방문 케어 5대 필수 점검 수칙) */}
         <div>
           <span className="text-[13px] font-semibold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
-            길안내 및 서비스 (NAVIGATION)
+            현장 케어 가이드 (CARE CHECKLIST)
+          </span>
+
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+            
+            <button
+              onClick={() => setShowChecklistGuide(!showChecklistGuide)}
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#5856D6] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconClipboardCheck size={17} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight block">방문 요양 5대 필수 점검 수칙</span>
+                  <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">방문 시 표준 확인 체크리스트</span>
+                </div>
+              </div>
+              <IconChevronRight size={17} className={`text-[#C7C7CC] dark:text-[#48484A] transition-transform ${showChecklistGuide ? 'rotate-90' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {showChecklistGuide && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="px-4 py-3 bg-[#F9F9FB] dark:bg-[#161618] border-t border-black/[0.04] dark:border-white/[0.05] space-y-2.5 text-[13px]"
+                >
+                  <div className="flex items-start gap-2.5 p-2 rounded-[12px] bg-white dark:bg-[#202022] border border-black/[0.03] dark:border-white/[0.05]">
+                    <IconHeartbeat size={18} className="text-[#FF2D55] shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-black dark:text-white font-bold block">1. 활력징후(바이탈) 체크</strong>
+                      <span className="text-[#8E8E93] dark:text-[#98989D]">체온, 혈압, 호흡 상태 및 안색 확인</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5 p-2 rounded-[12px] bg-white dark:bg-[#202022] border border-black/[0.03] dark:border-white/[0.05]">
+                    <IconPill size={18} className="text-[#007AFF] shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-black dark:text-white font-bold block">2. 복약 상태 점검</strong>
+                      <span className="text-[#8E8E93] dark:text-[#98989D]">혈압약, 당뇨약 등 필수 약물 정시 복용 여부</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5 p-2 rounded-[12px] bg-white dark:bg-[#202022] border border-black/[0.03] dark:border-white/[0.05]">
+                    <IconSalad size={18} className="text-[#34C759] shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-black dark:text-white font-bold block">3. 영양 및 수분 섭취</strong>
+                      <span className="text-[#8E8E93] dark:text-[#98989D]">식사량 확인, 냉장고 유통기한, 수분 보충 권장</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5 p-2 rounded-[12px] bg-white dark:bg-[#202022] border border-black/[0.03] dark:border-white/[0.05]">
+                    <IconEye size={18} className="text-[#FF9500] shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-black dark:text-white font-bold block">4. 실내 낙상 안전 점검</strong>
+                      <span className="text-[#8E8E93] dark:text-[#98989D]">화장실 물기 제거, 문턱 안전, 보행기 이상 유무</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5 p-2 rounded-[12px] bg-white dark:bg-[#202022] border border-black/[0.03] dark:border-white/[0.05]">
+                    <IconMoodSmile size={18} className="text-[#AF52DE] shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-black dark:text-white font-bold block">5. 정서 지원 및 소통</strong>
+                      <span className="text-[#8E8E93] dark:text-[#98989D]">기분과 표정 관찰, 일상 대화 및 인지 반응 확인</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+          </div>
+        </div>
+
+        {/* 5. 길안내 및 서비스 (Navigation & Sync) */}
+        <div>
+          <span className="text-[13px] font-semibold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
+            길안내 및 서비스 (NAVIGATION & SYNC)
           </span>
 
           <div className="bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
@@ -369,7 +425,7 @@ export default function SettingsView({
                     <IconNavigation size={17} strokeWidth={2.5} />
                   </div>
                   <div>
-                    <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight block">기본 내비게이션</span>
+                    <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight block">기본 내비게이션 앱</span>
                     <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">길안내 터치 시 우선 실행</span>
                   </div>
                 </div>
@@ -382,7 +438,6 @@ export default function SettingsView({
                 </div>
               </button>
 
-              {/* Collapsible Picker Options */}
               <AnimatePresence>
                 {showNaviPicker && (
                   <motion.div
@@ -420,6 +475,31 @@ export default function SettingsView({
               </AnimatePresence>
             </div>
 
+            {/* Google Calendar Sync Action */}
+            <div className="px-4 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#5856D6] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconBrandGoogle size={17} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight block">구글 캘린더 동기화</span>
+                  <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">선택한 날짜의 일정을 캘린더로 내보내기</span>
+                </div>
+              </div>
+
+              <button
+                onClick={onSyncCalendar}
+                disabled={isSyncingCalendar}
+                className="px-3.5 py-1.5 rounded-full bg-[#5856D6]/10 hover:bg-[#5856D6]/20 text-[#5856D6] font-bold text-[13px] active:opacity-70 disabled:opacity-50 transition-opacity flex items-center gap-1"
+              >
+                {isSyncingCalendar ? (
+                  <div className="w-3.5 h-3.5 border-2 border-[#5856D6] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span>동기화 실행</span>
+                )}
+              </button>
+            </div>
+
             {/* Cloud Realtime Backup Status Row */}
             <div className="px-4 py-3.5 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -439,7 +519,7 @@ export default function SettingsView({
           </div>
         </div>
 
-        {/* iOS Inset Group 2: 디스플레이 및 화면 (Display & Appearance) */}
+        {/* 6. 디스플레이 및 화면 (Display & Theme) */}
         <div>
           <span className="text-[13px] font-semibold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
             디스플레이 및 테마 (DISPLAY)
@@ -447,7 +527,7 @@ export default function SettingsView({
 
           <div className="bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
             
-            {/* iOS Native Segmented Control for Light / Dark Mode */}
+            {/* Cupertino Segmented Control for Light / Dark Mode */}
             <div className="px-4 py-3.5 flex flex-col gap-2.5">
               <div className="flex items-center gap-3">
                 <div className="w-[30px] h-[30px] rounded-[8px] bg-[#8E8E93] text-white flex items-center justify-center shrink-0 shadow-2xs">
@@ -456,7 +536,6 @@ export default function SettingsView({
                 <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight">화면 모드</span>
               </div>
 
-              {/* Cupertino Sliding Segmented Control */}
               <div className="flex p-1 bg-[#E3E3E8] dark:bg-[#2C2C2E] rounded-[12px]">
                 {[
                   { id: 'light', label: '라이트', icon: <IconSun size={15} strokeWidth={2.5} /> },
@@ -510,7 +589,7 @@ export default function SettingsView({
           </div>
         </div>
 
-        {/* iOS Inset Group 3: 알림 및 개인정보 (Notifications & Privacy) */}
+        {/* 7. 알림 및 개인정보 (Notifications & Privacy) */}
         <div>
           <span className="text-[13px] font-semibold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
             알림 및 권한 (NOTIFICATIONS & PRIVACY)
@@ -596,7 +675,7 @@ export default function SettingsView({
               </button>
             )}
 
-            {/* Unblock Guide Button Row (if denied or requested) */}
+            {/* Unblock Guide Button Row */}
             <div>
               <button
                 onClick={() => setShowUnblockGuide(!showUnblockGuide)}
@@ -639,7 +718,7 @@ export default function SettingsView({
           </div>
         </div>
 
-        {/* iOS Inset Group 4: 지원 및 관리 (Support & About) */}
+        {/* 8. 지원 및 관리 (Support & About) */}
         <div>
           <span className="text-[13px] font-semibold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
             지원 및 관리 (ABOUT)

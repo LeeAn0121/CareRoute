@@ -103,14 +103,8 @@ export default function Tour({ onComplete }: TourProps) {
     },
     {
       target: '#tour-bottom-nav',
-      title: <><IconCategory className="text-primary" /> 주요 메뉴 이동</>,
-      content: '하단 탭을 통해 언제든지 [지도], [어르신 명단], [방문 일정], [전체 메뉴] 허브로 자유롭게 전환할 수 있습니다.',
-      disableBeacon: true,
-    },
-    {
-      target: '#tour-user-menu',
-      title: <><IconMenu2 className="text-primary" /> 케어 스마트 허브</>,
-      content: '우측 상단 버튼이나 하단 메뉴 탭을 눌러 오늘의 방문 케어 브리핑, 구글 캘린더 동기화, 알림 진단 및 설정을 이용할 수 있습니다.',
+      title: <><IconCategory className="text-primary" /> 4대 주요 메뉴</>,
+      content: '하단 탭을 통해 [지도], [어르신 명단], [방문 일정], [메뉴 허브]로 언제든 원터치로 이동할 수 있습니다.',
       disableBeacon: true,
     },
     {

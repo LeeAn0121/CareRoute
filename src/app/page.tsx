@@ -1630,32 +1630,11 @@ function MainApp() {
         )}
       </AnimatePresence>
 
-      {/* Global Top-Right Smart Hub Toggle Button */}
-      {activeTab !== 'settings' && (
-        <button 
-          id="tour-user-menu"
-          onClick={() => setActiveTab('settings')}
-          className="absolute top-[calc(env(safe-area-inset-top,0px)+12px)] right-4 z-50 flex-shrink-0 w-12 h-12 flex items-center justify-center bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-white/20 dark:border-white/10 hover:bg-foreground/[0.04] transition-all active:scale-90 animate-fade-in-down"
-          title="전체 메뉴 열기"
-          aria-label="전체 메뉴 열기"
-        >
-          <div className="relative flex items-center justify-center">
-            <IconMenu2 size={24} className="text-foreground/80" strokeWidth={2.5} />
-            {(() => {
-              const remaining = markers.filter(m => getScheduledForDate(m, new Date()) && !isCompletedToday(m)).length;
-              return remaining > 0 ? (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-surface animate-pulse" />
-              ) : null;
-            })()}
-          </div>
-        </button>
-      )}
-
-      {/* iOS / One UI 6 Styled Floating Header */}
+      {/* Top Floating NowBar Header */}
       {activeTab === 'map' && (
       <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col items-start gap-3 mt-3 pointer-events-none">
-        {/* One UI 9.0 NowBar: Address Pill + Hamburger Menu */}
-        <div id="tour-header" className="flex w-full items-start gap-3 pr-[52px]">
+        {/* Dynamic NowBar: Address Pill & Live Weather */}
+        <div id="tour-header" className="flex w-full items-start gap-3">
           {/* Dynamic NowBar Capsule */}
           <div className="flex-1 flex flex-col pointer-events-auto bg-surface/85 supports-[backdrop-filter]:bg-surface/70 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_16px_40px_rgba(0,0,0,0.1)] border border-white/30 dark:border-white/10 overflow-hidden transition-all">
             
@@ -2398,14 +2377,9 @@ function MainApp() {
             setTimeout(() => setShowOnboarding(true), 100);
           }}
           onBack={() => setActiveTab('map')}
-          onAddNewRecipient={() => {
-            setEditingRecipient(null);
-            setIsModalOpen(true);
-          }}
           totalRecipientsCount={markers.length}
           todayTotalCount={markers.filter(m => getScheduledForDate(m, new Date())).length}
           todayCompletedCount={markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length}
-          onNavigateTab={(tab) => setActiveTab(tab)}
         />
       )}
 
