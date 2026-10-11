@@ -139,7 +139,7 @@ export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: W
           <>
             {/* 바깥 클릭 시 닫히는 투명 배경 오버레이 */}
             <div
-              className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px]"
+              className="fixed inset-0 z-10 bg-black/10 backdrop-blur-[1px]"
               onClick={handleClose}
             />
 

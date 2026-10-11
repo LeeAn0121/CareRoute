@@ -170,7 +170,6 @@ function MainApp() {
   const [mapCenter, setMapCenter] = useState({ lat: 37.5665, lng: 126.9780 });
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isMapSearchOpen, setIsMapSearchOpen] = useState(false);
   const [mapSearchQuery, setMapSearchQuery] = useState('');
 
   const handleZoomIn = () => {
@@ -276,48 +275,34 @@ function MainApp() {
     return () => { isMounted = false; };
   }, [mapCenter]);
   const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring'>('all');
-  const [showRegionFilter, setShowRegionFilter] = useState(false);
-  const [isWeatherDetailOpen, setIsWeatherDetailOpen] = useState(false);
+  // 지도 상단 헤더 팝업들의 상호 배타적 단일 상태 (지역 선택 | 실시간 날씨 | 어르신 검색)
+  // 하나의 상태로 관리하여 어떤 순서로 누르더라도 레이어가 겹치는 문제를 원천 차단합니다.
+  const [activeHeaderModal, setActiveHeaderModal] = useState<'none' | 'region' | 'weather' | 'search'>('none');
+  const isRegionFilterOpen = activeHeaderModal === 'region';
+  const isWeatherDetailOpen = activeHeaderModal === 'weather';
+  const isMapSearchOpen = activeHeaderModal === 'search';
 
   const toggleRegionFilter = () => {
-    setShowRegionFilter((prev) => {
-      const next = !prev;
-      if (next) {
-        setIsWeatherDetailOpen(false);
-        setIsMapSearchOpen(false);
-      }
-      return next;
-    });
+    setActiveHeaderModal((prev) => (prev === 'region' ? 'none' : 'region'));
   };
 
   const toggleWeatherDetail = () => {
-    setIsWeatherDetailOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        setShowRegionFilter(false);
-        setIsMapSearchOpen(false);
-      }
-      return next;
-    });
+    setActiveHeaderModal((prev) => (prev === 'weather' ? 'none' : 'weather'));
   };
 
   const toggleMapSearch = () => {
-    setIsMapSearchOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        setShowRegionFilter(false);
-        setIsWeatherDetailOpen(false);
-      } else {
+    setActiveHeaderModal((prev) => {
+      if (prev === 'search') {
         setMapSearchQuery('');
+        return 'none';
       }
-      return next;
+      return 'search';
     });
   };
 
   const closeAllHeaderPopups = () => {
-    setShowRegionFilter(false);
-    setIsWeatherDetailOpen(false);
-    setIsMapSearchOpen(false);
+    setActiveHeaderModal('none');
+    setMapSearchQuery('');
   };
 
   // 특정 어르신을 지도 중심으로 포커싱 & 지도 탭 활성화 & 마커/프리뷰 카드 연동
@@ -1763,7 +1748,7 @@ function MainApp() {
                 </span>
               </div>
             </div>
-            <IconChevronDown size={15} className={`text-foreground/40 shrink-0 ml-1 transition-transform ${showRegionFilter ? 'rotate-180 text-primary' : ''}`} />
+            <IconChevronDown size={15} className={`text-foreground/40 shrink-0 ml-1 transition-transform ${isRegionFilterOpen ? 'rotate-180 text-primary' : ''}`} />
           </button>
 
           {/* Integrated Live Weather Widget Capsule */}
@@ -1773,7 +1758,7 @@ function MainApp() {
               lng={mapCenter.lng} 
               isOpen={isWeatherDetailOpen}
               onToggle={toggleWeatherDetail}
-              onClose={() => setIsWeatherDetailOpen(false)}
+              onClose={closeAllHeaderPopups}
             />
           </div>
 
@@ -1789,22 +1774,22 @@ function MainApp() {
           </button>
         </div>
 
-        {/* In-Map Search Backdrop */}
-        {isMapSearchOpen && (
+        {/* In-Map Search & Region Filter Common Backdrop */}
+        {(isMapSearchOpen || isRegionFilterOpen) && (
           <div
             className="fixed inset-0 z-10 bg-black/10 backdrop-blur-[1px] pointer-events-auto"
-            onClick={() => setIsMapSearchOpen(false)}
+            onClick={closeAllHeaderPopups}
           />
         )}
 
-        {/* In-Map Search Bar Popup */}
+        {/* In-Map Search Bar Popup - Enlarged & Enhanced */}
         <AnimatePresence>
           {isMapSearchOpen && (
             <motion.div
               initial={{ opacity: 0, y: -8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
-              className="relative z-20 w-full bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[26px] p-3 shadow-[0_16px_40px_rgba(0,0,0,0.15)] border border-white/40 dark:border-white/10 pointer-events-auto space-y-2"
+              className="relative z-20 w-full bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[30px] p-4 sm:p-5 shadow-[0_22px_50px_rgba(0,0,0,0.18)] border border-white/40 dark:border-white/10 pointer-events-auto space-y-3"
             >
               <div className="relative">
                 <input
@@ -1827,22 +1812,60 @@ function MainApp() {
                       }
                     }
                   }}
-                  placeholder="어르신 성함 또는 주소 검색 (예: 김순자, 강남대로...)"
-                  className="w-full bg-foreground/[0.04] dark:bg-white/[0.06] rounded-[20px] py-2.5 pl-10 pr-9 text-[14px] font-bold text-foreground placeholder:text-foreground/40 outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                  placeholder="어르신 성함 또는 주소 검색 (예: 김순자, 역삼로...)"
+                  className="w-full bg-foreground/[0.04] dark:bg-white/[0.06] rounded-[22px] py-3.5 pl-12 pr-11 text-[15px] sm:text-[16px] font-bold text-foreground placeholder:text-foreground/40 outline-none focus:ring-2 focus:ring-primary/40 transition-all shadow-inner-sm"
                 />
-                <IconSearch size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/40" />
+                <IconSearch size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/40" />
                 {mapSearchQuery && (
                   <button
                     onClick={() => setMapSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-foreground/10 flex items-center justify-center text-foreground/50"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-foreground/10 hover:bg-foreground/20 flex items-center justify-center text-foreground/60 transition-colors"
                   >
-                    <IconX size={12} />
+                    <IconX size={13} strokeWidth={2.5} />
                   </button>
                 )}
               </div>
 
-              {/* Instant Search Results Dropdown */}
-              {mapSearchQuery.trim() !== '' && (() => {
+              {/* Instant Search Results / Quick Elder Jump */}
+              {mapSearchQuery.trim() === '' ? (
+                <div className="pt-0.5">
+                  <div className="flex items-center justify-between px-1 mb-2">
+                    <span className="text-[12px] font-black text-foreground/50">
+                      등록 어르신 ({markers.length}명)
+                    </span>
+                    <span className="text-[11px] font-bold text-primary">터치 시 지도 이동</span>
+                  </div>
+                  {markers.length > 0 ? (
+                    <div className="space-y-1 max-h-56 overflow-y-auto pr-0.5">
+                      {markers.slice(0, 4).map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => focusRecipientOnMap(m)}
+                          className="w-full py-2.5 px-3 flex items-center justify-between text-left hover:bg-foreground/[0.04] active:bg-foreground/[0.08] rounded-2xl transition-colors cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-[13px] bg-primary/10 text-primary flex items-center justify-center shrink-0 font-black text-sm shadow-2xs group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                              {m.name[0]}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[14px] font-black text-foreground truncate">{m.name} 어르신</p>
+                              <p className="text-[11px] text-foreground/50 truncate mt-0.5">{m.address}{m.detail_address ? ` ${m.detail_address}` : ''}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 text-primary text-xs font-bold shrink-0 ml-2 opacity-70 group-hover:opacity-100">
+                            <IconNavigation size={14} className="text-primary" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-4 text-center text-xs font-bold text-foreground/40">
+                      등록된 수급자 어르신이 없습니다.
+                    </div>
+                  )}
+                </div>
+              ) : (() => {
                 const q = mapSearchQuery.trim().toLowerCase();
                 const matchedList = markers
                   .filter(m => 
@@ -1850,35 +1873,37 @@ function MainApp() {
                     (m.address && m.address.toLowerCase().includes(q)) || 
                     (m.detail_address && m.detail_address.toLowerCase().includes(q))
                   )
-                  .slice(0, 6);
+                  .slice(0, 8);
 
                 return (
-                  <div className="max-h-56 overflow-y-auto divide-y divide-surface-border/40 pt-1">
+                  <div className="max-h-72 sm:max-h-80 overflow-y-auto divide-y divide-surface-border/40 pt-1">
                     {matchedList.map(m => (
                       <button
                         key={m.id}
                         type="button"
                         onClick={() => focusRecipientOnMap(m)}
-                        className="w-full py-2.5 px-2 flex items-center justify-between text-left hover:bg-foreground/[0.04] rounded-xl transition-colors cursor-pointer group"
+                        className="w-full py-3 px-3 flex items-center justify-between text-left hover:bg-foreground/[0.04] active:bg-foreground/[0.08] rounded-[20px] transition-colors cursor-pointer group"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-[12px] bg-primary/10 text-primary flex items-center justify-center shrink-0 font-black text-xs shadow-2xs group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-[15px] bg-primary/10 text-primary flex items-center justify-center shrink-0 font-black text-sm shadow-2xs group-hover:bg-primary group-hover:text-primary-foreground transition-all">
                             {m.name[0]}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[13px] font-bold text-foreground truncate">{m.name} 어르신</p>
-                            <p className="text-[11px] text-foreground/50 truncate">{m.address}{m.detail_address ? ` ${m.detail_address}` : ''}</p>
+                            <p className="text-[15px] font-black text-foreground truncate">{m.name} 어르신</p>
+                            <p className="text-[12px] font-medium text-foreground/60 truncate mt-0.5">{m.address}{m.detail_address ? ` ${m.detail_address}` : ''}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 text-primary text-xs font-bold shrink-0 ml-2">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 text-primary text-xs font-black shrink-0 ml-2 group-hover:bg-primary group-hover:text-primary-foreground transition-all">
                           <span className="hidden sm:inline">위치 보기</span>
                           <IconNavigation size={14} className="text-primary" />
                         </div>
                       </button>
                     ))}
                     {matchedList.length === 0 && (
-                      <div className="py-5 text-center text-xs font-bold text-foreground/40">
-                        일치하는 어르신이 없습니다.
+                      <div className="py-8 text-center text-foreground/40">
+                        <IconSearch size={22} className="mx-auto mb-2 opacity-40" />
+                        <p className="text-[13px] font-black text-foreground/60">일치하는 어르신이 없습니다.</p>
+                        <p className="text-[11px] font-bold text-foreground/40 mt-0.5">성함이나 도로명/지번 주소를 다시 확인해 주세요.</p>
                       </div>
                     )}
                   </div>
@@ -1888,16 +1913,8 @@ function MainApp() {
           )}
         </AnimatePresence>
 
-        {/* Region Filter Backdrop */}
-        {showRegionFilter && (
-          <div
-            className="fixed inset-0 z-10 bg-black/10 backdrop-blur-[1px] pointer-events-auto"
-            onClick={() => setShowRegionFilter(false)}
-          />
-        )}
-
         {/* Region Filter Dropdown - Inset Card */}
-        {showRegionFilter && (
+        {isRegionFilterOpen && (
         <div className="relative z-20 mt-1 p-5 bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/30 dark:border-white/10 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[340px]">
           <div className="flex items-center justify-between pb-3.5 border-b border-surface-border/40 mb-4">
             <div>
@@ -1905,7 +1922,7 @@ function MainApp() {
               <span className="text-[12px] font-bold text-foreground/50">원하는 행정구역으로 이동합니다</span>
             </div>
             <button 
-              onClick={() => setShowRegionFilter(false)} 
+              onClick={closeAllHeaderPopups} 
               className="w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 text-foreground/50 hover:bg-foreground/10 transition-colors"
               aria-label="닫기"
             >
