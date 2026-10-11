@@ -21,6 +21,9 @@ interface Recipient {
   notes?: string | null;
   recurring_weekdays?: string | null;
   photo_url?: string | null;
+  door_passcode?: string | null;
+  parking_memo?: string | null;
+  health_tags?: string | null;
 }
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -215,6 +218,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         notes: recipientToEdit?.notes || null, // Preserve existing specific dates
         recurring_weekdays: recipientToEdit?.recurring_weekdays || null,
         photo_url: photoUrl,
+        door_passcode: doorPasscode.trim() || null,
+        parking_memo: parkingMemo.trim() || null,
+        health_tags: healthTags.length > 0 ? healthTags.join(',') : null,
       };
 
       if (recipientToEdit?.id) {

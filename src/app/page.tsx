@@ -1059,10 +1059,10 @@ function MainApp() {
     const encQuery = encodeURIComponent(keyword);
 
     if (prefType === 'kakao') {
-      // 카카오맵 주변 검색
+      // 카카오맵 주변 검색: 키워드 검색 또는 위치 중심 검색
       window.open(`https://map.kakao.com/link/search/${encQuery}`, '_blank');
     } else if (prefType === 'tmap') {
-      // 티맵 또는 모바일 길찾기 / 웹 검색
+      // 티맵 / 모바일 지도 검색
       window.open(`https://m.map.naver.com/search2/search.naver?query=${encQuery}&sm=sug&style=v5&x=${lng}&y=${lat}`, '_blank');
     } else {
       // 네이버 지도 주변 검색

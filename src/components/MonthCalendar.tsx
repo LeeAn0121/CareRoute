@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { IconChevronLeft, IconChevronRight, IconCalendarEvent } from '@tabler/icons-react';
-import { motion } from 'motion/react';
+import { IconChevronLeft, IconChevronRight, IconCalendarEvent, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface MonthCalendarProps {
   selectedDate: Date | null;
@@ -13,6 +13,7 @@ const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule }: MonthCalendarProps) {
   const initialDate = selectedDate || new Date();
   const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const prevMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
@@ -93,73 +94,98 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
           </motion.button>
         </div>
         
-        {/* Today Action Pill */}
-        <motion.button 
-          whileTap={{ scale: 0.92 }}
-          onClick={() => {
-            const today = new Date();
-            setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
-            onSelectDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
-          }}
-          className="px-3.5 py-2 rounded-full bg-primary/10 hover:bg-primary/15 text-primary font-black text-xs transition-colors flex items-center gap-1.5 border border-primary/20 shadow-xs"
-        >
-          <IconCalendarEvent size={15} />
-          <span>오늘</span>
-        </motion.button>
-      </div>
-
-      {/* Weekdays Bar */}
-      <div className="grid grid-cols-7 mb-2 text-center">
-        {WEEKDAYS.map((day, i) => (
-          <div 
-            key={day} 
-            className={`py-1 text-[12px] font-black tracking-tight ${
-              i === 0 ? 'text-red-500/90' : i === 6 ? 'text-blue-500/90' : 'text-foreground/50'
-            }`}
+        <div className="flex items-center gap-1.5">
+          {/* Today Action Pill */}
+          <motion.button 
+            whileTap={{ scale: 0.92 }}
+            onClick={() => {
+              const today = new Date();
+              setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+              onSelectDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+            }}
+            className="px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/15 text-primary font-black text-xs transition-colors flex items-center gap-1 border border-primary/20 shadow-xs"
           >
-            {day}
-          </div>
-        ))}
+            <IconCalendarEvent size={14} />
+            <span>오늘</span>
+          </motion.button>
+
+          {/* Collapse/Expand Toggle Button */}
+          <motion.button
+            whileTap={{ scale: 0.90 }}
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1.5 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/60 transition-colors"
+            title={isCollapsed ? '달력 펼치기' : '달력 접기'}
+            aria-label={isCollapsed ? '달력 펼치기' : '달력 접기'}
+          >
+            {isCollapsed ? <IconChevronDown size={16} /> : <IconChevronUp size={16} />}
+          </motion.button>
+        </div>
       </div>
 
-      {/* One UI Days Grid with Squircle Pebbles */}
-      <div className="grid grid-cols-7 gap-1">
-        {days.map((d, i) => {
-          if (d === null) return <div key={`empty-${i}`} className="aspect-square max-h-[42px]" />;
-          
-          const selected = isSelected(d);
-          const today = isToday(d);
-          const dateObj = new Date(year, month, d);
-          const scheduled = hasSchedule ? hasSchedule(dateObj) : false;
-          const isSunday = new Date(year, month, d).getDay() === 0;
-          const isSaturday = new Date(year, month, d).getDay() === 6;
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            {/* Weekdays Bar */}
+            <div className="grid grid-cols-7 mb-2 text-center">
+              {WEEKDAYS.map((day, i) => (
+                <div 
+                  key={day} 
+                  className={`py-1 text-[12px] font-black tracking-tight ${
+                    i === 0 ? 'text-red-500/90' : i === 6 ? 'text-blue-500/90' : 'text-foreground/50'
+                  }`}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
 
-          return (
-            <motion.button
-              key={d}
-              whileTap={{ scale: 0.90 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 450 }}
-              onClick={() => handleSelect(d)}
-              className={`relative aspect-square max-h-[42px] w-full flex flex-col items-center justify-center rounded-[16px] transition-all
-                ${selected 
-                  ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.35)] font-black scale-[1.05] z-10' 
-                  : today 
-                    ? 'bg-primary/10 text-primary font-black border border-primary/30 shadow-xs' 
-                    : `hover:bg-foreground/[0.04] font-bold ${
-                        isSunday ? 'text-red-500/90' : isSaturday ? 'text-blue-500/90' : 'text-foreground/80'
+            {/* One UI Days Grid with Squircle Pebbles */}
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((d, i) => {
+                if (d === null) return <div key={`empty-${i}`} className="aspect-square max-h-[42px]" />;
+                
+                const selected = isSelected(d);
+                const today = isToday(d);
+                const dateObj = new Date(year, month, d);
+                const scheduled = hasSchedule ? hasSchedule(dateObj) : false;
+                const isSunday = new Date(year, month, d).getDay() === 0;
+                const isSaturday = new Date(year, month, d).getDay() === 6;
+
+                return (
+                  <motion.button
+                    key={d}
+                    whileTap={{ scale: 0.90 }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 450 }}
+                    onClick={() => handleSelect(d)}
+                    className={`relative aspect-square max-h-[42px] w-full flex flex-col items-center justify-center rounded-[16px] transition-all
+                      ${selected 
+                        ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.35)] font-black scale-[1.05] z-10' 
+                        : today 
+                          ? 'bg-primary/10 text-primary font-black border border-primary/30 shadow-xs' 
+                          : `hover:bg-foreground/[0.04] font-bold ${
+                              isSunday ? 'text-red-500/90' : isSaturday ? 'text-blue-500/90' : 'text-foreground/80'
+                            }`
                       }`
-                }`
-              }
-            >
-              <span className="text-[14px] tracking-tight">{d}</span>
-              {/* Glowing Indicator Dot for Scheduled Visits */}
-              {scheduled && !selected && (
-                <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(var(--accent),0.8)]" />
-              )}
-            </motion.button>
-          );
-        })}
-      </div>
+                    }
+                  >
+                    <span className="text-[14px] tracking-tight">{d}</span>
+                    {/* Glowing Indicator Dot for Scheduled Visits */}
+                    {scheduled && !selected && (
+                      <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(var(--accent),0.8)]" />
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

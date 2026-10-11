@@ -182,6 +182,29 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
           )}
         </div>
 
+        {/* Quick Phrases for One-Touch Memo */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          {[
+            '식사 및 투약 완료, 상태 양호',
+            '혈압 및 체온 정상, 대화 나누심',
+            '가벼운 실내 보행 보조 및 환기 완료',
+            '기분 좋으시고 특이사항 없음',
+          ].map((phrase) => (
+            <button
+              key={phrase}
+              type="button"
+              onClick={() => {
+                const updated = transcript ? `${transcript.trim()} ${phrase}` : phrase;
+                setTranscript(updated);
+                finalTranscriptRef.current = updated;
+              }}
+              className="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-foreground/[0.04] dark:bg-white/[0.06] hover:bg-foreground/[0.08] text-foreground/75 border border-surface-border/50 whitespace-nowrap active:scale-95 transition-all shrink-0"
+            >
+              + {phrase}
+            </button>
+          ))}
+        </div>
+
         {/* Error / Guide Message */}
         {errorMessage && (
           <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-[18px] text-xs font-bold text-red-600 dark:text-red-400">
