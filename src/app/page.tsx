@@ -1102,9 +1102,25 @@ function MainApp() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('정말 삭제하시겠습니까?')) {
-      await supabase.from('recipients').delete().eq('id', id);
-      window.location.reload();
+    if (!window.confirm('해당 수급자 어르신을 정말 삭제하시겠습니까?')) return;
+    try {
+      setMarkers(prev => {
+        const next = prev.filter(m => m.id !== id);
+        try { localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(next)); } catch {}
+        return next;
+      });
+      if (selectedRecipient && selectedRecipient.id === id) {
+        setSelectedRecipient(null);
+      }
+      setIsDetailModalOpen(false);
+      const { error } = await supabase.from('recipients').delete().eq('id', id);
+      if (error) {
+        console.error('Delete error from DB:', error);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('삭제 중 오류가 발생했습니다.');
+      fetchMarkers();
     }
   };
 
@@ -3383,7 +3399,7 @@ function MainApp() {
         onClose={() => setIsModalOpen(false)} 
         onSuccess={() => {
           setIsModalOpen(false);
-          window.location.reload(); // 강제 새로고침
+          fetchMarkers();
         }}
         recipientToEdit={editingRecipient}
       />
