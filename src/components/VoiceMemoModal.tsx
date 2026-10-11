@@ -8,10 +8,12 @@ interface VoiceMemoModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (memo: string) => void;
+  onSaveAndShare?: (memo: string) => void;
   recipientName: string;
+  initialMemo?: string | null;
 }
 
-export default function VoiceMemoModal({ isOpen, onClose, onSave, recipientName }: VoiceMemoModalProps) {
+export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare, recipientName, initialMemo }: VoiceMemoModalProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimText, setInterimText] = useState('');
@@ -122,10 +124,11 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, recipientName 
   // isOpen 바뀔 때 초기화
   useEffect(() => {
     if (isOpen) {
-      setTranscript('');
+      const initial = initialMemo || '';
+      setTranscript(initial);
       setInterimText('');
       setErrorMessage('');
-      finalTranscriptRef.current = '';
+      finalTranscriptRef.current = initial;
       stopRecognition();
     } else {
       stopRecognition();
@@ -133,7 +136,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, recipientName 
     return () => {
       stopRecognition();
     };
-  }, [isOpen]);
+  }, [isOpen, initialMemo]);
 
   const toggleRecording = () => {
     if (isRecording) {
@@ -222,25 +225,39 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, recipientName 
           </div>
         </div>
 
-        <div className="flex gap-2.5 mt-2">
-          <Button 
-            type="button" 
-            variant="ghost" 
-            fullWidth 
-            onClick={() => onSave('')} 
-            className="py-3.5 rounded-[20px] font-bold text-foreground/60"
-          >
-            메모 없이 완료
-          </Button>
-          <Button 
-            type="button" 
-            fullWidth 
-            onClick={() => onSave(transcript)} 
-            className="py-3.5 rounded-[20px] font-black shadow-sm" 
-            startIcon={<IconSend size={18} />}
-          >
-            저장 후 완료
-          </Button>
+        <div className="flex flex-col gap-2 mt-2">
+          <div className="flex gap-2">
+            <Button 
+              type="button" 
+              variant="ghost" 
+              fullWidth 
+              onClick={() => onSave('')} 
+              className="py-3 rounded-[18px] font-bold text-foreground/60 text-xs sm:text-sm"
+            >
+              메모 없이 완료
+            </Button>
+            <Button 
+              type="button" 
+              fullWidth 
+              onClick={() => onSave(transcript)} 
+              className="py-3 rounded-[18px] font-black shadow-sm text-xs sm:text-sm" 
+              startIcon={<IconSend size={16} />}
+            >
+              기록 저장
+            </Button>
+          </div>
+
+          {onSaveAndShare && (
+            <Button
+              type="button"
+              fullWidth
+              onClick={() => onSaveAndShare(transcript)}
+              className="py-3.5 rounded-[18px] font-black bg-amber-400 hover:bg-amber-500 text-stone-900 border-none shadow-md text-sm"
+              startIcon={<span className="text-base">💙</span>}
+            >
+              저장하고 보호자 안심 공유하기
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

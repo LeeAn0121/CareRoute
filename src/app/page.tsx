@@ -9,6 +9,7 @@ import ScheduleAddModal from '@/components/ScheduleAddModal';
 import ScheduleManageModal from '@/components/ScheduleManageModal';
 import MonthCalendar from '@/components/MonthCalendar';
 import VoiceMemoModal from '@/components/VoiceMemoModal';
+import ShareReportModal from '@/components/ShareReportModal';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
 import WeatherWidget from '@/components/WeatherWidget';
@@ -172,6 +173,7 @@ function MainApp() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   const [completingRecipient, setCompletingRecipient] = useState<Recipient | null>(null);
+  const [sharingRecipient, setSharingRecipient] = useState<Recipient | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
@@ -1093,22 +1095,8 @@ function MainApp() {
     }
   };
 
-  const handleShareReport = async (r: Recipient) => {
-    const text = `[케어루트 안심 알림 💙]\n${r.name} 어르신 방문 케어를 무사히 마쳤습니다.\n\n📝 요양보호사 일지:\n${r.last_completed_memo || '특이사항 없음'}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${r.name} 어르신 방문 리포트`,
-          text: text,
-        });
-      } catch (err) {
-        console.log('Share canceled or failed', err);
-      }
-    } else {
-      // Fallback: Copy to clipboard
-      navigator.clipboard.writeText(text);
-      alert("공유 기능이 지원되지 않아 일지 내용이 복사되었습니다. 카카오톡에 붙여넣기 해주세요!");
-    }
+  const handleShareReport = (r: Recipient) => {
+    setSharingRecipient(r);
   };
 
   const handleSaveMemo = async (memo: string) => {
@@ -1119,7 +1107,28 @@ function MainApp() {
     
     // 낙관적 업데이트
     setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: key, last_completed_memo: memo || null } : m)));
+    if (selectedRecipient && selectedRecipient.id === rId) {
+      setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: key, last_completed_memo: memo || null } : null);
+    }
     await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null }).eq('id', rId);
+  };
+
+  const handleSaveAndShareMemo = async (memo: string) => {
+    if (!completingRecipient) return;
+    const target = completingRecipient;
+    const key = todayYMD();
+    const rId = target.id;
+    setCompletingRecipient(null);
+
+    const updated = { ...target, last_completed_key: key, last_completed_memo: memo || null };
+    setMarkers((prev) => prev.map((m) => (m.id === rId ? updated : m)));
+    if (selectedRecipient && selectedRecipient.id === rId) {
+      setSelectedRecipient(updated);
+    }
+    await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null }).eq('id', rId);
+
+    // 바로 안심 공유 모달 열기
+    setSharingRecipient(updated);
   };
 
   // 선택한 날짜에 방문 예정인지: 특정 날짜로 지정했거나, 반복 요일에 오늘 요일이 포함되면 해당
@@ -2273,7 +2282,15 @@ function MainApp() {
                               {completed ? '완료 취소' : '방문 완료'}
                             </button>
                             
-                            {!completed && (
+                            {completed ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleShareReport(marker); }}
+                                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-[16px] text-[13px] font-black bg-amber-400 hover:bg-amber-500 text-stone-900 transition-colors whitespace-nowrap active:scale-95 shadow-xs"
+                              >
+                                <IconShare size={16} strokeWidth={2.5} />
+                                안심 공유
+                              </button>
+                            ) : (
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }}
                                 className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-[16px] text-[13px] font-black bg-foreground text-background hover:opacity-90 transition-opacity whitespace-nowrap active:scale-95 shadow-xs"
@@ -2635,7 +2652,16 @@ function MainApp() {
         isOpen={Boolean(completingRecipient)}
         onClose={() => setCompletingRecipient(null)}
         onSave={handleSaveMemo}
+        onSaveAndShare={handleSaveAndShareMemo}
         recipientName={completingRecipient?.name || ''}
+        initialMemo={completingRecipient?.last_completed_memo}
+      />
+
+      <ShareReportModal
+        isOpen={Boolean(sharingRecipient)}
+        onClose={() => setSharingRecipient(null)}
+        recipient={sharingRecipient}
+        selectedDate={scheduleDate}
       />
 
             {isScheduleAddOpen && (
