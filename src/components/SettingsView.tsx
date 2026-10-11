@@ -431,21 +431,21 @@ export default function SettingsView({
 
               <div className="bg-white dark:bg-[#1C1C1E] rounded-[24px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
                 {/* GPS 위치 서비스 상태 */}
-                <div id="section-gps" className="px-4 py-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div id="section-gps" className="px-4 py-3.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="w-[32px] h-[32px] rounded-[10px] bg-[#32ADE6] text-white flex items-center justify-center shrink-0 shadow-2xs">
                       <IconMapPin size={18} strokeWidth={2.5} />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
                         위치 서비스 (GPS) 상태
                       </span>
-                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
+                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
                         내 위치 중심 지도 및 거리 계산 권한
                       </span>
                     </div>
                   </div>
-                  <span className={`text-[12px] font-black px-2.5 py-1 rounded-full ${
+                  <span className={`text-[12px] font-black px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap ${
                     locationPerm === 'granted' 
                       ? 'text-[#34C759] bg-[#34C759]/15' 
                       : locationPerm === 'denied' 
@@ -466,32 +466,33 @@ export default function SettingsView({
 
               <div className="bg-white dark:bg-[#1C1C1E] rounded-[24px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
                 {/* 구글 캘린더 동기화 */}
-                <div className="px-4 py-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="px-4 py-3.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="w-[32px] h-[32px] rounded-[10px] bg-[#007AFF] text-white flex items-center justify-center shrink-0 shadow-2xs">
                       <IconBrandGoogle size={18} strokeWidth={2.5} />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
                         구글 캘린더 방문 일정 동기화
                       </span>
-                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
+                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
                         스마트폰 캘린더로 당일 방문 일정 내보내기
                       </span>
                     </div>
                   </div>
 
                   <button
+                    type="button"
                     onClick={onSyncCalendar}
                     disabled={isSyncingCalendar}
-                    className="px-3.5 py-1.5 rounded-full bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] font-black text-[13px] active:scale-95 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                    className="px-3.5 py-1.5 rounded-full bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] font-black text-[13px] active:scale-95 disabled:opacity-50 transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap"
                   >
                     {isSyncingCalendar ? (
                       <div className="w-3.5 h-3.5 border-2 border-[#007AFF] border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <IconCalendarEvent size={15} strokeWidth={2.4} />
-                        <span>지금 동기화</span>
+                        <IconCalendarEvent size={15} strokeWidth={2.4} className="shrink-0" />
+                        <span className="whitespace-nowrap">지금 동기화</span>
                       </>
                     )}
                   </button>
@@ -571,41 +572,41 @@ export default function SettingsView({
               <div className="bg-white dark:bg-[#1C1C1E] rounded-[24px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
                 {/* 푸시 알림 상태 및 켜기 */}
                 <div className="px-4 py-3.5 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="w-[32px] h-[32px] rounded-[10px] bg-[#FF2D55] text-white flex items-center justify-center shrink-0 shadow-2xs">
                         <IconBellRinging size={18} strokeWidth={2.5} />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
                           알림 권한 상태
                         </span>
-                        <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
+                        <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
                           방문 예정 시간 시스템 푸시 알림 권한
                         </span>
                       </div>
                     </div>
 
-                    <div>
+                    <div className="shrink-0 whitespace-nowrap">
                       {currentNotifPerm === 'granted' && (
-                        <span className="text-[12px] font-black text-[#34C759] bg-[#34C759]/15 px-3 py-1 rounded-full flex items-center gap-1">
-                          <IconCheck size={13} strokeWidth={3} /> 정상 작동
+                        <span className="text-[12px] font-black text-[#34C759] bg-[#34C759]/15 px-3 py-1 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap">
+                          <IconCheck size={13} strokeWidth={3} className="shrink-0" /> 정상 작동
                         </span>
                       )}
                       {currentNotifPerm === 'denied' && (
                         <button
                           type="button"
                           onClick={() => setShowUnblockGuide(prev => !prev)}
-                          className="text-[12px] font-black text-[#FF3B30] bg-[#FF3B30]/15 px-3 py-1 rounded-full flex items-center gap-1 hover:opacity-80 transition-opacity"
+                          className="text-[12px] font-black text-[#FF3B30] bg-[#FF3B30]/15 px-3 py-1 rounded-full flex items-center gap-1 hover:opacity-80 transition-opacity shrink-0 whitespace-nowrap"
                         >
-                          <IconAlertTriangle size={13} strokeWidth={3} /> 차단됨 (해제법)
+                          <IconAlertTriangle size={13} strokeWidth={3} className="shrink-0" /> 차단됨 (해제법)
                         </button>
                       )}
                       {currentNotifPerm === 'default' && (
                         <button
                           onClick={handleRequestNotification}
                           disabled={isRequestingNotif}
-                          className="text-[12px] font-black text-white bg-[#007AFF] px-3.5 py-1.5 rounded-full shadow-xs active:scale-95 disabled:opacity-50"
+                          className="text-[12px] font-black text-white bg-[#007AFF] px-3.5 py-1.5 rounded-full shadow-xs active:scale-95 disabled:opacity-50 shrink-0 whitespace-nowrap"
                         >
                           {isRequestingNotif ? '요청 중...' : '권한 켜기'}
                         </button>
@@ -634,16 +635,16 @@ export default function SettingsView({
                 </div>
 
                 {/* 테스트 알림 발송 */}
-                <div id="section-test-notif" className="px-4 py-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div id="section-test-notif" className="px-4 py-3.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="w-[32px] h-[32px] rounded-[10px] bg-[#FF9500] text-white flex items-center justify-center shrink-0 shadow-2xs">
                       <IconBell size={18} strokeWidth={2.5} />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
                         테스트 알림 발송
                       </span>
-                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
+                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
                         실제 기기 상단/잠금화면 푸시 알림 즉시 시험 발송
                       </span>
                     </div>
@@ -653,14 +654,14 @@ export default function SettingsView({
                     type="button"
                     onClick={handleTestNotification}
                     disabled={isTestingNotif}
-                    className="px-3.5 py-1.5 rounded-full bg-[#FF9500]/10 hover:bg-[#FF9500]/20 text-[#FF9500] font-black text-[13px] active:scale-95 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                    className="px-3.5 py-1.5 rounded-full bg-[#FF9500]/10 hover:bg-[#FF9500]/20 text-[#FF9500] font-black text-[13px] active:scale-95 disabled:opacity-50 transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap"
                   >
                     {isTestingNotif ? (
                       <div className="w-3.5 h-3.5 border-2 border-[#FF9500] border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <IconBellRinging size={15} strokeWidth={2.4} />
-                        <span>지금 발송</span>
+                        <IconBellRinging size={15} strokeWidth={2.4} className="shrink-0" />
+                        <span className="whitespace-nowrap">지금 발송</span>
                       </>
                     )}
                   </button>
@@ -813,22 +814,22 @@ export default function SettingsView({
                 <button
                   type="button"
                   onClick={handleExportBackup}
-                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
+                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors gap-3"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="w-[32px] h-[32px] rounded-[10px] bg-[#34C759] text-white flex items-center justify-center shrink-0 shadow-2xs">
                       <IconDownload size={18} strokeWidth={2.5} />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
                         수급자 명단 데이터 백업 (JSON)
                       </span>
-                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
+                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
                         등록된 {totalRecipientsCount}명의 명단을 파일로 안전하게 다운로드
                       </span>
                     </div>
                   </div>
-                  <span className="text-[12px] font-black text-[#34C759] bg-[#34C759]/10 px-2.5 py-1 rounded-full">
+                  <span className="text-[12px] font-black text-[#34C759] bg-[#34C759]/10 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
                     내보내기
                   </span>
                 </button>
