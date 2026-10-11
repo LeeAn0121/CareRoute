@@ -114,21 +114,21 @@ export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: W
 
   return (
     <div className="relative">
-      {/* 컴팩트 날씨 캡슐 버튼 (헤더 높이 44px 통일) */}
+      {/* 컴팩트 날씨 캡슐 버튼 (헤더 높이 50px 통일) */}
       <button
         type="button"
         onClick={handleToggle}
-        className={`h-11 px-3.5 rounded-[22px] flex items-center gap-1.5 transition-all active:scale-95 border ${
+        className={`h-[50px] px-4 rounded-[25px] flex items-center gap-1.5 transition-all active:scale-95 border ${
           showDetail
             ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/30'
             : 'bg-surface/90 supports-[backdrop-filter]:bg-surface/80 hover:bg-surface text-foreground/85 border-white/40 dark:border-white/10 shadow-[0_12px_36px_rgba(0,0,0,0.1)]'
         }`}
         title={`현재 날씨: ${desc} ${weather.temp}° (터치 시 상세 정보)`}
       >
-        <span className="text-[17px] leading-none drop-shadow-2xs">{emoji}</span>
-        <span className="text-[14px] font-black">{weather.temp}°</span>
+        <span className="text-[18px] leading-none drop-shadow-2xs">{emoji}</span>
+        <span className="text-[15px] font-black">{weather.temp}°</span>
         <IconChevronDown
-          size={14}
+          size={15}
           className={`transition-transform duration-200 ${showDetail ? 'rotate-180 text-primary-foreground' : 'text-foreground/40'}`}
         />
       </button>
@@ -148,7 +148,7 @@ export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: W
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.96 }}
               transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="absolute top-[52px] right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-50 w-[310px] sm:w-[340px] max-w-[calc(100vw-28px)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[28px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)] border border-white/40 dark:border-white/10 text-foreground animate-in fade-in"
+              className="absolute top-[58px] right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-50 w-[310px] sm:w-[340px] max-w-[calc(100vw-28px)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[28px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)] border border-white/40 dark:border-white/10 text-foreground animate-in fade-in"
             >
               {/* 상단 타이틀 & 닫기 버튼 */}
               <div className="flex items-center justify-between pb-3 border-b border-surface-border/40 mb-3">

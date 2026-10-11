@@ -128,7 +128,8 @@ export default function SettingsView({
     setDefaultNavi(navi);
     localStorage.setItem('careroute_default_navi', navi);
     setShowNaviPicker(false);
-    setFeedbackMessage({ type: 'success', text: `기본 내비게이션이 '${navi === 'naver' ? '네이버 지도' : navi === 'kakao' ? '카카오맵' : '티맵'}'(으)로 설정되었습니다.` });
+    const naviName = navi === 'system' ? '시스템 기본 지도' : navi === 'naver' ? '네이버 지도' : navi === 'kakao' ? '카카오맵' : '티맵';
+    setFeedbackMessage({ type: 'success', text: `기본 내비게이션이 '${naviName}'(으)로 설정되었습니다.` });
   };
 
   const handleDurationChange = (duration: string) => {
@@ -452,7 +453,7 @@ export default function SettingsView({
 
                     <div className="flex items-center gap-1.5">
                       <span className="text-[14px] font-black text-[#007AFF]">
-                        {defaultNavi === 'kakao' ? '카카오맵' : defaultNavi === 'tmap' ? '티맵 (TMAP)' : '네이버 지도'}
+                        {defaultNavi === 'system' ? '시스템 기본 지도' : defaultNavi === 'kakao' ? '카카오맵' : defaultNavi === 'tmap' ? '티맵 (TMAP)' : '네이버 지도'}
                       </span>
                       <IconChevronRight size={17} className={`text-[#C7C7CC] transition-transform ${showNaviPicker ? 'rotate-90' : ''}`} />
                     </div>
@@ -466,8 +467,9 @@ export default function SettingsView({
                         exit={{ opacity: 0, height: 0 }}
                         className="px-4 pb-3.5 pt-1 border-t border-black/[0.04] dark:border-white/[0.05] bg-[#F9F9FB] dark:bg-[#161618]"
                       >
-                        <div className="grid grid-cols-3 gap-2 mt-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
                           {[
+                            { id: 'system', name: '시스템 지도', isSystem: true },
                             { id: 'naver', name: '네이버 지도', icon: 'https://ssl.pstatic.net/static/maps/assets/icons/favicon.ico' },
                             { id: 'kakao', name: '카카오맵', icon: 'https://map.kakao.com/favicon.ico' },
                             { id: 'tmap', name: '티맵 (TMAP)', icon: 'https://www.tmapmobility.com/favicon.ico' },
@@ -482,8 +484,14 @@ export default function SettingsView({
                                   : 'bg-white dark:bg-[#1C1C1E] border-black/[0.06] dark:border-white/[0.08] text-[#8E8E93] font-bold'
                               }`}
                             >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={item.icon} alt="" className="w-5 h-5 rounded-[5px] object-contain" />
+                              {item.isSystem ? (
+                                <div className="w-5 h-5 rounded-[5px] bg-[#007AFF]/10 text-[#007AFF] flex items-center justify-center">
+                                  <IconNavigation size={14} />
+                                </div>
+                              ) : (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img src={item.icon} alt="" className="w-5 h-5 rounded-[5px] object-contain" />
+                              )}
                               <span className="text-[12px]">{item.name}</span>
                             </button>
                           ))}

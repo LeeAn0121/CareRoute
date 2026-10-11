@@ -1124,12 +1124,23 @@ function MainApp() {
     }
   };
 
-  const handleNavi = (type: 'tmap' | 'kakao' | 'naver', lat: number, lng: number, address: string, detailAddress?: string | null) => {
+  const handleNavi = (type: 'system' | 'tmap' | 'kakao' | 'naver', lat: number, lng: number, address: string, detailAddress?: string | null) => {
     // POI 검색 실패를 방지하기 위해 도착지 명칭을 고정
     const encName = encodeURIComponent('도착지');
     const isAndroid = /Android/i.test(navigator.userAgent);
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isMobile = isAndroid || isIOS;
+
+    if (type === 'system') {
+      if (isIOS) {
+        window.location.href = `maps://?daddr=${lat},${lng}&dirflg=d`;
+      } else if (isAndroid) {
+        window.location.href = `geo:${lat},${lng}?q=${lat},${lng}(${encName})`;
+      } else {
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+      }
+      return;
+    }
 
     // PC 환경 (웹 브라우저 새 탭으로 길찾기 열기)
     if (!isMobile) {
@@ -1164,10 +1175,10 @@ function MainApp() {
   };
 
   const handleDirections = (lat: number, lng: number, address: string, detail: string | null = null) => {
-    let prefType: 'tmap' | 'kakao' | 'naver' = 'naver';
+    let prefType: 'system' | 'tmap' | 'kakao' | 'naver' = 'naver';
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('careroute_default_navi');
-      if (saved === 'kakao' || saved === 'tmap' || saved === 'naver') {
+      if (saved === 'system' || saved === 'kakao' || saved === 'tmap' || saved === 'naver') {
         prefType = saved;
       }
     }
@@ -1751,20 +1762,20 @@ function MainApp() {
           {/* Location Button */}
           <button 
             onClick={toggleRegionFilter}
-            className="h-11 flex-1 min-w-0 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[36px] saturate-200 rounded-[22px] px-3.5 shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-between hover:bg-surface active:scale-[0.98] transition-all text-left"
+            className="h-[50px] flex-1 min-w-0 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[36px] saturate-200 rounded-[25px] px-4 shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-between hover:bg-surface active:scale-[0.98] transition-all text-left"
           >
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <div className="w-7 h-7 shrink-0 rounded-[10px] bg-primary/10 flex items-center justify-center text-primary shadow-2xs">
-                <IconMapPin size={15} strokeWidth={2.5} />
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 shrink-0 rounded-[11px] bg-primary/10 flex items-center justify-center text-primary shadow-2xs">
+                <IconMapPin size={17} strokeWidth={2.5} />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="text-[9px] font-black uppercase tracking-wider text-primary/70 block leading-none">탐색 위치</span>
-                <span className="text-[13px] font-extrabold text-foreground truncate block leading-tight mt-0.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-primary/70 block leading-none">탐색 위치</span>
+                <span className="text-[14px] font-extrabold text-foreground truncate block leading-tight mt-0.5">
                   {currentAddress}
                 </span>
               </div>
             </div>
-            <IconChevronDown size={15} className={`text-foreground/40 shrink-0 ml-1 transition-transform ${isRegionFilterOpen ? 'rotate-180 text-primary' : ''}`} />
+            <IconChevronDown size={16} className={`text-foreground/40 shrink-0 ml-1.5 transition-transform ${isRegionFilterOpen ? 'rotate-180 text-primary' : ''}`} />
           </button>
 
           {/* Integrated Live Weather Widget Capsule */}
@@ -1781,12 +1792,12 @@ function MainApp() {
           {/* Map Search Toggle Button */}
           <button
             onClick={toggleMapSearch}
-            className={`w-11 h-11 rounded-[22px] shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-center shrink-0 active:scale-95 transition-all ${
+            className={`w-[50px] h-[50px] rounded-[25px] shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-center shrink-0 active:scale-95 transition-all ${
               isMapSearchOpen ? 'bg-primary text-primary-foreground shadow-primary/30' : 'bg-surface/90 supports-[backdrop-filter]:bg-surface/80 text-foreground/80 hover:bg-surface'
             }`}
             title="지도에서 어르신 검색"
           >
-            {isMapSearchOpen ? <IconX size={18} /> : <IconSearch size={18} strokeWidth={2.5} />}
+            {isMapSearchOpen ? <IconX size={20} /> : <IconSearch size={20} strokeWidth={2.5} />}
           </button>
         </div>
 
@@ -3252,35 +3263,45 @@ function MainApp() {
               {/* Navigation Deep Link App Launcher */}
               <div className="mt-4 pt-3 border-t border-surface-border/40">
                 <span className="text-[12px] font-black text-foreground/50 ml-1 block mb-2.5">내비게이션 바로 실행</span>
-                <div className="grid grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-4 gap-2">
+                  <button
+                    onClick={() => handleNavi('system', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
+                    className="p-2.5 bg-surface border border-surface-border/60 rounded-[18px] flex flex-col items-center justify-center gap-1.5 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
+                  >
+                    <div className="w-6 h-6 rounded-[8px] bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                      <IconNavigation size={15} />
+                    </div>
+                    <span className="text-[12px] font-black text-foreground/80">기본 지도</span>
+                  </button>
+
                   <button
                     onClick={() => handleNavi('tmap', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
-                    className="p-3 bg-surface border border-surface-border/60 rounded-[20px] flex items-center justify-center gap-2 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
+                    className="p-2.5 bg-surface border border-surface-border/60 rounded-[18px] flex flex-col items-center justify-center gap-1.5 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
                   >
                     <div className="w-6 h-6 rounded-[8px] overflow-hidden">
                       <img src="https://www.tmapmobility.com/favicon.ico" alt="T맵" className="w-full h-full object-contain" />
                     </div>
-                    <span className="text-[13px] font-black text-foreground/80">T맵</span>
+                    <span className="text-[12px] font-black text-foreground/80">T맵</span>
                   </button>
 
                   <button
                     onClick={() => handleNavi('kakao', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
-                    className="p-3 bg-surface border border-surface-border/60 rounded-[20px] flex items-center justify-center gap-2 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
+                    className="p-2.5 bg-surface border border-surface-border/60 rounded-[18px] flex flex-col items-center justify-center gap-1.5 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
                   >
                     <div className="w-6 h-6 rounded-[8px] overflow-hidden">
                       <img src="https://map.kakao.com/favicon.ico" alt="카카오내비" className="w-full h-full object-contain" />
                     </div>
-                    <span className="text-[13px] font-black text-foreground/80">카카오</span>
+                    <span className="text-[12px] font-black text-foreground/80">카카오</span>
                   </button>
 
                   <button
                     onClick={() => handleNavi('naver', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
-                    className="p-3 bg-surface border border-surface-border/60 rounded-[20px] flex items-center justify-center gap-2 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
+                    className="p-2.5 bg-surface border border-surface-border/60 rounded-[18px] flex flex-col items-center justify-center gap-1.5 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
                   >
                     <div className="w-6 h-6 rounded-[8px] overflow-hidden">
                       <img src="https://ssl.pstatic.net/static/maps/assets/icons/favicon.ico" alt="네이버지도" className="w-full h-full object-contain" />
                     </div>
-                    <span className="text-[13px] font-black text-foreground/80">네이버</span>
+                    <span className="text-[12px] font-black text-foreground/80">네이버</span>
                   </button>
                 </div>
               </div>
