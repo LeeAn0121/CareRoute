@@ -104,7 +104,7 @@ export default function Tour({ onComplete }: TourProps) {
     {
       target: '#tour-bottom-nav',
       title: <><IconCategory className="text-primary" /> 4대 주요 메뉴</>,
-      content: '하단 탭을 통해 [지도], [어르신 명단], [방문 일정], [메뉴 허브]로 언제든 원터치로 이동할 수 있습니다.',
+      content: '하단 탭을 통해 [지도], [수급자], [일정], [케어허브]로 언제든 원터치로 이동할 수 있습니다.',
       disableBeacon: true,
     },
     {

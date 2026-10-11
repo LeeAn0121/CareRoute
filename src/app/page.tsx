@@ -2454,6 +2454,11 @@ function MainApp() {
           totalRecipientsCount={markers.length}
           todayTotalCount={markers.filter(m => getScheduledForDate(m, new Date())).length}
           todayCompletedCount={markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length}
+          onNavigateTab={(tab) => setActiveTab(tab)}
+          onOpenAddRecipient={() => {
+            setEditingRecipient(null);
+            setIsModalOpen(true);
+          }}
         />
       )}
 
@@ -2731,7 +2736,7 @@ function MainApp() {
             { key: 'map' as const, label: '지도', Icon: IconMapPin },
             { 
               key: 'list' as const, 
-              label: '명단', 
+              label: '수급자', 
               Icon: IconUsers, 
               badge: markers.length > 0 ? String(markers.length) : undefined,
               badgeColor: 'bg-[#8E8E93] text-white'
@@ -2755,7 +2760,7 @@ function MainApp() {
                 return 'bg-[#FF9500] text-white font-bold';
               })()
             },
-            { key: 'settings' as const, label: '메뉴', Icon: IconLayoutGrid },
+            { key: 'settings' as const, label: '케어허브', Icon: IconLayoutGrid },
           ]).map(({ key, label, Icon, badge, badgeColor }) => {
             const isActive = activeTab === key;
             return (
