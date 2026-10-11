@@ -147,6 +147,20 @@ export default function SettingsView({ onReplayTutorial, onBack, onSyncCalendar,
       </div>
 
       <div className="space-y-8">
+        {/* CareRoute Official Branding Card */}
+        <div className="p-4.5 rounded-[26px] bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20 flex items-center gap-4 animate-fade-in-up">
+          <div className="w-16 h-16 rounded-[20px] overflow-hidden bg-white/10 backdrop-blur-md p-0.5 border border-white/20 shrink-0 shadow-md">
+            <img src="/CareRoute/icon-192.png" alt="CareRoute Logo" className="w-full h-full object-cover rounded-[18px]" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-xl font-black tracking-tight leading-tight">케어루트 (CareRoute)</h3>
+            <p className="text-xs text-white/80 font-semibold mt-0.5">스마트 방문 요양 & 동선 관리 플랫폼</p>
+            <span className="inline-block mt-2 text-[10px] font-black px-2.5 py-0.5 bg-white/20 rounded-full border border-white/25">
+              안심 시스템 알림 연동 중 🔔
+            </span>
+          </div>
+        </div>
+
         {/* Sync & Backup Section - One UI 9.0 Inset Group */}
         <section className="mb-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
           <div className="px-4 mb-2">

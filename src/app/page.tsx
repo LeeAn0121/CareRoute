@@ -1461,13 +1461,12 @@ function MainApp() {
               transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
               className="relative z-10 flex flex-col items-center"
             >
-              <div className="w-24 h-24 bg-white/10 backdrop-blur-md border border-white/20 rounded-[32px] shadow-2xl flex items-center justify-center mb-6 relative overflow-hidden">
-                <motion.div 
-                  className="absolute inset-0 bg-gradient-to-tr from-accent/40 to-transparent"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+              <div className="w-24 h-24 rounded-[32px] shadow-2xl flex items-center justify-center mb-6 relative overflow-hidden bg-white/10 backdrop-blur-md border border-white/20">
+                <img 
+                  src="/CareRoute/icon-192.png" 
+                  alt="케어루트 로고" 
+                  className="w-full h-full object-cover rounded-[32px] drop-shadow-md" 
                 />
-                <IconMapPin size={48} className="text-white drop-shadow-md relative z-10" />
               </div>
               
               <h1 className="text-4xl font-black text-white tracking-tight mb-2 drop-shadow-sm">케어루트</h1>

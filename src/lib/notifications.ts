@@ -133,13 +133,16 @@ export async function sendTestNotification(): Promise<{ success: boolean; error?
   }
 
   try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const iconUrl = `${origin}/CareRoute/icon-192.png`;
+
     const title = '케어루트 시스템 알림 테스트 🔔';
     const options: NotificationOptions = {
       body: '시스템 알림이 정상적으로 작동하고 있습니다! 어르신 방문 일정을 놓치지 않고 수신하실 수 있습니다. 💙',
-      icon: '/CareRoute/icon-192.png',
-      badge: '/CareRoute/icon-192.png',
+      icon: iconUrl,
+      badge: iconUrl,
       tag: 'careroute-test-notification',
-      data: { url: '/CareRoute/' },
+      data: { url: `${origin}/CareRoute/` },
     };
 
     if ('serviceWorker' in navigator) {
