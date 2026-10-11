@@ -1038,7 +1038,34 @@ function MainApp() {
   };
 
   const handleDirections = (lat: number, lng: number, address: string, detail: string | null = null) => {
-    handleNavi('naver', lat, lng, address, detail);
+    let prefType: 'tmap' | 'kakao' | 'naver' = 'naver';
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('careroute_default_navi');
+      if (saved === 'kakao' || saved === 'tmap' || saved === 'naver') {
+        prefType = saved;
+      }
+    }
+    handleNavi(prefType, lat, lng, address, detail);
+  };
+
+  const handleNearbySearch = (keyword: '약국' | '병원', lat: number, lng: number) => {
+    let prefType = 'naver';
+    if (typeof window !== 'undefined') {
+      prefType = localStorage.getItem('careroute_default_navi') || 'naver';
+    }
+
+    const encQuery = encodeURIComponent(keyword);
+
+    if (prefType === 'kakao') {
+      // 카카오맵 주변 검색
+      window.open(`https://map.kakao.com/link/search/${encQuery}`, '_blank');
+    } else if (prefType === 'tmap') {
+      // 티맵 또는 모바일 길찾기 / 웹 검색
+      window.open(`https://m.map.naver.com/search2/search.naver?query=${encQuery}&sm=sug&style=v5&x=${lng}&y=${lat}`, '_blank');
+    } else {
+      // 네이버 지도 주변 검색
+      window.open(`https://m.map.naver.com/search2/search.naver?query=${encQuery}&sm=sug&style=v5&x=${lng}&y=${lat}`, '_blank');
+    }
   };
 
 
@@ -2344,13 +2371,13 @@ function MainApp() {
 
                 <div className="flex gap-2 pt-1 border-t border-surface-border/30">
                   <button
-                    onClick={() => window.open(`https://m.map.naver.com/search2/search.naver?query=%EC%95%BD%EA%B5%AD&sm=sug&style=v5&x=${selectedRecipient.lng}&y=${selectedRecipient.lat}`, '_blank')}
+                    onClick={() => handleNearbySearch('약국', selectedRecipient.lat, selectedRecipient.lng)}
                     className="flex-1 py-2 bg-surface border border-surface-border/60 rounded-full text-[12px] font-black text-foreground/75 flex items-center justify-center gap-1 shadow-2xs active:scale-95 transition-all"
                   >
                     💊 주변 약국
                   </button>
                   <button
-                    onClick={() => window.open(`https://m.map.naver.com/search2/search.naver?query=%EB%B3%91%EC%9B%90&sm=sug&style=v5&x=${selectedRecipient.lng}&y=${selectedRecipient.lat}`, '_blank')}
+                    onClick={() => handleNearbySearch('병원', selectedRecipient.lat, selectedRecipient.lng)}
                     className="flex-1 py-2 bg-surface border border-surface-border/60 rounded-full text-[12px] font-black text-foreground/75 flex items-center justify-center gap-1 shadow-2xs active:scale-95 transition-all"
                   >
                     🏥 주변 병원

@@ -15,85 +15,131 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, recipientName 
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimText, setInterimText] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const recognitionRef = useRef<any>(null);
+  const isRecordingRef = useRef<boolean>(false);
   const finalTranscriptRef = useRef<string>('');
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true; // 실시간 음성 인식 활성화
-        recognition.lang = 'ko-KR';
-
-        recognition.onresult = (event: any) => {
-          let currentInterim = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const piece = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              const prev = finalTranscriptRef.current;
-              finalTranscriptRef.current = prev ? `${prev} ${piece.trim()}` : piece.trim();
-            } else {
-              currentInterim += piece;
-            }
-          }
-
-          setInterimText(currentInterim);
-          const fullText = finalTranscriptRef.current + (currentInterim ? (finalTranscriptRef.current ? ' ' : '') + currentInterim : '');
-          setTranscript(fullText);
-        };
-
-        recognition.onerror = (event: any) => {
-          console.error("Speech recognition error", event.error);
-          setIsRecording(false);
-          setInterimText('');
-        };
-
-        recognition.onend = () => {
-          setIsRecording(false);
-          setInterimText('');
-        };
-
-        recognitionRef.current = recognition;
-      }
+  const stopRecognition = () => {
+    isRecordingRef.current = false;
+    setIsRecording(false);
+    setInterimText('');
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (e) {}
+      recognitionRef.current = null;
     }
-  }, []);
+  };
+
+  const startRecognition = () => {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("현재 사용하시는 브라우저에서 마이크 음성 인식이 지원되지 않습니다. Chrome, Safari 또는 Samsung Internet을 이용해주세요.");
+      return;
+    }
+
+    // Clean up previous instance if any
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch (e) {}
+      recognitionRef.current = null;
+    }
+
+    setErrorMessage('');
+    finalTranscriptRef.current = transcript.trim();
+    setInterimText('');
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'ko-KR';
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        isRecordingRef.current = true;
+        setIsRecording(true);
+        setErrorMessage('');
+      };
+
+      recognition.onresult = (event: any) => {
+        let currentInterim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const item = event.results[i];
+          const text = item[0]?.transcript || '';
+          if (item.isFinal) {
+            const prev = finalTranscriptRef.current;
+            finalTranscriptRef.current = prev ? `${prev} ${text.trim()}` : text.trim();
+          } else {
+            currentInterim += text;
+          }
+        }
+
+        setInterimText(currentInterim);
+        const combined = finalTranscriptRef.current + (currentInterim ? (finalTranscriptRef.current ? ' ' : '') + currentInterim : '');
+        setTranscript(combined);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn("Speech recognition error:", event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setErrorMessage('마이크 접근 권한이 허용되지 않았습니다. 브라우저 설정에서 마이크를 켜주세요.');
+          stopRecognition();
+        } else if (event.error === 'no-speech') {
+          // Voice paused briefly, don't stop abruptly
+        } else if (event.error === 'network') {
+          setErrorMessage('네트워크 상태가 원활하지 않아 음성 인식이 지연되고 있습니다.');
+        } else {
+          setErrorMessage(`음성 인식 오류 (${event.error})`);
+        }
+      };
+
+      recognition.onend = () => {
+        // If user didn't intentionally stop, auto restart to keep continuous listening
+        if (isRecordingRef.current) {
+          try {
+            recognition.start();
+          } catch (e) {
+            isRecordingRef.current = false;
+            setIsRecording(false);
+          }
+        } else {
+          setIsRecording(false);
+          setInterimText('');
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (e: any) {
+      console.error("Failed to start speech recognition:", e);
+      setErrorMessage('마이크를 시작할 수 없습니다. 마이크 권한을 확인해주세요.');
+      stopRecognition();
+    }
+  };
 
   // isOpen 바뀔 때 초기화
   useEffect(() => {
     if (isOpen) {
       setTranscript('');
       setInterimText('');
+      setErrorMessage('');
       finalTranscriptRef.current = '';
-      setIsRecording(false);
+      stopRecognition();
     } else {
-      if (isRecording && recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-      setInterimText('');
+      stopRecognition();
     }
+    return () => {
+      stopRecognition();
+    };
   }, [isOpen]);
 
   const toggleRecording = () => {
-    if (!recognitionRef.current) {
-      alert("이 브라우저에서는 음성 인식을 지원하지 않습니다. Chrome 또는 Safari 최신 버전을 권장합니다.");
-      return;
-    }
-
     if (isRecording) {
-      recognitionRef.current.stop();
-      setIsRecording(false);
-      setInterimText('');
+      stopRecognition();
     } else {
-      try {
-        finalTranscriptRef.current = transcript.trim();
-        setInterimText('');
-        recognitionRef.current.start();
-        setIsRecording(true);
-      } catch (e) {
-        console.error(e);
-      }
+      startRecognition();
     }
   };
 
@@ -132,6 +178,13 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, recipientName 
             </button>
           )}
         </div>
+
+        {/* Error / Guide Message */}
+        {errorMessage && (
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-[18px] text-xs font-bold text-red-600 dark:text-red-400">
+            ⚠️ {errorMessage}
+          </div>
+        )}
 
         {/* Live Input Container */}
         <div className={`relative border-2 rounded-[24px] p-4.5 bg-surface min-h-[150px] shadow-sm transition-all ${

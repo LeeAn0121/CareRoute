@@ -42,6 +42,8 @@ export default function SettingsView({ onReplayTutorial, onBack, onSyncCalendar,
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [showUnblockGuide, setShowUnblockGuide] = useState(false);
 
+  const [defaultNavi, setDefaultNavi] = useState('naver');
+
   const refreshNotifStatus = async () => {
     const status = await getDetailedNotificationStatus();
     setNotifStatus(status);
@@ -51,6 +53,8 @@ export default function SettingsView({ onReplayTutorial, onBack, onSyncCalendar,
     setMounted(true);
     const current = localStorage.getItem('careroute_color_theme') || 'theme-navy';
     setColorTheme(current);
+    const savedNavi = localStorage.getItem('careroute_default_navi') || 'naver';
+    setDefaultNavi(savedNavi);
 
     refreshNotifStatus();
 
@@ -229,7 +233,7 @@ export default function SettingsView({ onReplayTutorial, onBack, onSyncCalendar,
               </div>
             </div>
 
-            <div className="p-4">
+            <div className="p-4 border-b border-surface-border/50">
               <p className="text-[14px] font-bold text-foreground/70 mb-3">테마 컬러</p>
               <div className="grid grid-cols-3 gap-3">
                 {colorThemes.map(t => (
@@ -247,6 +251,41 @@ export default function SettingsView({ onReplayTutorial, onBack, onSyncCalendar,
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[14px] font-bold text-foreground/70">기본 지도 및 내비게이션 앱</p>
+                <span className="text-[11px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                  {defaultNavi === 'kakao' ? '카카오맵/내비' : defaultNavi === 'tmap' ? '티맵 (TMAP)' : '네이버 지도'}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'naver', name: '네이버 지도', icon: 'https://ssl.pstatic.net/static/maps/assets/icons/favicon.ico' },
+                  { id: 'kakao', name: '카카오맵', icon: 'https://map.kakao.com/favicon.ico' },
+                  { id: 'tmap', name: '티맵 (TMAP)', icon: 'https://www.tmapmobility.com/favicon.ico' },
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      localStorage.setItem('careroute_default_navi', item.id);
+                      setDefaultNavi(item.id);
+                    }}
+                    className={`py-3 px-2 rounded-[18px] border transition-all flex flex-col items-center justify-center gap-1.5 ${
+                      defaultNavi === item.id
+                        ? 'bg-primary/10 border-primary text-primary font-black shadow-xs'
+                        : 'bg-foreground/[0.02] border-surface-border/60 hover:bg-foreground/[0.05] text-foreground/70 font-bold'
+                    }`}
+                  >
+                    <img src={item.icon} alt="" className="w-5 h-5 rounded-[6px] object-contain" />
+                    <span className="text-xs">{item.name}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-foreground/45 mt-2 font-medium">
+                길안내 버튼 및 어르신 주변 약국/병원 검색 시 선택한 지도 서비스가 우선 실행됩니다.
+              </p>
             </div>
           </div>
         </section>
