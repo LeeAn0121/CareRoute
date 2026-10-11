@@ -2293,7 +2293,7 @@ function MainApp() {
                             ) : (
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }}
-                                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-[16px] text-[13px] font-black bg-foreground text-background hover:opacity-90 transition-opacity whitespace-nowrap active:scale-95 shadow-xs"
+                                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-[16px] text-[13px] font-black bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 hover:opacity-90 transition-opacity whitespace-nowrap active:scale-95 shadow-xs"
                               >
                                 <IconNavigation size={16} />
                                 길안내
@@ -2494,7 +2494,7 @@ function MainApp() {
               <div className="grid grid-cols-3 gap-2.5 my-4">
                 <button
                   onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
-                  className="py-3 px-2 rounded-[20px] bg-foreground text-background flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
+                  className="py-3 px-2 rounded-[20px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
                 >
                   <IconNavigation size={20} />
                   <span className="text-[12px] font-black">길안내</span>

@@ -16,8 +16,8 @@ export function Spinner({ size = 20, className = '' }: { size?: number; classNam
 type ButtonVariant = 'primary' | 'dark' | 'ghost' | 'danger-ghost' | 'plain';
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: 'bg-primary text-primary-foreground shadow-[0_8px_20px_rgba(var(--primary),0.25)] hover:opacity-95 border border-white/20',
-  dark: 'bg-foreground text-background shadow-md hover:opacity-90',
+  primary: 'bg-primary text-primary-foreground shadow-[0_8px_20px_rgba(var(--primary),0.25)] hover:opacity-95 border border-black/10 dark:border-white/20',
+  dark: 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-md hover:opacity-90',
   ghost: 'bg-surface-muted/80 text-foreground/80 hover:bg-surface-border/60 border border-surface-border/40',
   'danger-ghost': 'bg-red-500/10 text-red-600 hover:bg-red-500/20 border border-red-500/20',
   plain: 'bg-surface text-foreground border border-surface-border hover:bg-surface-muted shadow-sm',
