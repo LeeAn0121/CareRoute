@@ -277,6 +277,88 @@ function MainApp() {
   }, [mapCenter]);
   const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring'>('all');
   const [showRegionFilter, setShowRegionFilter] = useState(false);
+  const [isWeatherDetailOpen, setIsWeatherDetailOpen] = useState(false);
+
+  const toggleRegionFilter = () => {
+    setShowRegionFilter((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsWeatherDetailOpen(false);
+        setIsMapSearchOpen(false);
+      }
+      return next;
+    });
+  };
+
+  const toggleWeatherDetail = () => {
+    setIsWeatherDetailOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setShowRegionFilter(false);
+        setIsMapSearchOpen(false);
+      }
+      return next;
+    });
+  };
+
+  const toggleMapSearch = () => {
+    setIsMapSearchOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setShowRegionFilter(false);
+        setIsWeatherDetailOpen(false);
+      } else {
+        setMapSearchQuery('');
+      }
+      return next;
+    });
+  };
+
+  const closeAllHeaderPopups = () => {
+    setShowRegionFilter(false);
+    setIsWeatherDetailOpen(false);
+    setIsMapSearchOpen(false);
+  };
+
+  // 특정 어르신을 지도 중심으로 포커싱 & 지도 탭 활성화 & 마커/프리뷰 카드 연동
+  const focusRecipientOnMap = (recipient: Recipient, zoom: number = 17) => {
+    const lat = Number(recipient.lat);
+    const lng = Number(recipient.lng);
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    // React 상태 동기화
+    setMapCenter({ lat, lng });
+    setMapZoom(zoom);
+    setActiveTab('map');
+    setSelectedRecipient(recipient);
+    setIsDetailModalOpen(false);
+    closeAllHeaderPopups();
+
+    // 네이버 지도 SDK 인스턴스 직접 조작
+    if (mapRef.current && window.naver && window.naver.maps) {
+      const targetLatLng = new window.naver.maps.LatLng(lat, lng);
+      try {
+        mapRef.current.morph(targetLatLng, zoom);
+      } catch {
+        try {
+          mapRef.current.setCenter(targetLatLng);
+          mapRef.current.setZoom(zoom);
+        } catch {}
+      }
+
+      // 탭 전환 애니메이션 및 화면 리사이즈 대비 안전 타이머
+      setTimeout(() => {
+        if (mapRef.current && window.naver && window.naver.maps) {
+          try {
+            window.naver.maps.Event?.trigger(mapRef.current, 'resize');
+            const targetLatLng = new window.naver.maps.LatLng(lat, lng);
+            mapRef.current.setCenter(targetLatLng);
+          } catch {}
+        }
+      }, 120);
+    }
+  };
+
   const [sortMode, setSortMode] = useState<'time' | 'name' | 'distance'>('name');
   const mapRef = useRef<any>(null);
   const isAutoSelectRef = useRef(false);
@@ -296,19 +378,25 @@ function MainApp() {
 
   // Programmatic Pan & Zoom (React State -> Map API)
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !window.naver?.maps) return;
     const map = mapRef.current;
     
     // 현재 지도의 실제 상태
     const currentCenter = map.getCenter();
     const currentZoom = map.getZoom();
+    if (!currentCenter) return;
     
     // React State와 실제 지도 상태가 다를 때만 이동 (유저가 직접 드래그한 것을 되돌리지 않기 위해)
     const latDiff = Math.abs(currentCenter.y - mapCenter.lat);
     const lngDiff = Math.abs(currentCenter.x - mapCenter.lng);
     
     if (latDiff > 0.0001 || lngDiff > 0.0001) {
-      map.panTo(mapCenter);
+      const targetLatLng = new window.naver.maps.LatLng(mapCenter.lat, mapCenter.lng);
+      try {
+        map.panTo(targetLatLng);
+      } catch {
+        map.setCenter(targetLatLng);
+      }
     }
     
     if (currentZoom !== mapZoom) {
@@ -894,10 +982,7 @@ function MainApp() {
     setSelectedSido('');
     setSelectedSigungu('');
     setSelectedDong('');
-    setMapCenter({ lat: data.lat, lng: data.lng });
-    setMapZoom(17);
-    setActiveTab('map');
-    setSelectedRecipient(data);
+    focusRecipientOnMap(data);
   };
 
   useEffect(() => {
@@ -1664,7 +1749,7 @@ function MainApp() {
         <div id="tour-header" className="relative flex w-full items-center gap-2 pointer-events-auto">
           {/* Location Button */}
           <button 
-            onClick={() => setShowRegionFilter(!showRegionFilter)}
+            onClick={toggleRegionFilter}
             className="h-11 flex-1 min-w-0 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[36px] saturate-200 rounded-[22px] px-3.5 shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-between hover:bg-surface active:scale-[0.98] transition-all text-left"
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1678,20 +1763,23 @@ function MainApp() {
                 </span>
               </div>
             </div>
-            <IconChevronDown size={15} className={`text-foreground/40 shrink-0 ml-1 transition-transform ${showRegionFilter ? 'rotate-180' : ''}`} />
+            <IconChevronDown size={15} className={`text-foreground/40 shrink-0 ml-1 transition-transform ${showRegionFilter ? 'rotate-180 text-primary' : ''}`} />
           </button>
 
           {/* Integrated Live Weather Widget Capsule */}
           <div className="shrink-0">
-            <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
+            <WeatherWidget 
+              lat={mapCenter.lat} 
+              lng={mapCenter.lng} 
+              isOpen={isWeatherDetailOpen}
+              onToggle={toggleWeatherDetail}
+              onClose={() => setIsWeatherDetailOpen(false)}
+            />
           </div>
 
           {/* Map Search Toggle Button */}
           <button
-            onClick={() => {
-              setIsMapSearchOpen(!isMapSearchOpen);
-              if (isMapSearchOpen) setMapSearchQuery('');
-            }}
+            onClick={toggleMapSearch}
             className={`w-11 h-11 rounded-[22px] shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-center shrink-0 active:scale-95 transition-all ${
               isMapSearchOpen ? 'bg-primary text-primary-foreground shadow-primary/30' : 'bg-surface/90 supports-[backdrop-filter]:bg-surface/80 text-foreground/80 hover:bg-surface'
             }`}
@@ -1701,6 +1789,14 @@ function MainApp() {
           </button>
         </div>
 
+        {/* In-Map Search Backdrop */}
+        {isMapSearchOpen && (
+          <div
+            className="fixed inset-0 z-10 bg-black/10 backdrop-blur-[1px] pointer-events-auto"
+            onClick={() => setIsMapSearchOpen(false)}
+          />
+        )}
+
         {/* In-Map Search Bar Popup */}
         <AnimatePresence>
           {isMapSearchOpen && (
@@ -1708,7 +1804,7 @@ function MainApp() {
               initial={{ opacity: 0, y: -8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
-              className="w-full bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[26px] p-3 shadow-[0_16px_40px_rgba(0,0,0,0.15)] border border-white/40 dark:border-white/10 pointer-events-auto space-y-2"
+              className="relative z-20 w-full bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[26px] p-3 shadow-[0_16px_40px_rgba(0,0,0,0.15)] border border-white/40 dark:border-white/10 pointer-events-auto space-y-2"
             >
               <div className="relative">
                 <input
@@ -1716,6 +1812,21 @@ function MainApp() {
                   autoFocus
                   value={mapSearchQuery}
                   onChange={(e) => setMapSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const q = mapSearchQuery.trim().toLowerCase();
+                      if (!q) return;
+                      const matched = markers.find(m => 
+                        (m.name && m.name.toLowerCase().includes(q)) || 
+                        (m.address && m.address.toLowerCase().includes(q)) || 
+                        (m.detail_address && m.detail_address.toLowerCase().includes(q))
+                      );
+                      if (matched) {
+                        focusRecipientOnMap(matched);
+                      }
+                    }
+                  }}
                   placeholder="어르신 성함 또는 주소 검색 (예: 김순자, 강남대로...)"
                   className="w-full bg-foreground/[0.04] dark:bg-white/[0.06] rounded-[20px] py-2.5 pl-10 pr-9 text-[14px] font-bold text-foreground placeholder:text-foreground/40 outline-none focus:ring-2 focus:ring-primary/40 transition-all"
                 />
@@ -1731,49 +1842,63 @@ function MainApp() {
               </div>
 
               {/* Instant Search Results Dropdown */}
-              {mapSearchQuery.trim() !== '' && (
-                <div className="max-h-48 overflow-y-auto divide-y divide-surface-border/40 pt-1">
-                  {markers
-                    .filter(m => m.name.includes(mapSearchQuery.trim()) || m.address.includes(mapSearchQuery.trim()))
-                    .slice(0, 5)
-                    .map(m => (
+              {mapSearchQuery.trim() !== '' && (() => {
+                const q = mapSearchQuery.trim().toLowerCase();
+                const matchedList = markers
+                  .filter(m => 
+                    (m.name && m.name.toLowerCase().includes(q)) || 
+                    (m.address && m.address.toLowerCase().includes(q)) || 
+                    (m.detail_address && m.detail_address.toLowerCase().includes(q))
+                  )
+                  .slice(0, 6);
+
+                return (
+                  <div className="max-h-56 overflow-y-auto divide-y divide-surface-border/40 pt-1">
+                    {matchedList.map(m => (
                       <button
                         key={m.id}
-                        onClick={() => {
-                          setMapCenter({ lat: m.lat, lng: m.lng });
-                          setMapZoom(17);
-                          setSelectedRecipient(m);
-                          setIsMapSearchOpen(false);
-                          setMapSearchQuery('');
-                        }}
-                        className="w-full py-2 px-2 flex items-center justify-between text-left hover:bg-foreground/[0.04] rounded-xl transition-colors"
+                        type="button"
+                        onClick={() => focusRecipientOnMap(m)}
+                        className="w-full py-2.5 px-2 flex items-center justify-between text-left hover:bg-foreground/[0.04] rounded-xl transition-colors cursor-pointer group"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-black text-xs">
+                          <div className="w-8 h-8 rounded-[12px] bg-primary/10 text-primary flex items-center justify-center shrink-0 font-black text-xs shadow-2xs group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                             {m.name[0]}
                           </div>
                           <div className="min-w-0">
                             <p className="text-[13px] font-bold text-foreground truncate">{m.name} 어르신</p>
-                            <p className="text-[11px] text-foreground/50 truncate">{m.address}</p>
+                            <p className="text-[11px] text-foreground/50 truncate">{m.address}{m.detail_address ? ` ${m.detail_address}` : ''}</p>
                           </div>
                         </div>
-                        <IconNavigation size={14} className="text-primary shrink-0" />
+                        <div className="flex items-center gap-1 text-primary text-xs font-bold shrink-0 ml-2">
+                          <span className="hidden sm:inline">위치 보기</span>
+                          <IconNavigation size={14} className="text-primary" />
+                        </div>
                       </button>
                     ))}
-                  {markers.filter(m => m.name.includes(mapSearchQuery.trim()) || m.address.includes(mapSearchQuery.trim())).length === 0 && (
-                    <div className="py-4 text-center text-xs font-bold text-foreground/40">
-                      일치하는 어르신이 없습니다.
-                    </div>
-                  )}
-                </div>
-              )}
+                    {matchedList.length === 0 && (
+                      <div className="py-5 text-center text-xs font-bold text-foreground/40">
+                        일치하는 어르신이 없습니다.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </motion.div>
           )}
         </AnimatePresence>
 
+        {/* Region Filter Backdrop */}
+        {showRegionFilter && (
+          <div
+            className="fixed inset-0 z-10 bg-black/10 backdrop-blur-[1px] pointer-events-auto"
+            onClick={() => setShowRegionFilter(false)}
+          />
+        )}
+
         {/* Region Filter Dropdown - Inset Card */}
         {showRegionFilter && (
-        <div className="mt-1 p-5 bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/30 dark:border-white/10 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[340px]">
+        <div className="relative z-20 mt-1 p-5 bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/30 dark:border-white/10 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[340px]">
           <div className="flex items-center justify-between pb-3.5 border-b border-surface-border/40 mb-4">
             <div>
               <span className="text-[17px] font-black text-foreground tracking-tight block">지역 직접 선택</span>
@@ -2155,10 +2280,7 @@ function MainApp() {
                     whileTap={{ scale: 0.98 }}
                     className={`rounded-[32px] ${listViewMode === 'list' ? 'mb-3.5' : ''} border border-white/30 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.05)] cursor-pointer bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-xl overflow-hidden flex flex-col hover:shadow-xl transition-all`}
                     onClick={() => {
-                      setMapCenter({ lat: marker.lat, lng: marker.lng });
-                      setMapZoom(17);
-                      setActiveTab('map');
-                      setSelectedRecipient(marker);
+                      focusRecipientOnMap(marker);
                     }}
                   >
                     {/* One UI 9.0 Inset List Card */}
@@ -2256,10 +2378,7 @@ function MainApp() {
                             type="button"
                             onClick={(e) => { 
                               e.stopPropagation(); 
-                              setMapCenter({ lat: marker.lat, lng: marker.lng }); 
-                              setMapZoom(17); 
-                              setActiveTab('map'); 
-                              setSelectedRecipient(marker); 
+                              focusRecipientOnMap(marker); 
                             }} 
                             className="py-2.5 rounded-[16px] bg-foreground/[0.04] dark:bg-white/[0.06] hover:bg-foreground/[0.08] text-foreground text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-surface-border/40"
                           >

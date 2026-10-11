@@ -6,6 +6,9 @@ import { motion, AnimatePresence } from 'motion/react';
 interface WeatherWidgetProps {
   lat: number;
   lng: number;
+  isOpen?: boolean;
+  onToggle?: () => void;
+  onClose?: () => void;
 }
 
 interface WeatherData {
@@ -19,10 +22,14 @@ interface WeatherData {
   pm25: number;
 }
 
-export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
+export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: WeatherWidgetProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showDetail, setShowDetail] = useState(false);
+  const [internalShowDetail, setInternalShowDetail] = useState(false);
+
+  const showDetail = isOpen !== undefined ? isOpen : internalShowDetail;
+  const handleToggle = onToggle || (() => setInternalShowDetail(!internalShowDetail));
+  const handleClose = onClose || (() => setInternalShowDetail(false));
 
   useEffect(() => {
     let isMounted = true;
@@ -110,7 +117,7 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
       {/* 컴팩트 날씨 캡슐 버튼 (헤더 높이 44px 통일) */}
       <button
         type="button"
-        onClick={() => setShowDetail(!showDetail)}
+        onClick={handleToggle}
         className={`h-11 px-3.5 rounded-[22px] flex items-center gap-1.5 transition-all active:scale-95 border ${
           showDetail
             ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/30'
@@ -133,7 +140,7 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
             {/* 바깥 클릭 시 닫히는 투명 배경 오버레이 */}
             <div
               className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px]"
-              onClick={() => setShowDetail(false)}
+              onClick={handleClose}
             />
 
             <motion.div
@@ -158,7 +165,7 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
 
                 <button
                   type="button"
-                  onClick={() => setShowDetail(false)}
+                  onClick={handleClose}
                   className="w-7 h-7 rounded-full bg-foreground/[0.06] hover:bg-foreground/[0.12] text-foreground/60 flex items-center justify-center transition-colors shrink-0 active:scale-95"
                   aria-label="닫기"
                 >
