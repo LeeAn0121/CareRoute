@@ -205,7 +205,12 @@ export default function SettingsView({
       desc: '표준 기준치',
       icon: IconHeartbeat,
       color: 'bg-[#FF2D55] text-white',
-      action: () => setShowChecklistGuide(prev => !prev),
+      action: () => {
+        setShowChecklistGuide(true);
+        setTimeout(() => {
+          document.getElementById('section-vital')?.scrollIntoView({ behavior: 'smooth' });
+        }, 80);
+      },
     },
     {
       id: 'quick-first-aid',
@@ -213,7 +218,12 @@ export default function SettingsView({
       desc: '하임리히·낙상',
       icon: IconFirstAidKit,
       color: 'bg-[#FF3B30] text-white',
-      action: () => setShowFirstAidGuide(prev => !prev),
+      action: () => {
+        setShowFirstAidGuide(true);
+        setTimeout(() => {
+          document.getElementById('section-vital')?.scrollIntoView({ behavior: 'smooth' });
+        }, 80);
+      },
     },
     {
       id: 'quick-call-119',
@@ -231,18 +241,32 @@ export default function SettingsView({
     { title: '새 수급자 어르신 등록', category: '수급자 및 방문 관리', desc: '주소, 건강 특이사항, 공동현관 비번 등록', action: () => onOpenAddRecipient ? onOpenAddRecipient() : (onNavigateTab ? onNavigateTab('list') : onBack()), icon: IconUserPlus, iconColor: 'bg-[#34C759]' },
     { title: '수급자 어르신 명단 관리', category: '수급자 및 방문 관리', desc: '전체 등록 어르신 목록 및 연락처 검색', action: () => onNavigateTab ? onNavigateTab('list') : onBack(), icon: IconUsers, iconColor: 'bg-[#007AFF]' },
     { title: '오늘의 방문 일정 및 순서', category: '수급자 및 방문 관리', desc: '시간대별 방문 순서 확인 및 최적화', action: () => onNavigateTab ? onNavigateTab('route') : onBack(), icon: IconCalendarEvent, iconColor: 'bg-[#FF9500]' },
-    { title: '구글 캘린더 일정 동기화', category: '공단 롱텀 행정 & 연동', desc: '스마트폰 구글 캘린더로 일정 내보내기', action: onSyncCalendar, icon: IconBrandGoogle, iconColor: 'bg-[#5856D6]' },
-    { title: '급여제공 5대 필수 점검표', category: '현장 건강 바이탈 & 응급', desc: '체온, 혈압, 맥박, 복약, 식사, 낙상 안전 수칙', action: () => setShowChecklistGuide(true), icon: IconClipboardCheck, iconColor: 'bg-[#5856D6]' },
-    { title: '현장 응급상황 대처 프로토콜', category: '현장 건강 바이탈 & 응급', desc: '낙상, 기도폐쇄(하임리히), 저혈당 쇼크 조치 요령', action: () => setShowFirstAidGuide(true), icon: IconFirstAidKit, iconColor: 'bg-[#FF3B30]' },
+    { title: '구글 캘린더 일정 동기화', category: '공단 행정 & 캘린더 연동', desc: '스마트폰 구글 캘린더로 일정 내보내기', action: onSyncCalendar, icon: IconBrandGoogle, iconColor: 'bg-[#5856D6]' },
+    { title: '급여제공 5대 필수 점검표', category: '현장 건강 바이탈 & 응급', desc: '체온, 혈압, 맥박, 복약, 식사, 낙상 안전 수칙', action: () => {
+      setShowChecklistGuide(true);
+      setTimeout(() => document.getElementById('section-vital')?.scrollIntoView({ behavior: 'smooth' }), 80);
+    }, icon: IconClipboardCheck, iconColor: 'bg-[#5856D6]' },
+    { title: '현장 응급상황 대처 프로토콜', category: '현장 건강 바이탈 & 응급', desc: '낙상, 기도폐쇄(하임리히), 저혈당 쇼크 조치 요령', action: () => {
+      setShowFirstAidGuide(true);
+      setTimeout(() => document.getElementById('section-vital')?.scrollIntoView({ behavior: 'smooth' }), 80);
+    }, icon: IconFirstAidKit, iconColor: 'bg-[#FF3B30]' },
     { title: '119 응급구조 즉시 연결', category: '24시 긴급 핫라인', desc: '119 응급구조대 및 안전신고 직통 통화', href: 'tel:119', icon: IconAmbulance, iconColor: 'bg-[#FF3B30]' },
     { title: '국민건강보험공단 고객센터', category: '24시 긴급 핫라인', desc: '1577-1000 노인장기요양보험 수가 및 전산 문의', href: 'tel:1577-1000', icon: IconPhoneCall, iconColor: 'bg-[#007AFF]' },
     { title: '독거노인종합지원센터', category: '24시 긴급 핫라인', desc: '1661-2129 홀몸 어르신 안심망 및 위기 지원', href: 'tel:1661-2129', icon: IconPhoneCall, iconColor: 'bg-[#34C759]' },
-    { title: '노인장기요양보험 포털 (롱텀)', category: '공단 롱텀 행정 & 연동', desc: 'longtermcare.or.kr 국민건강보험 공식 사이트', href: 'https://www.longtermcare.or.kr', external: true, icon: IconBuildingHospital, iconColor: 'bg-[#AF52DE]' },
-    { title: '스마트장기요양 NFC 태그 오류 가이드', category: '공단 롱텀 행정 & 연동', desc: '현장 태그 미인식 시 기본모드 점검 및 조치', action: () => setShowRfidGuide(true), icon: IconAlertCircle, iconColor: 'bg-[#FF9500]' },
-    { title: '기본 내비게이션 앱 변경', category: '길안내 및 모빌리티', desc: '네이버 지도, 카카오맵, 티맵 선택', action: () => setShowNaviPicker(true), icon: IconNavigation, iconColor: 'bg-[#007AFF]' },
+    { title: '국민건강보험 장기요양 포털', category: '공단 행정 & 캘린더 연동', desc: '공식 업무 시스템 바로가기 (longtermcare.or.kr)', href: 'https://www.longtermcare.or.kr', external: true, icon: IconBuildingHospital, iconColor: 'bg-[#AF52DE]' },
+    { title: '스마트장기요양 NFC 태그 오류 가이드', category: '공단 행정 & 캘린더 연동', desc: '현장 태그 미인식 시 기본모드 점검 및 조치', action: () => {
+      setShowRfidGuide(true);
+      setTimeout(() => document.getElementById('section-admin')?.scrollIntoView({ behavior: 'smooth' }), 80);
+    }, icon: IconAlertCircle, iconColor: 'bg-[#FF9500]' },
+    { title: '기본 내비게이션 앱 변경', category: '길안내 및 모빌리티', desc: '네이버 지도, 카카오맵, 티맵 선택', action: () => {
+      setShowNaviPicker(true);
+      setTimeout(() => document.getElementById('section-navi')?.scrollIntoView({ behavior: 'smooth' }), 80);
+    }, icon: IconNavigation, iconColor: 'bg-[#007AFF]' },
     { title: '방문 예정 시간 스마트 푸시 알림', category: '알림 및 디스플레이', desc: 'PC 데스크톱 및 모바일 방문 시간 사전 리마인더', action: handleRequestNotification, icon: IconBellRinging, iconColor: 'bg-[#FF2D55]' },
     { title: '시스템 알림 테스트 발송', category: '알림 및 디스플레이', desc: '지금 즉시 알림 수신 여부 진단 테스트', action: handleTestNotification, icon: IconBell, iconColor: 'bg-[#FF9500]' },
-    { title: '화면 테마 모드 (라이트/다크)', category: '알림 및 디스플레이', desc: '라이트, 다크, 시스템 자동 화면 전환', action: () => {}, icon: IconSun, iconColor: 'bg-[#8E8E93]' },
+    { title: '화면 테마 모드 (라이트/다크)', category: '알림 및 디스플레이', desc: '라이트, 다크, 시스템 자동 화면 전환', action: () => {
+      document.getElementById('section-display')?.scrollIntoView({ behavior: 'smooth' });
+    }, icon: IconSun, iconColor: 'bg-[#8E8E93]' },
     { title: '앱 사용법 가이드 튜토리얼', category: '고객지원 및 시스템', desc: '핵심 기능 사용법 온보딩 다시 보기', action: onReplayTutorial, icon: IconHelp, iconColor: 'bg-[#30B0C7]' },
     { title: '전체 캐시 초기화 및 강력 새로고침', category: '고객지원 및 시스템', desc: '오프라인 캐시 및 브라우저 데이터 완전 갱신', action: async () => {
       if ('caches' in window) {
@@ -282,11 +306,11 @@ export default function SettingsView({
       transition={{ duration: 0.2 }}
       className="absolute inset-0 overflow-y-auto px-4 pt-14 pb-36 bg-[#F2F2F7] dark:bg-[#000000] text-black dark:text-white transition-colors duration-300 font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Text','Pretendard',sans-serif]"
     >
-      {/* Top Header: iOS / Toss / Kakao T Inspired Full Menu Header */}
-      <div className="flex items-center justify-between mb-3 px-1 max-w-xl mx-auto">
+      {/* Top Header: CareRoute Full Menu Header */}
+      <div className="flex items-center justify-between mb-2 px-1 max-w-xl mx-auto">
         <div>
           <span className="text-[12px] font-black text-[#007AFF] uppercase tracking-wider block">
-            CARE ROUTE MEGA WORKSPACE
+            CAREROUTE SMART HUB
           </span>
           <h1 className="text-[32px] font-extrabold tracking-tight text-black dark:text-white leading-none mt-1">
             전체 메뉴
@@ -302,26 +326,104 @@ export default function SettingsView({
         </button>
       </div>
 
-      <div className="space-y-5 max-w-xl mx-auto">
+      <div className="space-y-4 max-w-xl mx-auto">
 
-        {/* 1. Global In-Menu Search Capsule (토스/카카오T 스타일 즉시 검색) */}
-        <div className="relative">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="메뉴나 기능을 검색하세요 (예: 등록, 119, 바이탈, 내비...)"
-            className="w-full bg-white dark:bg-[#1C1C1E] rounded-[22px] py-3.5 pl-11 pr-10 text-[15px] font-bold text-black dark:text-white placeholder:text-[#8E8E93] border border-black/[0.05] dark:border-white/[0.08] shadow-xs outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition-all"
-          />
-          <IconSearch size={19} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8E8E93]" />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors"
+        {/* CareRoute Brand Center Identity Card */}
+        <div className="bg-gradient-to-br from-[#007AFF]/10 via-[#5856D6]/5 to-transparent rounded-[24px] p-4 border border-[#007AFF]/20 dark:border-[#007AFF]/30 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-[16px] bg-gradient-to-tr from-[#007AFF] to-[#5856D6] text-white flex items-center justify-center shadow-[0_4px_12px_rgba(0,122,255,0.25)] shrink-0">
+              <IconSparkles size={22} strokeWidth={2.4} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-[16px] font-black text-black dark:text-white tracking-tight">케어루트 현장 업무 지원 센터</h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#34C759]/15 text-[#34C759]">정상 가동</span>
+              </div>
+              <p className="text-[12px] text-[#6D6D72] dark:text-[#98989D] mt-0.5 font-medium">
+                어르신 방문요양 전문 현장 케어 관리 포털
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Floating Notification / Feedback Toast */}
+        <AnimatePresence>
+          {feedbackMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              className={`p-3.5 rounded-[20px] text-[13px] font-bold flex items-center justify-between shadow-sm border ${
+                feedbackMessage.type === 'success' 
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25' 
+                  : feedbackMessage.type === 'error'
+                    ? 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/25'
+                    : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/25'
+              }`}
             >
-              <IconX size={14} />
-            </button>
+              <div className="flex items-center gap-2.5">
+                {feedbackMessage.type === 'success' && <IconCheck size={18} className="shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                {feedbackMessage.type === 'error' && <IconAlertCircle size={18} className="shrink-0 text-red-600 dark:text-red-400" />}
+                {feedbackMessage.type === 'info' && <IconInfoCircle size={18} className="shrink-0 text-blue-600 dark:text-blue-400" />}
+                <span>{feedbackMessage.text}</span>
+              </div>
+              <button 
+                onClick={() => setFeedbackMessage(null)} 
+                className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors ml-2"
+              >
+                <IconX size={14} />
+              </button>
+            </motion.div>
           )}
+        </AnimatePresence>
+
+        {/* 1. Global In-Menu Search Capsule & Quick Filter Chips */}
+        <div className="space-y-2">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="메뉴나 기능을 검색하세요 (예: 등록, 119, 바이탈, 내비...)"
+              className="w-full bg-white dark:bg-[#1C1C1E] rounded-[22px] py-3.5 pl-11 pr-10 text-[15px] font-bold text-black dark:text-white placeholder:text-[#8E8E93] border border-black/[0.05] dark:border-white/[0.08] shadow-xs outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition-all"
+            />
+            <IconSearch size={19} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8E8E93]" />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors"
+              >
+                <IconX size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Keyword Filter Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 px-0.5">
+            {[
+              { label: '전체', q: '' },
+              { label: '#수급자등록', q: '등록' },
+              { label: '#오늘일정', q: '일정' },
+              { label: '#바이탈수칙', q: '바이탈' },
+              { label: '#응급119', q: '119' },
+              { label: '#내비앱', q: '내비' },
+              { label: '#공단포털', q: '공단' },
+              { label: '#NFC태그', q: '태그' },
+            ].map((chip, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setSearchQuery(chip.q)}
+                className={`px-3 py-1.5 rounded-full text-[12px] font-bold shrink-0 transition-all active:scale-95 ${
+                  (chip.q === '' && searchQuery === '') || (chip.q !== '' && searchQuery === chip.q)
+                    ? 'bg-[#007AFF] text-white shadow-xs'
+                    : 'bg-white dark:bg-[#1C1C1E] text-[#6D6D72] dark:text-[#98989D] border border-black/[0.04] dark:border-white/[0.08] hover:text-black dark:hover:text-white'
+                }`}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* 검색 결과가 있을 때: 실시간 검색 결과 리스트 */}
@@ -341,6 +443,26 @@ export default function SettingsView({
             ) : (
               searchResults.map((item, idx) => {
                 const ItemIcon = item.icon;
+                const content = (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-[12px] ${item.iconColor} text-white flex items-center justify-center shrink-0 shadow-2xs`}>
+                        <ItemIcon size={18} strokeWidth={2.4} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] text-[#8E8E93] dark:text-[#98989D]">
+                            {item.category}
+                          </span>
+                        </div>
+                        <p className="text-[15px] font-bold text-black dark:text-white">{item.title}</p>
+                        <p className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">{item.desc}</p>
+                      </div>
+                    </div>
+                    <IconChevronRight size={16} className="text-[#C7C7CC] dark:text-[#636366]" />
+                  </>
+                );
+
                 if (item.href) {
                   return (
                     <a
@@ -348,18 +470,9 @@ export default function SettingsView({
                       href={item.href}
                       target={item.external ? "_blank" : undefined}
                       rel={item.external ? "noopener noreferrer" : undefined}
-                      className="py-3 px-1 flex items-center justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors rounded-xl"
+                      className="py-3 px-2 flex items-center justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] active:bg-black/[0.04] dark:active:bg-white/[0.05] transition-colors rounded-xl"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-[10px] ${item.iconColor} text-white flex items-center justify-center shrink-0`}>
-                          <ItemIcon size={16} strokeWidth={2.5} />
-                        </div>
-                        <div>
-                          <p className="text-[15px] font-bold text-black dark:text-white">{item.title}</p>
-                          <p className="text-[12px] text-[#8E8E93]">{item.desc}</p>
-                        </div>
-                      </div>
-                      <IconChevronRight size={16} className="text-[#C7C7CC]" />
+                      {content}
                     </a>
                   );
                 }
@@ -368,18 +481,9 @@ export default function SettingsView({
                   <button
                     key={idx}
                     onClick={item.action}
-                    className="w-full text-left py-3 px-1 flex items-center justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors rounded-xl"
+                    className="w-full text-left py-3 px-2 flex items-center justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] active:bg-black/[0.04] dark:active:bg-white/[0.05] transition-colors rounded-xl"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-[10px] ${item.iconColor} text-white flex items-center justify-center shrink-0`}>
-                        <ItemIcon size={16} strokeWidth={2.5} />
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-bold text-black dark:text-white">{item.title}</p>
-                        <p className="text-[12px] text-[#8E8E93]">{item.desc}</p>
-                      </div>
-                    </div>
-                    <IconChevronRight size={16} className="text-[#C7C7CC]" />
+                    {content}
                   </button>
                 );
               })
@@ -519,7 +623,7 @@ export default function SettingsView({
             </div>
 
             {/* 4. 카테고리 1: 수급자 및 방문 관리 (CARE SERVICES) */}
-            <div>
+            <div id="section-recipients">
               <span className="text-[13px] font-bold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
                 수급자 및 급여제공 관리
               </span>
@@ -576,7 +680,7 @@ export default function SettingsView({
             </div>
 
             {/* 5. 카테고리 2: 건강 바이탈 & 응급 안전 (HEALTH & SAFETY) */}
-            <div>
+            <div id="section-vital">
               <span className="text-[13px] font-bold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
                 현장 건강 바이탈 및 응급 안전
               </span>
@@ -792,14 +896,14 @@ export default function SettingsView({
               </div>
             </div>
 
-            {/* 6. 카테고리 3: 공단 롱텀 행정 & 캘린더 연동 (LONG-TERM CARE ADMIN) */}
-            <div>
+            {/* 6. 카테고리 3: 공단 행정 및 캘린더 연동 */}
+            <div id="section-admin">
               <span className="text-[13px] font-bold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
-                공단 롱텀 행정 및 캘린더 연동
+                공단 행정 및 캘린더 연동
               </span>
 
               <div className="bg-white dark:bg-[#1C1C1E] rounded-[24px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
-                {/* 롱텀 포털 링크 */}
+                {/* 공단 장기요양 포털 링크 */}
                 <a
                   href="https://www.longtermcare.or.kr"
                   target="_blank"
@@ -812,10 +916,10 @@ export default function SettingsView({
                     </div>
                     <div>
                       <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
-                        노인장기요양보험 포털 (공단 롱텀)
+                        국민건강보험 장기요양 포털
                       </span>
                       <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
-                        longtermcare.or.kr 바로가기
+                        공식 업무 시스템 바로가기 (longtermcare.or.kr)
                       </span>
                     </div>
                   </div>
@@ -901,7 +1005,7 @@ export default function SettingsView({
             </div>
 
             {/* 7. 카테고리 4: 길안내 및 모빌리티 (NAVIGATION & MOBILITY) */}
-            <div>
+            <div id="section-navi">
               <span className="text-[13px] font-bold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
                 길안내 및 모빌리티 설정
               </span>
@@ -1001,49 +1105,74 @@ export default function SettingsView({
             </div>
 
             {/* 8. 카테고리 5: 알림 및 화면 디스플레이 (PREFERENCES) */}
-            <div>
+            <div id="section-display">
               <span className="text-[13px] font-bold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
                 알림 및 화면 디스플레이
               </span>
 
               <div className="bg-white dark:bg-[#1C1C1E] rounded-[24px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
                 {/* Push Notifications Row */}
-                <div className="px-4 py-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-[32px] h-[32px] rounded-[10px] bg-[#FF2D55] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                      <IconBellRinging size={18} strokeWidth={2.5} />
+                <div className="px-4 py-3.5 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-[32px] h-[32px] rounded-[10px] bg-[#FF2D55] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <IconBellRinging size={18} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                        <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
+                          방문 예정 시간 스마트 푸시
+                        </span>
+                        <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
+                          PC 및 모바일 시스템 푸시 알림
+                        </span>
+                      </div>
                     </div>
+
                     <div>
-                      <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
-                        방문 예정 시간 스마트 푸시
-                      </span>
-                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
-                        PC 및 모바일 시스템 푸시 알림
-                      </span>
+                      {currentNotifPerm === 'granted' && (
+                        <span className="text-[13px] font-black text-[#34C759] bg-[#34C759]/15 px-3 py-1 rounded-full flex items-center gap-1">
+                          <IconCheck size={13} strokeWidth={3} /> 정상 작동
+                        </span>
+                      )}
+                      {currentNotifPerm === 'denied' && (
+                        <button
+                          type="button"
+                          onClick={() => setShowUnblockGuide(prev => !prev)}
+                          className="text-[13px] font-black text-[#FF3B30] bg-[#FF3B30]/15 px-3 py-1 rounded-full flex items-center gap-1 hover:opacity-80 transition-opacity"
+                        >
+                          <IconAlertTriangle size={13} strokeWidth={3} /> 차단됨 (해제법)
+                        </button>
+                      )}
+                      {currentNotifPerm === 'default' && (
+                        <button
+                          onClick={handleRequestNotification}
+                          disabled={isRequestingNotif}
+                          className="text-[13px] font-black text-white bg-[#007AFF] px-3.5 py-1.5 rounded-full shadow-xs active:opacity-70 disabled:opacity-50"
+                        >
+                          {isRequestingNotif ? '요청 중...' : '권한 켜기'}
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  <div>
-                    {currentNotifPerm === 'granted' && (
-                      <span className="text-[13px] font-black text-[#34C759] bg-[#34C759]/15 px-3 py-1 rounded-full flex items-center gap-1">
-                        <IconCheck size={13} strokeWidth={3} /> 정상 작동
-                      </span>
-                    )}
-                    {currentNotifPerm === 'denied' && (
-                      <span className="text-[13px] font-black text-[#FF3B30] bg-[#FF3B30]/15 px-3 py-1 rounded-full flex items-center gap-1">
-                        <IconAlertTriangle size={13} strokeWidth={3} /> 차단됨
-                      </span>
-                    )}
-                    {currentNotifPerm === 'default' && (
-                      <button
-                        onClick={handleRequestNotification}
-                        disabled={isRequestingNotif}
-                        className="text-[13px] font-black text-white bg-[#007AFF] px-3.5 py-1.5 rounded-full shadow-xs active:opacity-70 disabled:opacity-50"
+                  {/* 차단 해제 안내 아코디언 */}
+                  <AnimatePresence>
+                    {showUnblockGuide && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-[16px] text-[12px] text-amber-800 dark:text-amber-200 space-y-1 mt-1"
                       >
-                        {isRequestingNotif ? '요청 중...' : '권한 켜기'}
-                      </button>
+                        <div className="flex items-center justify-between font-bold">
+                          <span>🔔 알림 차단 해제 방법</span>
+                          <button onClick={() => setShowUnblockGuide(false)} className="text-xs hover:opacity-70">닫기</button>
+                        </div>
+                        <p>• <strong>스마트폰 (Safari/Chrome):</strong> 주소창 좌측 자물쇠 또는 사이트 설정 아이콘 &gt; 알림 &gt; &apos;허용&apos;으로 변경</p>
+                        <p>• <strong>PC 브라우저:</strong> 브라우저 설정 &gt; 개인정보 보호 및 보안 &gt; 사이트 설정 &gt; 알림 &gt; &apos;허용&apos; 추가</p>
+                      </motion.div>
                     )}
-                  </div>
+                  </AnimatePresence>
                 </div>
 
                 {/* Test Notification Row */}
@@ -1131,7 +1260,7 @@ export default function SettingsView({
             </div>
 
             {/* 9. 카테고리 6: 고객지원 및 시스템 관리 (SUPPORT & SYSTEM) */}
-            <div>
+            <div id="section-support">
               <span className="text-[13px] font-bold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
                 고객지원 및 시스템 관리
               </span>
