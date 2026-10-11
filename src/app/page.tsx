@@ -608,19 +608,36 @@ function MainApp() {
           if (!notifiedKeysRef.current.has(alertKey)) {
             notifiedKeysRef.current.add(alertKey);
 
-            // 1. 브라우저/OS 시스템 알림 발송 (권한 허용된 경우)
+            // 1. 브라우저/OS 시스템 알림 발송 (데스크톱/노트북 및 모바일 완벽 지원)
             if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+              const origin = window.location.origin;
+              const notifTitle = '어르신 방문 예정 시간 알림 🚨';
+              const notifOptions: NotificationOptions = {
+                body: `${recipient.name} 어르신 방문 시간(${parsedTime.formattedText})입니다! (${recipient.address})`,
+                icon: `${origin}/CareRoute/icon-192.png`,
+                badge: `${origin}/CareRoute/icon-192.png`,
+                tag: `visit-${recipient.id}-${ymd}`,
+                data: { url: `${origin}/CareRoute/?focus=${recipient.id}`, recipientId: recipient.id },
+              };
+
+              let sentViaSW = false;
               if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then((reg) => {
-                  reg.showNotification('어르신 방문 예정 시간 알림 🚨', {
-                    body: `${recipient.name} 어르신 방문 시간(${parsedTime.formattedText})입니다! (${recipient.address})`,
-                    icon: '/CareRoute/icon-192.png',
-                    badge: '/CareRoute/icon-192.png',
-                    tag: `visit-${recipient.id}-${ymd}`,
-                    data: { url: `/CareRoute/?focus=${recipient.id}`, recipientId: recipient.id },
-                  });
+                  reg.showNotification(notifTitle, notifOptions);
+                  sentViaSW = true;
                 }).catch(() => {});
               }
+
+              // 노트북/데스크톱 브라우저에서 서비스워커가 아직 ready 상태가 아니거나 백그라운드 지연 시 표준 Notification으로 즉시 발송
+              setTimeout(() => {
+                if (!sentViaSW) {
+                  try {
+                    new Notification(notifTitle, notifOptions);
+                  } catch (e) {
+                    console.warn('Fallback Notification error:', e);
+                  }
+                }
+              }, 200);
             }
 
             // 2. 인앱 다이내믹 아일랜드 플로팅 알림 배너 노출
