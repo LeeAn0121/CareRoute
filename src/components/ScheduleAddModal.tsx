@@ -37,9 +37,10 @@ export default function ScheduleAddModal({ isOpen, onClose, date, allRecipients,
   };
 
   const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return allRecipients.filter(r => 
       !getScheduledForDate(r) && 
-      r.name.toLowerCase().includes(search.toLowerCase())
+      (!q || r.name.toLowerCase().includes(q) || (r.address && r.address.toLowerCase().includes(q)))
     );
   }, [allRecipients, search, date]);
 

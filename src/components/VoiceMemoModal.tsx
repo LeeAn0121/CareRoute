@@ -259,7 +259,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
               type="button" 
               variant="ghost" 
               fullWidth 
-              onClick={() => onSave('')} 
+              onClick={() => { stopRecognition(); onSave(''); }} 
               className="py-3 rounded-[18px] font-bold text-foreground/60 text-xs sm:text-sm"
             >
               메모 없이 완료
@@ -267,7 +267,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
             <Button 
               type="button" 
               fullWidth 
-              onClick={() => onSave(transcript)} 
+              onClick={() => { stopRecognition(); onSave(transcript); }} 
               className="py-3 rounded-[18px] font-black shadow-sm text-xs sm:text-sm" 
               startIcon={<IconSend size={16} />}
             >
@@ -279,7 +279,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
             <Button
               type="button"
               fullWidth
-              onClick={() => onSaveAndShare(transcript)}
+              onClick={() => { stopRecognition(); onSaveAndShare(transcript); }}
               className="py-3.5 rounded-[18px] font-black bg-amber-400 hover:bg-amber-500 text-stone-900 border-none shadow-md text-sm"
               startIcon={<span className="text-base">💙</span>}
             >

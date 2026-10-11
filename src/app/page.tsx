@@ -1105,6 +1105,9 @@ function MainApp() {
       // 이미 완료된 상태면 완료 취소
       const key = null;
       setMarkers((prev) => prev.map((m) => (m.id === r.id ? { ...m, last_completed_key: key, last_completed_memo: null } : m)));
+      if (selectedRecipient && selectedRecipient.id === r.id) {
+        setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: key, last_completed_memo: null } : null);
+      }
       await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: null }).eq('id', r.id);
     } else {
       // 미완료 상태면 일지 작성 모달 띄우기
@@ -1334,7 +1337,10 @@ function MainApp() {
 
   const handleSyncToCalendar = async () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) return;
+    if (!clientId) {
+      alert('Google Calendar 연동을 위한 클라이언트 ID 설정이 필요합니다. 관리자에게 문의해주세요.');
+      return;
+    }
     
     let targetRoute = scheduleRoute;
     let syncDate = scheduleDate;
@@ -1824,6 +1830,30 @@ function MainApp() {
         {activeTab === 'list' && (
           <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background">
             
+            {/* List View Header & Add Action */}
+            <div className="mb-3.5 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-lg font-black text-primary">
+                  어르신 명단
+                </p>
+                <p className="text-xs text-foreground/50 font-semibold">
+                  총 {markers.length}분 등록됨
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingRecipient(null);
+                  setIsModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-black bg-primary text-primary-foreground shadow-sm hover:opacity-95 active:scale-95 transition-all"
+              >
+                <IconUserPlus size={16} strokeWidth={2.5} />
+                <span>어르신 등록</span>
+              </button>
+            </div>
+
             {/* One UI 9.0 Search Capsule */}
             <div className="mb-3.5 relative">
               <input
@@ -1928,7 +1958,18 @@ function MainApp() {
                   <IconUser size={36} />
                 </div>
                 <p className="font-black text-lg text-foreground/80 mb-1">등록된 어르신이 없습니다.</p>
-                <p className="text-sm text-foreground/50">우측 상단 또는 지도 화면에서 새로운 어르신을 추가해보세요.</p>
+                <p className="text-sm text-foreground/50 mb-4">새로운 어르신을 등록하고 방문 경로를 관리해보세요.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingRecipient(null);
+                    setIsModalOpen(true);
+                  }}
+                  className="px-5 py-3 bg-primary text-primary-foreground font-black text-sm rounded-full shadow-md active:scale-95 transition-all flex items-center gap-2"
+                >
+                  <IconUserPlus size={18} strokeWidth={2.5} />
+                  새 어르신 등록하기
+                </button>
               </div>
             ) : (
               <div className={listViewMode === 'grid' ? "grid grid-cols-2 gap-3.5" : "space-y-4"}>
@@ -1960,7 +2001,17 @@ function MainApp() {
                       <div className="flex flex-col items-center justify-center text-foreground/50 mt-12 bg-surface/80 rounded-[32px] py-12 px-6 shadow-xs border border-surface-border text-center">
                         <IconSearch size={44} className="text-foreground/20 mb-3" />
                         <p className="font-black text-lg text-foreground/70 mb-1">검색 조건에 맞는 어르신이 없습니다.</p>
-                        <p className="text-xs text-foreground/40">검색어나 필터 조건을 변경해보세요.</p>
+                        <p className="text-xs text-foreground/40 mb-4">검색어나 필터 조건을 변경해보세요.</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setListFilter('all');
+                          }}
+                          className="px-4 py-2 bg-surface-muted hover:bg-surface-border text-foreground/70 font-bold text-xs rounded-full border border-surface-border transition-colors active:scale-95"
+                        >
+                          필터 및 검색 초기화
+                        </button>
                       </div>
                     );
                   }
@@ -2139,6 +2190,19 @@ function MainApp() {
                 })()}
               </div>
             )}
+
+            {/* Floating Action Button for List View */}
+            <button
+              onClick={() => {
+                setEditingRecipient(null);
+                setIsModalOpen(true);
+              }}
+              className="fixed bottom-[84px] right-5 z-40 w-[58px] h-[58px] flex items-center justify-center rounded-[22px] shadow-[0_12px_28px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200 animate-fade-in-up"
+              aria-label="어르신 추가"
+              title="새 어르신 등록"
+            >
+              <IconUserPlus size={26} strokeWidth={2.5} />
+            </button>
           </div>
         )}
 
@@ -2190,12 +2254,20 @@ function MainApp() {
 
             {scheduleDate && (
               scheduleRoute.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-12 pb-16 animate-fade-in-up">
+                <div className="flex flex-col items-center justify-center h-full text-foreground/50 mt-12 pb-16 animate-fade-in-up text-center">
                   <div className="w-20 h-20 bg-surface rounded-full flex items-center justify-center shadow-sm mb-4">
                     <IconCalendarEvent size={32} className="text-slate-300" />
                   </div>
                   <p className="font-bold text-lg text-foreground/60 mb-1">일정이 없습니다.</p>
-                  <p className="text-sm text-foreground/40">우측 하단 + 버튼을 눌러 어르신을 추가하세요.</p>
+                  <p className="text-sm text-foreground/40 mb-4">선택하신 날짜에 방문할 어르신을 추가해보세요.</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleAddOpen(true)}
+                    className="px-5 py-2.5 bg-primary text-primary-foreground font-black text-sm rounded-full shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+                  >
+                    <IconPlus size={18} strokeWidth={2.5} />
+                    일정에 어르신 추가
+                  </button>
                 </div>
               ) : (
               <div className="relative pl-6 space-y-4 mt-4">
@@ -2359,9 +2431,11 @@ function MainApp() {
             {scheduleDate && (
               <button
                 onClick={() => setIsScheduleAddOpen(true)}
-                className="fixed bottom-[100px] right-5 z-40 w-[60px] h-[60px] flex items-center justify-center rounded-[24px] shadow-[0_16px_32px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200 animate-fade-in-up"
+                className="fixed bottom-[84px] right-5 z-40 w-[58px] h-[58px] flex items-center justify-center rounded-[22px] shadow-[0_12px_28px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200 animate-fade-in-up"
+                aria-label="일정에 어르신 추가"
+                title="방문 일정 추가"
               >
-                <IconPlus size={32} strokeWidth={2.5} />
+                <IconPlus size={30} strokeWidth={2.5} />
               </button>
             )}
           </div>
@@ -2710,6 +2784,7 @@ function MainApp() {
       </nav>
 
       <VoiceMemoModal
+        key={completingRecipient?.id || 'none'}
         isOpen={Boolean(completingRecipient)}
         onClose={() => setCompletingRecipient(null)}
         onSave={handleSaveMemo}
