@@ -1175,7 +1175,7 @@ function MainApp() {
   };
 
   const handleDirections = (lat: number, lng: number, address: string, detail: string | null = null) => {
-    let prefType: 'system' | 'tmap' | 'kakao' | 'naver' = 'naver';
+    let prefType: 'system' | 'tmap' | 'kakao' | 'naver' = 'system';
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('careroute_default_navi');
       if (saved === 'system' || saved === 'kakao' || saved === 'tmap' || saved === 'naver') {

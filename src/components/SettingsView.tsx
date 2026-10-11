@@ -6,7 +6,7 @@ import {
   IconBug, IconRefresh, IconBell, IconBellRinging, IconCheck, 
   IconAlertTriangle, IconInfoCircle, IconDeviceMobile,
   IconClock, IconBrandGoogle, IconCalendarEvent,
-  IconMapPin, IconNavigation, IconSparkles,
+  IconMapPin, IconSparkles,
   IconHelp, IconDownload, IconDatabase,
   IconExternalLink, IconAlertCircle,
   IconSearch, IconX, IconTypography, IconShieldCheck
@@ -65,10 +65,6 @@ export default function SettingsView({
   // 설정 검색어
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 내비게이션 설정
-  const [defaultNavi, setDefaultNavi] = useState('naver');
-  const [showNaviPicker, setShowNaviPicker] = useState(false);
-
   // 방문 일정 기본 설정
   const [defaultDuration, setDefaultDuration] = useState('60');
   const [dimCompleted, setDimCompleted] = useState(true);
@@ -89,9 +85,6 @@ export default function SettingsView({
     setMounted(true);
     const savedColor = localStorage.getItem('careroute_color_theme') || 'theme-navy';
     setColorTheme(savedColor);
-
-    const savedNavi = localStorage.getItem('careroute_default_navi') || 'naver';
-    setDefaultNavi(savedNavi);
 
     const savedDuration = localStorage.getItem('careroute_default_duration') || '60';
     setDefaultDuration(savedDuration);
@@ -122,14 +115,6 @@ export default function SettingsView({
     document.documentElement.classList.add(newTheme);
     localStorage.setItem('careroute_color_theme', newTheme);
     setColorTheme(newTheme);
-  };
-
-  const handleNaviChange = (navi: string) => {
-    setDefaultNavi(navi);
-    localStorage.setItem('careroute_default_navi', navi);
-    setShowNaviPicker(false);
-    const naviName = navi === 'system' ? '시스템 기본 지도' : navi === 'naver' ? '네이버 지도' : navi === 'kakao' ? '카카오맵' : '티맵';
-    setFeedbackMessage({ type: 'success', text: `기본 내비게이션이 '${naviName}'(으)로 설정되었습니다.` });
   };
 
   const handleDurationChange = (duration: string) => {
@@ -217,6 +202,19 @@ export default function SettingsView({
     setIsTestingNotif(true);
     setFeedbackMessage(null);
     try {
+      if (notifStatus?.permission !== 'granted') {
+        const resPerm = await requestNotificationPermission();
+        await refreshNotifStatus();
+        if (!resPerm.success) {
+          if (resPerm.permission === 'denied') {
+            setShowUnblockGuide(true);
+            setFeedbackMessage({ type: 'error', text: '알림 권한이 차단되어 있습니다. 브라우저/기기 설정에서 허용해주세요.' });
+          } else {
+            setFeedbackMessage({ type: 'info', text: '알림 권한이 허용되어야 테스트 알림을 발송할 수 있습니다.' });
+          }
+          return;
+        }
+      }
       const res = await sendTestNotification();
       if (res.success) {
         setFeedbackMessage({ type: 'success', text: '테스트 알림을 발송했습니다! 기기 상단/잠금화면 알림을 확인해보세요.' });
@@ -250,19 +248,21 @@ export default function SettingsView({
 
   // 검색 가능한 설정 항목들
   const searchableSettings = useMemo(() => [
-    { id: 'navi', category: '길안내 및 지도', title: '기본 내비게이션 앱', desc: '네이버 지도, 카카오맵, 티맵 선택' },
-    { id: 'gps', category: '길안내 및 지도', title: '위치 서비스(GPS) 상태', desc: '현재 GPS 권한 및 위치 탐색' },
-    { id: 'calendar', category: '일정 및 동기화', title: '구글 캘린더 동기화', desc: '방문 일정을 구글 캘린더로 내보내기' },
-    { id: 'duration', category: '일정 및 동기화', title: '기본 방문 소요 시간', desc: '방문당 기본 일정 시간(30분~120분)' },
-    { id: 'dim', category: '일정 및 동기화', title: '완료된 방문 흐리게 표시', desc: '오늘 완료된 어르신 카드 시각적 구분' },
-    { id: 'push', category: '알림', title: '방문 시간 푸시 알림', desc: '방문 예정 시간 사전 리마인더 수신' },
-    { id: 'lead', category: '알림', title: '알림 사전 안내 시간', desc: '방문 10분/15분/30분 전 알림' },
-    { id: 'theme', category: '화면 및 테마', title: '화면 테마 모드', desc: '라이트, 다크, 시스템 자동 모드' },
-    { id: 'color', category: '화면 및 테마', title: '강조 컬러 테마', desc: '포인트 컬러 스타일 변경' },
-    { id: 'font', category: '화면 및 테마', title: '큰 글씨 모드', desc: '가독성을 높이는 폰트 확대' },
+    { id: 'permission', category: '권한 상태', title: '위치 서비스 (GPS) 상태', desc: '내 위치 중심 지도 및 거리 계산 권한' },
+    { id: 'calendar', category: '구글 캘린더 동기화', title: '구글 캘린더 방문 일정 동기화', desc: '스마트폰 캘린더로 당일 방문 일정 내보내기' },
+    { id: 'duration', category: '구글 캘린더 동기화', title: '기본 방문 권장 시간', desc: '방문당 기본 일정 시간(30분~120분)' },
+    { id: 'dim', category: '구글 캘린더 동기화', title: '완료된 일정 시각적 구분', desc: '오늘 완료된 어르신 카드 흐리게 처리' },
+    { id: 'push', category: '알림 권한 상태', title: '알림 권한 상태', desc: '방문 예정 시간 시스템 푸시 알림 수신 상태' },
+    { id: 'test-notif', category: '테스트 알림 발송', title: '테스트 알림 발송', desc: '실제 기기 상단/잠금화면 푸시 알림 즉시 시험 발송' },
+    { id: 'lead', category: '알림 권한 상태', title: '사전 리마인더 알림 시점', desc: '방문 10분/15분/30분 전 알림' },
+    { id: 'theme', category: '화면 및 디스플레이', title: '화면 모드 (테마)', desc: '라이트, 다크, 시스템 자동 모드' },
+    { id: 'color', category: '화면 및 디스플레이', title: '강조 컬러 선택', desc: '포인트 컬러 스타일 변경' },
+    { id: 'font', category: '화면 및 디스플레이', title: '큰 글씨 가독성 모드', desc: '가독성을 높이는 폰트 확대' },
     { id: 'backup', category: '데이터 및 저장공간', title: '수급자 데이터 백업 다운로드', desc: 'JSON 파일로 안전하게 보관' },
-    { id: 'cache', category: '데이터 및 저장공간', title: '캐시 초기화 및 강력 새로고침', desc: '오프라인 캐시 및 앱 새로고침' },
-    { id: 'tutorial', category: '앱 정보 및 지원', title: '앱 사용법 가이드', desc: '핵심 사용법 튜토리얼 다시 보기' },
+    { id: 'cache', category: '데이터 및 저장공간', title: '오프라인 캐시 초기화 및 강력 새로고침', desc: '오프라인 캐시 및 앱 새로고침' },
+    { id: 'tutorial', category: '앱 정보 및 고객지원', title: '앱 사용법 가이드 튜토리얼', desc: '핵심 사용법 튜토리얼 다시 보기' },
+    { id: 'version', category: '앱 정보 및 고객지원', title: '버전 정보', desc: '최신 정식 빌드 v1.4.0' },
+    { id: 'support', category: '앱 정보 및 고객지원', title: '현장 개선 건의 및 버그 제보', desc: '기능 제안 및 버그 제보' },
   ], []);
 
   const searchResults = useMemo(() => {
@@ -370,7 +370,7 @@ export default function SettingsView({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="설정 항목 검색 (예: 내비, 알림, 테마, 백업...)"
+            placeholder="설정 항목 검색 (예: 권한, 캘린더, 알림, 테마, 백업...)"
             className="w-full bg-white dark:bg-[#1C1C1E] rounded-[20px] py-3 pl-11 pr-10 text-[14px] font-bold text-black dark:text-white placeholder:text-[#8E8E93] border border-black/[0.04] dark:border-white/[0.08] shadow-xs outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition-all"
           />
           <IconSearch size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8E8E93]" />
@@ -396,7 +396,7 @@ export default function SettingsView({
               <div className="py-10 text-center text-[#8E8E93]">
                 <IconSearch size={32} className="mx-auto mb-2 opacity-30" />
                 <p className="font-bold text-sm">일치하는 설정이 없습니다.</p>
-                <p className="text-xs mt-1 text-[#8E8E93]/70">내비, 알림, 테마, 백업 등으로 검색해보세요.</p>
+                <p className="text-xs mt-1 text-[#8E8E93]/70">권한, 캘린더, 알림, 테마, 백업 등으로 검색해보세요.</p>
               </div>
             ) : (
               searchResults.map((item) => (
@@ -423,84 +423,13 @@ export default function SettingsView({
           </div>
         ) : (
           <>
-            {/* 1. 길안내 및 지도 환경 설정 (NAVIGATION & MAP) */}
-            <div id="section-navi">
+            {/* 1. 권한 상태 (PERMISSION STATUS) */}
+            <div id="section-permission">
               <span className="text-[12px] font-black text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
-                길안내 및 지도 환경
+                권한 상태
               </span>
 
               <div className="bg-white dark:bg-[#1C1C1E] rounded-[24px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
-                {/* 기본 내비게이션 선택기 */}
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setShowNaviPicker(!showNaviPicker)}
-                    className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-[32px] h-[32px] rounded-[10px] bg-[#007AFF] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                        <IconNavigation size={18} strokeWidth={2.5} />
-                      </div>
-                      <div>
-                        <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
-                          기본 내비게이션 앱
-                        </span>
-                        <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
-                          어르신 댁 길안내 터치 시 연동 앱
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[14px] font-black text-[#007AFF]">
-                        {defaultNavi === 'system' ? '시스템 기본 지도' : defaultNavi === 'kakao' ? '카카오맵' : defaultNavi === 'tmap' ? '티맵 (TMAP)' : '네이버 지도'}
-                      </span>
-                      <IconChevronRight size={17} className={`text-[#C7C7CC] transition-transform ${showNaviPicker ? 'rotate-90' : ''}`} />
-                    </div>
-                  </button>
-
-                  <AnimatePresence>
-                    {showNaviPicker && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="px-4 pb-3.5 pt-1 border-t border-black/[0.04] dark:border-white/[0.05] bg-[#F9F9FB] dark:bg-[#161618]"
-                      >
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-                          {[
-                            { id: 'system', name: '시스템 지도', isSystem: true },
-                            { id: 'naver', name: '네이버 지도', icon: 'https://ssl.pstatic.net/static/maps/assets/icons/favicon.ico' },
-                            { id: 'kakao', name: '카카오맵', icon: 'https://map.kakao.com/favicon.ico' },
-                            { id: 'tmap', name: '티맵 (TMAP)', icon: 'https://www.tmapmobility.com/favicon.ico' },
-                          ].map(item => (
-                            <button
-                              key={item.id}
-                              type="button"
-                              onClick={() => handleNaviChange(item.id)}
-                              className={`py-3 px-2 rounded-[16px] border transition-all flex flex-col items-center justify-center gap-1.5 active:scale-95 ${
-                                defaultNavi === item.id
-                                  ? 'bg-white dark:bg-[#2C2C2E] border-[#007AFF] text-[#007AFF] font-black shadow-xs ring-2 ring-[#007AFF]/20'
-                                  : 'bg-white dark:bg-[#1C1C1E] border-black/[0.06] dark:border-white/[0.08] text-[#8E8E93] font-bold'
-                              }`}
-                            >
-                              {item.isSystem ? (
-                                <div className="w-5 h-5 rounded-[5px] bg-[#007AFF]/10 text-[#007AFF] flex items-center justify-center">
-                                  <IconNavigation size={14} />
-                                </div>
-                              ) : (
-                                /* eslint-disable-next-line @next/next/no-img-element */
-                                <img src={item.icon} alt="" className="w-5 h-5 rounded-[5px] object-contain" />
-                              )}
-                              <span className="text-[12px]">{item.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
                 {/* GPS 위치 서비스 상태 */}
                 <div id="section-gps" className="px-4 py-3.5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -529,10 +458,10 @@ export default function SettingsView({
               </div>
             </div>
 
-            {/* 2. 일정 및 캘린더 연동 설정 (SCHEDULE & SYNC) */}
+            {/* 2. 구글 캘린더 동기화 (GOOGLE CALENDAR SYNC) */}
             <div id="section-calendar">
               <span className="text-[12px] font-black text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
-                일정 및 캘린더 연동
+                구글 캘린더 동기화
               </span>
 
               <div className="bg-white dark:bg-[#1C1C1E] rounded-[24px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
@@ -633,10 +562,10 @@ export default function SettingsView({
               </div>
             </div>
 
-            {/* 3. 알림 설정 (NOTIFICATIONS) */}
+            {/* 3. 알림 권한 상태 및 테스트 발송 (NOTIFICATIONS & TEST) */}
             <div id="section-push">
               <span className="text-[12px] font-black text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
-                방문 리마인더 알림
+                알림 권한 상태 및 테스트 알림 발송
               </span>
 
               <div className="bg-white dark:bg-[#1C1C1E] rounded-[24px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
@@ -649,10 +578,10 @@ export default function SettingsView({
                       </div>
                       <div>
                         <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
-                          방문 예정 시간 시스템 푸시
+                          알림 권한 상태
                         </span>
                         <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
-                          PC 데스크톱 및 모바일 상단 알림
+                          방문 예정 시간 시스템 푸시 알림 권한
                         </span>
                       </div>
                     </div>
@@ -704,6 +633,39 @@ export default function SettingsView({
                   </AnimatePresence>
                 </div>
 
+                {/* 테스트 알림 발송 */}
+                <div id="section-test-notif" className="px-4 py-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-[32px] h-[32px] rounded-[10px] bg-[#FF9500] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                      <IconBell size={18} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                      <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
+                        테스트 알림 발송
+                      </span>
+                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
+                        실제 기기 상단/잠금화면 푸시 알림 즉시 시험 발송
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleTestNotification}
+                    disabled={isTestingNotif}
+                    className="px-3.5 py-1.5 rounded-full bg-[#FF9500]/10 hover:bg-[#FF9500]/20 text-[#FF9500] font-black text-[13px] active:scale-95 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                  >
+                    {isTestingNotif ? (
+                      <div className="w-3.5 h-3.5 border-2 border-[#FF9500] border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <IconBellRinging size={15} strokeWidth={2.4} />
+                        <span>지금 발송</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
                 {/* 사전 알림 리드타임 설정 */}
                 <div id="section-lead" className="px-4 py-3.5 flex flex-col gap-2">
                   <div className="flex items-center justify-between">
@@ -738,29 +700,6 @@ export default function SettingsView({
                     ))}
                   </div>
                 </div>
-
-                {/* 알림 즉시 테스트 버튼 */}
-                {currentNotifPerm === 'granted' && (
-                  <button
-                    onClick={handleTestNotification}
-                    disabled={isTestingNotif}
-                    className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-[32px] h-[32px] rounded-[10px] bg-[#FF9500] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                        <IconBell size={18} strokeWidth={2.5} />
-                      </div>
-                      <span className="text-[15px] font-bold text-[#007AFF] tracking-tight">
-                        시스템 알림 지금 즉시 테스트 발송
-                      </span>
-                    </div>
-                    {isTestingNotif ? (
-                      <div className="w-4 h-4 border-2 border-[#007AFF] border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <IconChevronRight size={17} className="text-[#C7C7CC]" />
-                    )}
-                  </button>
-                )}
               </div>
             </div>
 
@@ -945,6 +884,7 @@ export default function SettingsView({
 
                 {/* 버전 정보 */}
                 <a
+                  id="section-version"
                   href="https://github.com/LeeAn0121/CareRoute/releases"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -964,6 +904,7 @@ export default function SettingsView({
 
                 {/* 기능 제안 및 버그 제보 */}
                 <a
+                  id="section-support"
                   href="https://github.com/LeeAn0121/CareRoute/issues/new"
                   target="_blank"
                   rel="noopener noreferrer"
