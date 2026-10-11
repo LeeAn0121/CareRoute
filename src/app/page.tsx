@@ -2843,6 +2843,7 @@ function MainApp() {
           todayTotalCount={markers.filter(m => getScheduledForDate(m, new Date())).length}
           todayCompletedCount={markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length}
           onNavigateTab={(tab) => setActiveTab(tab)}
+          recipients={markers}
           onOpenAddRecipient={() => {
             setEditingRecipient(null);
             setIsModalOpen(true);
@@ -3306,7 +3307,7 @@ function MainApp() {
                 return 'bg-[#FF9500] text-white font-bold';
               })()
             },
-            { key: 'settings' as const, label: '케어허브', Icon: IconLayoutGrid },
+            { key: 'settings' as const, label: '설정', Icon: IconSettings },
           ]).map(({ key, label, Icon, badge, badgeColor }) => {
             const isActive = activeTab === key;
             return (
