@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2 } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
@@ -169,6 +169,27 @@ function MainApp() {
   const [markers, setMarkers] = useState<Recipient[]>([]);
   const [mapCenter, setMapCenter] = useState({ lat: 37.5665, lng: 126.9780 });
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isMapSearchOpen, setIsMapSearchOpen] = useState(false);
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
+
+  const handleZoomIn = () => {
+    if (mapRef.current) {
+      const curZoom = mapRef.current.getZoom?.() ?? mapZoom;
+      const nextZoom = Math.min(curZoom + 1, 20);
+      mapRef.current.setZoom(nextZoom);
+      setMapZoom(nextZoom);
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapRef.current) {
+      const curZoom = mapRef.current.getZoom?.() ?? mapZoom;
+      const nextZoom = Math.max(curZoom - 1, 6);
+      mapRef.current.setZoom(nextZoom);
+      setMapZoom(nextZoom);
+    }
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
@@ -1636,43 +1657,121 @@ function MainApp() {
         )}
       </AnimatePresence>
 
-      {/* Top Floating NowBar Header */}
+      {/* Top Floating NowBar Header - Modern iOS / Smart Island Style */}
       {activeTab === 'map' && (
-      <header className="absolute top-[env(safe-area-inset-top,0px)] left-4 right-4 z-20 flex flex-col items-start gap-3 mt-3 pointer-events-none">
-        {/* Dynamic NowBar: Address Pill & Live Weather */}
-        <div id="tour-header" className="flex w-full items-start gap-3">
-          {/* Dynamic NowBar Capsule */}
-          <div className="flex-1 flex flex-col pointer-events-auto bg-surface/85 supports-[backdrop-filter]:bg-surface/70 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_16px_40px_rgba(0,0,0,0.1)] border border-white/30 dark:border-white/10 overflow-hidden transition-all">
-            
-            {/* Location Pill Button */}
-            <button 
-              onClick={() => setShowRegionFilter(!showRegionFilter)}
-              className="flex items-center justify-between w-full px-5 py-3.5 hover:bg-foreground/[0.03] active:bg-foreground/[0.06] transition-colors"
-            >
-              <div className="flex items-start gap-3 flex-1 min-w-0 w-full">
-                <div className="w-8 h-8 mt-0.5 shrink-0 rounded-[14px] bg-primary/10 flex items-center justify-center text-primary shadow-xs">
-                  <IconMapPin size={18} strokeWidth={2.5} />
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-primary/70 block">현재 탐색 지역</span>
-                  <span className="text-[15px] font-black tracking-tight text-foreground text-left whitespace-normal break-words leading-snug block">
-                    {currentAddress}
-                  </span>
-                </div>
+      <header className="absolute top-[env(safe-area-inset-top,0px)] left-3.5 right-3.5 z-20 flex flex-col items-start gap-2 mt-2.5 pointer-events-none">
+        {/* Dynamic NowBar Capsule */}
+        <div id="tour-header" className="flex w-full items-center gap-2 pointer-events-auto">
+          {/* Location Button */}
+          <button 
+            onClick={() => setShowRegionFilter(!showRegionFilter)}
+            className="flex-1 min-w-0 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[36px] saturate-200 rounded-[28px] py-2.5 px-4 shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-between hover:bg-surface active:scale-[0.98] transition-all text-left"
+          >
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 shrink-0 rounded-[12px] bg-primary/10 flex items-center justify-center text-primary shadow-2xs">
+                <IconMapPin size={17} strokeWidth={2.5} />
               </div>
-              <div className="w-7 h-7 rounded-full bg-foreground/[0.04] flex items-center justify-center shrink-0 ml-2">
-                <IconChevronRight size={16} className="text-foreground/50" />
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-primary/70 block leading-tight">탐색 위치</span>
+                <span className="text-[14px] font-extrabold text-foreground truncate block leading-snug">
+                  {currentAddress}
+                </span>
               </div>
-            </button>
-
-            {/* Integrated Live Weather Widget Capsule */}
-            <div className="px-5 pb-3.5 pt-0 flex justify-start">
-              <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
             </div>
+            <IconChevronDown size={16} className={`text-foreground/40 shrink-0 ml-1.5 transition-transform ${showRegionFilter ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Integrated Live Weather Widget Capsule */}
+          <div className="bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[36px] saturate-200 rounded-[28px] py-2 px-3 shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 shrink-0 flex items-center">
+            <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} />
           </div>
+
+          {/* Map Search Toggle Button */}
+          <button
+            onClick={() => {
+              setIsMapSearchOpen(!isMapSearchOpen);
+              if (isMapSearchOpen) setMapSearchQuery('');
+            }}
+            className={`w-11 h-11 rounded-[24px] shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-center shrink-0 active:scale-95 transition-all ${
+              isMapSearchOpen ? 'bg-primary text-primary-foreground shadow-primary/30' : 'bg-surface/90 supports-[backdrop-filter]:bg-surface/80 text-foreground/80 hover:bg-surface'
+            }`}
+            title="지도에서 어르신 검색"
+          >
+            {isMapSearchOpen ? <IconX size={18} /> : <IconSearch size={18} strokeWidth={2.5} />}
+          </button>
         </div>
 
-        {/* Region Filter Dropdown - One UI 9.0 Grouped Inset Card */}
+        {/* In-Map Search Bar Popup */}
+        <AnimatePresence>
+          {isMapSearchOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              className="w-full bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[26px] p-3 shadow-[0_16px_40px_rgba(0,0,0,0.15)] border border-white/40 dark:border-white/10 pointer-events-auto space-y-2"
+            >
+              <div className="relative">
+                <input
+                  type="text"
+                  autoFocus
+                  value={mapSearchQuery}
+                  onChange={(e) => setMapSearchQuery(e.target.value)}
+                  placeholder="어르신 성함 또는 주소 검색 (예: 김순자, 강남대로...)"
+                  className="w-full bg-foreground/[0.04] dark:bg-white/[0.06] rounded-[20px] py-2.5 pl-10 pr-9 text-[14px] font-bold text-foreground placeholder:text-foreground/40 outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                />
+                <IconSearch size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/40" />
+                {mapSearchQuery && (
+                  <button
+                    onClick={() => setMapSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-foreground/10 flex items-center justify-center text-foreground/50"
+                  >
+                    <IconX size={12} />
+                  </button>
+                )}
+              </div>
+
+              {/* Instant Search Results Dropdown */}
+              {mapSearchQuery.trim() !== '' && (
+                <div className="max-h-48 overflow-y-auto divide-y divide-surface-border/40 pt-1">
+                  {markers
+                    .filter(m => m.name.includes(mapSearchQuery.trim()) || m.address.includes(mapSearchQuery.trim()))
+                    .slice(0, 5)
+                    .map(m => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setMapCenter({ lat: m.lat, lng: m.lng });
+                          setMapZoom(17);
+                          setSelectedRecipient(m);
+                          setIsMapSearchOpen(false);
+                          setMapSearchQuery('');
+                        }}
+                        className="w-full py-2 px-2 flex items-center justify-between text-left hover:bg-foreground/[0.04] rounded-xl transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-black text-xs">
+                            {m.name[0]}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-bold text-foreground truncate">{m.name} 어르신</p>
+                            <p className="text-[11px] text-foreground/50 truncate">{m.address}</p>
+                          </div>
+                        </div>
+                        <IconNavigation size={14} className="text-primary shrink-0" />
+                      </button>
+                    ))}
+                  {markers.filter(m => m.name.includes(mapSearchQuery.trim()) || m.address.includes(mapSearchQuery.trim())).length === 0 && (
+                    <div className="py-4 text-center text-xs font-bold text-foreground/40">
+                      일치하는 어르신이 없습니다.
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Region Filter Dropdown - Inset Card */}
         {showRegionFilter && (
         <div className="mt-1 p-5 bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/30 dark:border-white/10 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[340px]">
           <div className="flex items-center justify-between pb-3.5 border-b border-surface-border/40 mb-4">
@@ -1831,13 +1930,13 @@ function MainApp() {
           <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background">
             
             {/* List View Header & Add Action */}
-            <div className="mb-3.5 flex items-center justify-between gap-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <p className="text-lg font-black text-primary">
-                  어르신 명단
+                <p className="text-xl font-black text-foreground tracking-tight">
+                  수급자 어르신 명단
                 </p>
                 <p className="text-xs text-foreground/50 font-semibold">
-                  총 {markers.length}분 등록됨
+                  총 {markers.length}분의 어르신이 등록되어 있습니다
                 </p>
               </div>
 
@@ -1852,6 +1951,33 @@ function MainApp() {
                 <IconUserPlus size={16} strokeWidth={2.5} />
                 <span>어르신 등록</span>
               </button>
+            </div>
+
+            {/* Live Care Insight Metrics Bar */}
+            <div className="grid grid-cols-4 gap-2 mb-3.5">
+              {[
+                { key: 'all' as const, label: '전체', count: markers.length, color: 'text-primary', bg: 'bg-primary/10' },
+                { key: 'today' as const, label: '오늘 방문', count: markers.filter(m => getScheduledForDate(m, new Date())).length, color: 'text-[#FF9500]', bg: 'bg-[#FF9500]/10' },
+                { key: 'completed' as const, label: '방문 완료', count: markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length, color: 'text-[#34C759]', bg: 'bg-[#34C759]/10' },
+                { key: 'incomplete' as const, label: '미방문', count: markers.filter(m => getScheduledForDate(m, new Date()) && !isCompletedToday(m)).length, color: 'text-[#FF2D55]', bg: 'bg-[#FF2D55]/10' },
+              ].map(stat => (
+                <button
+                  key={stat.key}
+                  type="button"
+                  onClick={() => setListFilter(stat.key)}
+                  className={`p-2.5 rounded-[18px] transition-all text-left flex flex-col justify-between ${
+                    listFilter === stat.key 
+                      ? `${stat.bg} ring-2 ring-primary shadow-xs` 
+                      : 'bg-surface/80 hover:bg-surface border border-surface-border/40'
+                  }`}
+                >
+                  <span className="text-[10px] font-bold text-foreground/50 block truncate leading-tight">{stat.label}</span>
+                  <div className="flex items-baseline gap-0.5 mt-1">
+                    <span className={`text-[17px] font-black tracking-tight ${stat.color}`}>{stat.count}</span>
+                    <span className="text-[10px] font-bold text-foreground/40">명</span>
+                  </div>
+                </button>
+              ))}
             </div>
 
             {/* One UI 9.0 Search Capsule */}
@@ -2084,31 +2210,70 @@ function MainApp() {
                           </div>
                         </div>
 
-                        {/* Address Box */}
-                        <div className="bg-foreground/[0.03] dark:bg-white/[0.04] rounded-[22px] p-3.5 mb-4 flex gap-2.5 items-center border border-surface-border/30">
-                          <IconMapPin size={20} className="text-primary/70 shrink-0" />
-                          <p className="font-bold text-foreground/75 leading-snug text-[13px] line-clamp-2">
-                            {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
-                          </p>
+                        {/* Address & Door Passcode Box */}
+                        <div className="bg-foreground/[0.03] dark:bg-white/[0.04] rounded-[22px] p-3.5 mb-3.5 space-y-2 border border-surface-border/30">
+                          <div className="flex gap-2.5 items-center">
+                            <IconMapPin size={18} className="text-primary/70 shrink-0" />
+                            <p className="font-bold text-foreground/80 leading-snug text-[13px] line-clamp-2">
+                              {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
+                            </p>
+                          </div>
+                          {(marker.door_passcode || marker.parking_memo) && (
+                            <div className="flex items-center gap-2 pt-1 border-t border-surface-border/20 text-xs flex-wrap">
+                              {marker.door_passcode && (
+                                <span className="inline-flex items-center gap-1 font-black text-amber-800 dark:text-amber-200 bg-amber-500/10 px-2.5 py-0.5 rounded-full">
+                                  <IconKey size={12} strokeWidth={2.5} /> 비번 {marker.door_passcode}
+                                </span>
+                              )}
+                              {marker.parking_memo && (
+                                <span className="inline-flex items-center gap-1 font-black text-blue-800 dark:text-blue-200 bg-blue-500/10 px-2.5 py-0.5 rounded-full">
+                                  <IconCar size={12} /> {marker.parking_memo}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
 
-                        {/* Card Action Buttons */}
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="ghost" 
-                            onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} 
-                            className="flex-1 py-3 text-[14px] font-black rounded-[18px]"
-                          >
-                            정보 수정
-                          </Button>
-                          <Button 
-                            variant="dark" 
-                            startIcon={<IconNavigation size={17} />} 
+                        {/* Card Action Buttons: 4 Quick Actions */}
+                        <div className="grid grid-cols-4 gap-2">
+                          <button 
+                            type="button"
                             onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} 
-                            className="flex-[1.5] py-3 text-[14px] font-black rounded-[18px] shadow-md shadow-foreground/20"
+                            className="py-2.5 rounded-[16px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs"
                           >
-                            길안내 시작
-                          </Button>
+                            <IconNavigation size={15} />
+                            <span>길안내</span>
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setCompletingRecipient(marker); }} 
+                            className="py-2.5 rounded-[16px] bg-primary/10 hover:bg-primary/15 text-primary text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
+                          >
+                            <IconMessageCircle size={15} />
+                            <span>음성 일지</span>
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              setMapCenter({ lat: marker.lat, lng: marker.lng }); 
+                              setMapZoom(17); 
+                              setActiveTab('map'); 
+                              setSelectedRecipient(marker); 
+                            }} 
+                            className="py-2.5 rounded-[16px] bg-foreground/[0.04] dark:bg-white/[0.06] hover:bg-foreground/[0.08] text-foreground text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-surface-border/40"
+                          >
+                            <IconMapPin size={15} />
+                            <span>지도 보기</span>
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} 
+                            className="py-2.5 rounded-[16px] bg-foreground/[0.04] dark:bg-white/[0.06] hover:bg-foreground/[0.08] text-foreground/70 text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all"
+                          >
+                            <IconPencil size={15} />
+                            <span>수정</span>
+                          </button>
                         </div>
                       </div>
                     )}
@@ -2210,14 +2375,14 @@ function MainApp() {
             최근접 삽입 휴리스틱으로 방문 순서를 매겨 보여준다. */}
         {activeTab === 'route' && (
           <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background flex flex-col">
-            <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="mb-2.5 flex items-center justify-between gap-3">
               {scheduleDate && (
                 <div>
-                  <p className="text-lg font-black text-primary">
+                  <p className="text-xl font-black text-foreground tracking-tight">
                     {scheduleDate.toDateString() === new Date().toDateString() ? '오늘의 ' : `${scheduleDate.getMonth() + 1}월 ${scheduleDate.getDate()}일 `}
                     방문 일정
                   </p>
-                  <p className="text-sm text-foreground/50 font-semibold">
+                  <p className="text-xs text-foreground/50 font-semibold">
                     총 {scheduleRoute.length}곳 방문 예정
                   </p>
                 </div>
@@ -2230,19 +2395,70 @@ function MainApp() {
                     <button
                       type="button"
                       onClick={resetToOptimizedOrder}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-surface-muted text-foreground/70 hover:bg-surface-border transition-colors shadow-2xs active:scale-95 border border-surface-border/40"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-black bg-surface-muted text-foreground/80 hover:bg-surface-border transition-colors shadow-2xs active:scale-95 border border-surface-border/40"
                       title="거리/시간 기준 최적 순서로 복구"
                     >
                       <IconRotate2 size={13} />
                       최적 순서
                     </button>
                   )}
-                  <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">
+                  <span className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-black bg-primary/10 text-primary border border-primary/20">
                     <IconArrowsSort size={13} />
                     순서 조정 가능
                   </span>
                 </div>
               )}
+            </div>
+
+            {/* Quick Date Switcher & Progress Insight */}
+            <div className="bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[36px] rounded-[22px] p-3 mb-3 border border-white/30 dark:border-white/10 shadow-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  {[
+                    { label: '어제', offset: -1 },
+                    { label: '오늘', offset: 0 },
+                    { label: '내일', offset: 1 },
+                  ].map(btn => (
+                    <button
+                      key={btn.label}
+                      type="button"
+                      onClick={() => {
+                        const target = new Date();
+                        target.setDate(target.getDate() + btn.offset);
+                        setScheduleDate(target);
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-black transition-all active:scale-95 ${
+                        scheduleDate && scheduleDate.toDateString() === new Date(Date.now() + btn.offset * 86400000).toDateString()
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'bg-foreground/[0.04] text-foreground/60 hover:text-foreground'
+                      }`}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+
+                <span className="text-[12px] font-black text-foreground/75">
+                  {scheduleDate ? new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(scheduleDate) : ''}
+                </span>
+              </div>
+
+              {/* Progress metric */}
+              {scheduleRoute.length > 0 && (() => {
+                const completedCount = scheduleRoute.filter(r => isCompletedForDate(r, scheduleDate as Date)).length;
+                const percent = Math.round((completedCount / scheduleRoute.length) * 100);
+                return (
+                  <div className="space-y-1 pt-1 border-t border-surface-border/30">
+                    <div className="flex justify-between text-[11px] font-bold text-foreground/60">
+                      <span>방문 달성 현황</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-black">{completedCount} / {scheduleRoute.length}곳 완료 ({percent}%)</span>
+                    </div>
+                    <div className="w-full h-2 bg-foreground/[0.06] dark:bg-white/[0.06] rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Month Grid Calendar */}
@@ -2329,6 +2545,24 @@ function MainApp() {
                             <p className="text-xs text-foreground/60 font-semibold truncate leading-relaxed">
                               {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
                             </p>
+
+                            {/* 공동현관 비번 / 주차메모 배지 */}
+                            {(marker.door_passcode || marker.parking_memo) && (
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                                {marker.door_passcode && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-black text-[11px] border border-amber-500/20 shadow-2xs">
+                                    <IconKey size={13} strokeWidth={2.5} />
+                                    <span>비번: {marker.door_passcode}</span>
+                                  </span>
+                                )}
+                                {marker.parking_memo && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-400 font-bold text-[11px] border border-sky-500/20">
+                                    <IconCar size={13} />
+                                    <span className="max-w-[130px] truncate">{marker.parking_memo}</span>
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           {/* 순서 조정 (위/아래 이동) 컨트롤 */}
@@ -2369,54 +2603,72 @@ function MainApp() {
                           )}
                         </div>
 
-                        {/* One UI Action Buttons */}
-                        <div className="flex flex-wrap gap-2 mt-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex flex-1 gap-2 min-w-[140px]">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
-                              className={`flex-1 flex items-center justify-center gap-1 py-2.5 rounded-[16px] text-[13px] font-black transition-colors whitespace-nowrap active:scale-95 ${
-                              completed 
-                                ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border' 
-                                : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20'
-                            }`}
-                            >
-                              <IconCheck size={16} strokeWidth={2.5} />
-                              {completed ? '완료 취소' : '방문 완료'}
-                            </button>
-                            
-                            {completed ? (
+                        {/* Timeline Action Buttons */}
+                        <div className="flex flex-wrap items-center gap-2 mt-3.5 pt-3 border-t border-surface-border/40" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex flex-1 gap-1.5 min-w-[200px]">
+                            {!completed ? (
                               <button
-                                onClick={(e) => { e.stopPropagation(); handleShareReport(marker); }}
-                                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-[16px] text-[13px] font-black bg-amber-400 hover:bg-amber-500 text-stone-900 transition-colors whitespace-nowrap active:scale-95 shadow-xs"
-                              >
-                                <IconShare size={16} strokeWidth={2.5} />
-                                안심 공유
-                              </button>
-                            ) : (
-                              <button
+                                type="button"
                                 onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }}
-                                className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-[16px] text-[13px] font-black bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 hover:opacity-90 transition-opacity whitespace-nowrap active:scale-95 shadow-xs"
+                                className="flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 hover:opacity-90 transition-opacity whitespace-nowrap active:scale-95 shadow-xs"
                               >
-                                <IconNavigation size={16} />
-                                길안내
+                                <IconNavigation size={15} />
+                                <span>길안내</span>
+                              </button>
+                            ) : null}
+
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
+                              className={`flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black transition-all whitespace-nowrap active:scale-95 ${
+                                completed 
+                                  ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border border border-surface-border/40' 
+                                  : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 border border-emerald-500/25'
+                              }`}
+                            >
+                              <IconCheck size={15} strokeWidth={2.5} />
+                              <span>{completed ? '완료 취소' : '방문 완료'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setCompletingRecipient(marker); }}
+                              className="flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black bg-primary/10 hover:bg-primary/20 text-primary transition-colors whitespace-nowrap active:scale-95 border border-primary/20"
+                            >
+                              <IconMessageCircle size={15} />
+                              <span>일지</span>
+                            </button>
+
+                            {completed && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleShareReport(marker); }}
+                                className="flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black bg-amber-400 hover:bg-amber-500 text-stone-900 transition-colors whitespace-nowrap active:scale-95 shadow-xs"
+                              >
+                                <IconShare size={15} strokeWidth={2.5} />
+                                <span>공유</span>
                               </button>
                             )}
                           </div>
-                          
-                          <div className="flex gap-2 min-w-fit flex-1 sm:flex-none justify-end">
+
+                          <div className="flex items-center gap-1.5 ml-auto">
                             <button
+                              type="button"
                               onClick={(e) => { e.stopPropagation(); setManagingScheduleRecipient(marker); }}
-                              className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2.5 rounded-[16px] text-[13px] font-black bg-surface-muted/90 text-foreground/75 hover:bg-surface-border transition-colors whitespace-nowrap active:scale-95 border border-surface-border/40"
+                              className="px-3 py-2.5 rounded-[16px] text-[12px] font-black bg-surface-muted text-foreground/75 hover:bg-surface-border transition-colors whitespace-nowrap active:scale-95 border border-surface-border/40"
+                              title="일정 상세 관리"
                             >
-                              일정 관리
+                              관리
                             </button>
                             
                             <button
+                              type="button"
                               onClick={(e) => { e.stopPropagation(); handleRemoveFromSchedule(marker, scheduleDate); }}
-                              className="flex-shrink-0 flex items-center justify-center w-10 py-2.5 rounded-[16px] bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors active:scale-95 border border-red-500/20"
+                              className="w-9 h-9 flex items-center justify-center rounded-[16px] bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors active:scale-95 border border-red-500/20 shrink-0"
                               aria-label="일정에서 제외"
+                              title="일정에서 제외"
                             >
-                              <IconX size={16} strokeWidth={2.5} />
+                              <IconX size={15} strokeWidth={2.5} />
                             </button>
                           </div>
                         </div>
@@ -2462,11 +2714,37 @@ function MainApp() {
         />
       )}
 
-      {/* 맵 플로팅 컨트롤 툴바 (레이어 & 내위치) - One UI 9.0 Squircle Island */}
+      {/* 맵 플로팅 컨트롤 툴바 (줌 / 레이어 / 내위치) - One UI 9.0 Squircle Island */}
       {activeTab === 'map' && (
-        <div id="tour-map-controls" className="absolute right-4 bottom-[104px] z-40 flex flex-col items-center gap-3.5 pointer-events-none">
+        <div id="tour-map-controls" className={`absolute right-4 ${selectedRecipient && !isDetailModalOpen ? 'bottom-[230px]' : 'bottom-[104px]'} transition-all duration-300 z-40 flex flex-col items-center gap-3.5 pointer-events-none`}>
           
           <div className="flex flex-col items-center bg-surface/85 supports-[backdrop-filter]:bg-surface/70 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-white/30 dark:border-white/10 pointer-events-auto p-1.5 gap-1.5">
+            {/* 줌 확대 (+) */}
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.90 }}
+              onClick={handleZoomIn}
+              className="w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors hover:bg-foreground/[0.04] text-foreground/80 active:bg-foreground/[0.08]"
+              title="지도 확대"
+            >
+              <IconPlus size={20} strokeWidth={2.5} />
+            </motion.button>
+            
+            <div className="w-7 h-[1px] bg-foreground/10" />
+
+            {/* 줌 축소 (-) */}
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.90 }}
+              onClick={handleZoomOut}
+              className="w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors hover:bg-foreground/[0.04] text-foreground/80 active:bg-foreground/[0.08]"
+              title="지도 축소"
+            >
+              <IconMinus size={20} strokeWidth={2.5} />
+            </motion.button>
+
+            <div className="w-7 h-[1px] bg-foreground/10" />
+
             {/* 행정구역 보기 (Map Layers) */}
             <motion.button
               type="button"
@@ -2513,8 +2791,137 @@ function MainApp() {
         </div>
       )}
 
+      {/* 지도 하단 어르신 퀵 프리뷰 플로팅 카드 (Senior Floating Peek Card) */}
+      <AnimatePresence>
+        {activeTab === 'map' && selectedRecipient && !isDetailModalOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 30, scale: 0.96 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            className="fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-lg mx-auto z-40 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[40px] saturate-200 rounded-[30px] p-4 border border-white/30 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.18)]"
+          >
+            <div className="flex items-start gap-3.5">
+              {/* Squircle Profile Avatar */}
+              <div className="relative w-14 h-14 rounded-[22px] overflow-hidden bg-primary/10 flex items-center justify-center shrink-0 border border-surface-border/60 shadow-xs">
+                {selectedRecipient.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={selectedRecipient.photo_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <IconUser size={30} className="text-primary" />
+                )}
+                {isCompletedToday(selectedRecipient) && (
+                  <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs text-[11px] font-black border-2 border-surface">
+                    ✓
+                  </div>
+                )}
+              </div>
+
+              {/* Info Column */}
+              <div className="flex-1 min-w-0 pt-0.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-[17px] font-black text-foreground tracking-tight truncate">
+                    {selectedRecipient.name} 어르신
+                  </h3>
+                  {isCompletedToday(selectedRecipient) ? (
+                    <span className="px-2 py-0.5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-black text-[10px] rounded-full">
+                      방문완료
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 bg-primary/10 text-primary font-black text-[10px] rounded-full">
+                      {parseVisitTime(selectedRecipient.visit_time, selectedRecipient.notes).formattedText}
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-foreground/60 font-semibold truncate leading-relaxed">
+                  {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
+                </p>
+
+                {/* Badges: Passcode & Parking */}
+                {(selectedRecipient.door_passcode || selectedRecipient.parking_memo) && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    {selectedRecipient.door_passcode && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-black text-[10px] border border-amber-500/20 shadow-2xs">
+                        <IconKey size={11} strokeWidth={2.5} />
+                        <span>비번: {selectedRecipient.door_passcode}</span>
+                      </span>
+                    )}
+                    {selectedRecipient.parking_memo && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-400 font-bold text-[10px] border border-sky-500/20">
+                        <IconCar size={11} />
+                        <span className="max-w-[120px] truncate">{selectedRecipient.parking_memo}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setSelectedRecipient(null)}
+                className="w-8 h-8 rounded-full bg-foreground/[0.05] hover:bg-foreground/[0.1] text-foreground/60 flex items-center justify-center transition-colors shrink-0 -mr-1 -mt-1 active:scale-95"
+                aria-label="닫기"
+              >
+                <IconX size={16} strokeWidth={2.5} />
+              </button>
+            </div>
+
+            {/* Quick Action Buttons */}
+            <div className="grid grid-cols-4 gap-2 mt-3.5 pt-3 border-t border-surface-border/40">
+              <button
+                type="button"
+                onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
+                className="py-2.5 rounded-[16px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs"
+              >
+                <IconNavigation size={15} />
+                <span>길안내</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => toggleCompleted(selectedRecipient)}
+                className={`py-2.5 rounded-[16px] text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border ${
+                  isCompletedToday(selectedRecipient)
+                    ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border border-surface-border/40'
+                    : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 border-emerald-500/25'
+                }`}
+              >
+                <IconCheck size={15} strokeWidth={2.5} />
+                <span>{isCompletedToday(selectedRecipient) ? '완료취소' : '방문완료'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCompletingRecipient(selectedRecipient)}
+                className="py-2.5 rounded-[16px] bg-primary/10 hover:bg-primary/20 text-primary text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
+              >
+                <IconMessageCircle size={15} />
+                <span>음성일지</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsDetailModalOpen(true)}
+                className="py-2.5 rounded-[16px] bg-foreground/[0.04] dark:bg-white/[0.06] hover:bg-foreground/[0.08] text-foreground text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-surface-border/40"
+              >
+                <IconEye size={15} />
+                <span>상세정보</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 어르신 상세 팝업 - One UI 9.0 Hero Bottom Sheet / Dialog */}
-      <Modal open={Boolean(selectedRecipient && (activeTab === 'map' || activeTab === 'route'))} onClose={() => setSelectedRecipient(null)}>
+      <Modal 
+        open={Boolean(selectedRecipient && (activeTab === 'route' || isDetailModalOpen))} 
+        onClose={() => {
+          setSelectedRecipient(null);
+          setIsDetailModalOpen(false);
+        }}
+      >
         {selectedRecipient && (
           <div className="flex flex-col">
             {/* Header Hero Cover Banner */}
@@ -2525,7 +2932,10 @@ function MainApp() {
                 </span>
               </div>
               <IconButton
-                onClick={() => setSelectedRecipient(null)}
+                onClick={() => {
+                  setSelectedRecipient(null);
+                  setIsDetailModalOpen(false);
+                }}
                 className="w-9 h-9 rounded-full bg-black/25 text-white hover:bg-black/40 backdrop-blur-md"
                 aria-label="닫기"
               >
