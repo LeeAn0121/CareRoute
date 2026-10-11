@@ -2673,73 +2673,67 @@ function MainApp() {
         )}
       </Modal>
 
-      {/* One UI 9.0 Floating Dock Navigation (Unified 4-Tab System) */}
-      <div className="absolute bottom-6 left-4 right-4 z-50 px-2 pb-safe pointer-events-auto">
-        <div id="tour-bottom-nav" className="rounded-[40px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.18)] bg-surface/85 supports-[backdrop-filter]:bg-surface/70 backdrop-blur-[40px] saturate-200 border border-white/30 dark:border-white/10 p-1.5">
-          <div className="flex h-16 items-center">
-            {([
-              { key: 'map' as const, label: '지도', Icon: IconMapPin },
-              { 
-                key: 'list' as const, 
-                label: '명단', 
-                Icon: IconUsers, 
-                badge: markers.length > 0 ? String(markers.length) : undefined,
-                badgeColor: 'bg-foreground/[0.08] text-foreground/70 dark:bg-white/10 dark:text-white/80'
-              },
-              { 
-                key: 'route' as const, 
-                label: '일정', 
-                Icon: IconCalendarEvent, 
-                badge: (() => {
-                  const todayCount = markers.filter(m => getScheduledForDate(m, new Date())).length;
-                  const completedCount = markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length;
-                  const remaining = todayCount - completedCount;
-                  if (todayCount === 0) return undefined;
-                  if (remaining === 0) return '✓';
-                  return String(remaining);
-                })(),
-                badgeColor: (() => {
-                  const todayCount = markers.filter(m => getScheduledForDate(m, new Date())).length;
-                  const completedCount = markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length;
-                  if (todayCount > 0 && todayCount === completedCount) return 'bg-emerald-500 text-white font-black';
-                  return 'bg-amber-500 text-white font-black';
-                })()
-              },
-              { key: 'settings' as const, label: '전체 메뉴', Icon: IconLayoutGrid },
-            ]).map(({ key, label, Icon, badge, badgeColor }) => {
-              const isActive = activeTab === key;
-              return (
-                <motion.button
-                  key={key}
-                  type="button"
-                  whileTap={{ scale: 0.90 }}
-                  onClick={() => setActiveTab(key)}
-                  className={`relative flex-1 h-full rounded-[30px] flex flex-col items-center justify-center gap-1 text-xs transition-colors select-none ${
-                    isActive ? 'text-primary font-black' : 'text-foreground/50 font-bold hover:text-foreground/80'
-                  }`}
-                >
-                  {isActive && (
-                    <motion.div
-                      layoutId="dock-active-pill"
-                      className="absolute inset-1 rounded-[26px] bg-primary/10 dark:bg-white/15 -z-10 shadow-xs"
-                      transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-                    />
+      {/* iOS Cupertino Native Tab Bar (Ultra-thin Frosted Glass Material) */}
+      <nav 
+        id="tour-bottom-nav" 
+        className="fixed bottom-0 left-0 right-0 z-50 bg-white/85 dark:bg-[#121214]/85 backdrop-blur-2xl saturate-150 border-t border-black/[0.08] dark:border-white/[0.1] pb-[max(env(safe-area-inset-bottom),8px)] pt-2 px-3 shadow-[0_-4px_24px_rgba(0,0,0,0.03)] select-none pointer-events-auto"
+      >
+        <div className="max-w-md mx-auto flex h-12 items-center justify-around">
+          {([
+            { key: 'map' as const, label: '지도', Icon: IconMapPin },
+            { 
+              key: 'list' as const, 
+              label: '명단', 
+              Icon: IconUsers, 
+              badge: markers.length > 0 ? String(markers.length) : undefined,
+              badgeColor: 'bg-[#8E8E93] text-white'
+            },
+            { 
+              key: 'route' as const, 
+              label: '일정', 
+              Icon: IconCalendarEvent, 
+              badge: (() => {
+                const todayCount = markers.filter(m => getScheduledForDate(m, new Date())).length;
+                const completedCount = markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length;
+                const remaining = todayCount - completedCount;
+                if (todayCount === 0) return undefined;
+                if (remaining === 0) return '✓';
+                return String(remaining);
+              })(),
+              badgeColor: (() => {
+                const todayCount = markers.filter(m => getScheduledForDate(m, new Date())).length;
+                const completedCount = markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length;
+                if (todayCount > 0 && todayCount === completedCount) return 'bg-[#34C759] text-white font-bold';
+                return 'bg-[#FF9500] text-white font-bold';
+              })()
+            },
+            { key: 'settings' as const, label: '메뉴', Icon: IconLayoutGrid },
+          ]).map(({ key, label, Icon, badge, badgeColor }) => {
+            const isActive = activeTab === key;
+            return (
+              <motion.button
+                key={key}
+                type="button"
+                whileTap={{ scale: 0.88 }}
+                onClick={() => setActiveTab(key)}
+                className={`relative flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+                  isActive ? 'text-[#007AFF] font-bold' : 'text-[#8E8E93] dark:text-[#98989D] hover:text-foreground font-medium'
+                }`}
+              >
+                <div className="relative flex items-center justify-center">
+                  <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                  {badge && (
+                    <span className={`absolute -top-1 -right-3 text-[10px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center shadow-xs font-bold leading-none ${badgeColor || 'bg-[#FF3B30] text-white'}`}>
+                      {badge}
+                    </span>
                   )}
-                  <div className="relative flex items-center justify-center">
-                    <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                    {badge && (
-                      <span className={`absolute -top-1.5 -right-3 text-[10px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center shadow-2xs leading-none ${badgeColor || 'bg-primary text-white'}`}>
-                        {badge}
-                      </span>
-                    )}
-                  </div>
-                  <span className="tracking-tight text-[11px] leading-none">{label}</span>
-                </motion.button>
-              );
-            })}
-          </div>
+                </div>
+                <span className="text-[10px] tracking-tight leading-none">{label}</span>
+              </motion.button>
+            );
+          })}
         </div>
-      </div>
+      </nav>
 
       <VoiceMemoModal
         isOpen={Boolean(completingRecipient)}

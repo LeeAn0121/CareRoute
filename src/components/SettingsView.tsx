@@ -7,7 +7,7 @@ import {
   IconAlertTriangle, IconInfoCircle, IconDeviceMobile,
   IconClock, IconBrandGoogle, IconCalendarEvent, IconUsers,
   IconUserPlus, IconMapPin, IconNavigation, IconSparkles,
-  IconHelp, IconArrowRight
+  IconHelp, IconArrowRight, IconShare, IconCompass
 } from '@tabler/icons-react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'motion/react';
@@ -60,9 +60,17 @@ export default function SettingsView({
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [showUnblockGuide, setShowUnblockGuide] = useState(false);
   const [defaultNavi, setDefaultNavi] = useState('naver');
+  const [showNaviPicker, setShowNaviPicker] = useState(false);
 
   const remainingVisits = Math.max(0, todayTotalCount - todayCompletedCount);
   const progressPercent = todayTotalCount > 0 ? Math.round((todayCompletedCount / todayTotalCount) * 100) : 0;
+
+  // Format today's date in Korean (e.g., "10월 11일 금요일")
+  const todayFormatted = new Intl.DateTimeFormat('ko-KR', {
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long'
+  }).format(new Date());
 
   const refreshNotifStatus = async () => {
     const status = await getDetailedNotificationStatus();
@@ -93,13 +101,6 @@ export default function SettingsView({
     document.documentElement.classList.add(newTheme);
     localStorage.setItem('careroute_color_theme', newTheme);
     setColorTheme(newTheme);
-  };
-
-  const translateLocationPerm = (status: string) => {
-    if (status === 'granted') return <span className="text-primary font-bold bg-primary/10 px-2.5 py-1 rounded-md text-xs">정상 허용됨</span>;
-    if (status === 'denied') return <span className="text-red-500 font-bold bg-red-500/10 px-2.5 py-1 rounded-md text-xs">거부됨</span>;
-    if (status === 'prompt' || status === 'default') return <span className="text-foreground/50 font-bold bg-surface-muted px-2.5 py-1 rounded-md text-xs">요청 대기</span>;
-    return <span className="text-foreground/50 font-bold bg-surface-muted px-2.5 py-1 rounded-md text-xs">{status}</span>;
   };
 
   const handleRequestNotification = async () => {
@@ -150,266 +151,325 @@ export default function SettingsView({
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
-      className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-36 bg-background text-foreground transition-colors duration-500"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+      className="absolute inset-0 overflow-y-auto px-4 pt-14 pb-36 bg-[#F2F2F7] dark:bg-[#000000] text-black dark:text-white transition-colors duration-300 font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Text','Pretendard',sans-serif]"
     >
-      {/* Top Header Bar */}
-      <div className="flex items-center justify-between gap-4 mb-6 px-1">
+      {/* iOS Navigation Bar */}
+      <div className="flex items-center justify-between mb-4 px-1">
         <div>
-          <h2 className="text-[32px] font-black tracking-tight text-foreground leading-tight">전체 메뉴</h2>
-          <p className="text-[13px] font-bold text-foreground/50 mt-0.5">스마트 업무 대시보드 & 환경설정</p>
+          <span className="text-[12px] font-semibold text-[#8E8E93] dark:text-[#98989D] uppercase tracking-wider block">
+            CareRoute Settings Hub
+          </span>
+          <h1 className="text-[34px] font-extrabold tracking-tight text-black dark:text-white leading-none mt-1">
+            메뉴
+          </h1>
         </div>
+
+        {/* iOS Native "완료 (Done)" Button */}
         <button 
           onClick={onBack}
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-foreground/[0.05] hover:bg-foreground/[0.1] active:scale-95 transition-all text-foreground/70"
-          aria-label="닫기"
+          className="px-4 py-2 rounded-full bg-white dark:bg-[#1C1C1E] text-[#007AFF] font-bold text-[15px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] active:opacity-70 transition-opacity"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          완료
         </button>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-xl mx-auto">
         
-        {/* 1. Today's Care Briefing Dashboard Card */}
-        <div className="p-5 rounded-[32px] bg-gradient-to-br from-[#1A2E55] via-primary to-accent text-white shadow-xl shadow-primary/25 relative overflow-hidden border border-white/20">
-          <div className="absolute top-0 right-0 -mr-6 -mt-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-          
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-[18px] bg-white/15 backdrop-blur-md p-1 border border-white/25 shrink-0 shadow-md flex items-center justify-center">
-                <img src="/CareRoute/icon-192.png" alt="CareRoute Logo" className="w-full h-full object-cover rounded-[14px]" />
-              </div>
-              <div>
-                <span className="text-[11px] font-black uppercase tracking-wider text-white/70 block">CareRoute Live Briefing</span>
-                <h3 className="text-[18px] font-black tracking-tight leading-tight">오늘의 방문 케어 현황</h3>
-              </div>
+        {/* Apple ID Style Profile / Agency Card */}
+        <div className="bg-white dark:bg-[#1C1C1E] rounded-[20px] p-4 shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:shadow-none border border-black/[0.04] dark:border-white/[0.08] flex items-center gap-3.5">
+          <div className="w-14 h-14 rounded-[14px] bg-[#007AFF]/10 p-1 flex items-center justify-center shrink-0 border border-black/[0.05] dark:border-white/[0.1] shadow-2xs">
+            <img src="/CareRoute/icon-192.png" alt="CareRoute Logo" className="w-full h-full object-cover rounded-[11px]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-[17px] font-bold text-black dark:text-white tracking-tight truncate">
+                케어루트 (CareRoute)
+              </h2>
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 bg-[#34C759]/15 text-[#34C759] rounded-md shrink-0">
+                <IconCheck size={11} strokeWidth={3} /> 실시간
+              </span>
             </div>
+            <p className="text-[13px] text-[#8E8E93] dark:text-[#98989D] font-medium truncate mt-0.5">
+              스마트 방문요양 & 동선 관리 플랫폼
+            </p>
+          </div>
+          <IconChevronRight size={18} className="text-[#C7C7CC] dark:text-[#48484A] shrink-0" />
+        </div>
 
-            <span className="text-[11px] font-black px-2.5 py-1 bg-white/20 rounded-full border border-white/30 shrink-0">
+        {/* iOS Fitness / Health Rings Style Activity Widget Card */}
+        <div className="bg-white dark:bg-[#1C1C1E] rounded-[22px] p-5 shadow-[0_2px_16px_rgba(0,0,0,0.04)] dark:shadow-none border border-black/[0.04] dark:border-white/[0.08]">
+          <div className="flex items-center justify-between mb-3.5">
+            <div>
+              <span className="text-[12px] font-semibold text-[#8E8E93] dark:text-[#98989D] block">
+                {todayFormatted}
+              </span>
+              <h3 className="text-[18px] font-bold text-black dark:text-white tracking-tight mt-0.5">
+                오늘의 방문 케어 활동
+              </h3>
+            </div>
+            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
+              todayTotalCount === 0 
+                ? 'bg-[#8E8E93]/15 text-[#8E8E93]' 
+                : remainingVisits === 0 
+                  ? 'bg-[#34C759]/15 text-[#34C759]' 
+                  : 'bg-[#FF9500]/15 text-[#FF9500]'
+            }`}>
               {todayTotalCount === 0 ? '일정 없음' : remainingVisits === 0 ? '모두 완료 🎉' : `${remainingVisits}건 남음`}
             </span>
           </div>
 
-          {/* Stat Pill Grid */}
-          <div className="grid grid-cols-4 gap-2 mb-4 bg-black/20 p-2.5 rounded-[22px] border border-white/10 backdrop-blur-sm">
-            <div className="text-center">
-              <span className="text-[10px] font-bold text-white/60 block">전체</span>
-              <strong className="text-[17px] font-black text-white">{totalRecipientsCount}</strong>
-              <span className="text-[10px] text-white/60">명</span>
+          {/* iOS 3-Column Metrics Stack */}
+          <div className="grid grid-cols-3 gap-2.5 mb-4">
+            <div className="bg-[#F2F2F7] dark:bg-[#2C2C2E] p-3 rounded-[16px]">
+              <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#98989D] block">전체 어르신</span>
+              <div className="flex items-baseline gap-1 mt-1">
+                <strong className="text-[22px] font-extrabold text-[#007AFF] tracking-tight">{totalRecipientsCount}</strong>
+                <span className="text-[12px] text-[#8E8E93] font-medium">명</span>
+              </div>
             </div>
-            <div className="text-center border-l border-white/10">
-              <span className="text-[10px] font-bold text-white/60 block">오늘 대상</span>
-              <strong className="text-[17px] font-black text-white">{todayTotalCount}</strong>
-              <span className="text-[10px] text-white/60">명</span>
+
+            <div className="bg-[#F2F2F7] dark:bg-[#2C2C2E] p-3 rounded-[16px]">
+              <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#98989D] block">방문 완료</span>
+              <div className="flex items-baseline gap-1 mt-1">
+                <strong className="text-[22px] font-extrabold text-[#34C759] tracking-tight">{todayCompletedCount}</strong>
+                <span className="text-[12px] text-[#8E8E93] font-medium">명</span>
+              </div>
             </div>
-            <div className="text-center border-l border-white/10">
-              <span className="text-[10px] font-bold text-emerald-300 block">방문 완료</span>
-              <strong className="text-[17px] font-black text-emerald-300">{todayCompletedCount}</strong>
-              <span className="text-[10px] text-white/60">명</span>
-            </div>
-            <div className="text-center border-l border-white/10">
-              <span className="text-[10px] font-bold text-amber-300 block">남은 일정</span>
-              <strong className="text-[17px] font-black text-amber-300">{remainingVisits}</strong>
-              <span className="text-[10px] text-white/60">명</span>
+
+            <div className="bg-[#F2F2F7] dark:bg-[#2C2C2E] p-3 rounded-[16px]">
+              <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#98989D] block">남은 방문</span>
+              <div className="flex items-baseline gap-1 mt-1">
+                <strong className="text-[22px] font-extrabold text-[#FF9500] tracking-tight">{remainingVisits}</strong>
+                <span className="text-[12px] text-[#8E8E93] font-medium">명</span>
+              </div>
             </div>
           </div>
 
-          {/* Progress Bar */}
+          {/* iOS Health Activity Progress Bar */}
           {todayTotalCount > 0 && (
-            <div className="mb-3.5">
-              <div className="flex justify-between text-[11px] font-bold text-white/80 mb-1.5">
-                <span>오늘 방문 진행률</span>
-                <span>{progressPercent}% 완료</span>
+            <div className="space-y-1.5 mb-4">
+              <div className="flex justify-between text-[12px] font-semibold text-[#8E8E93] dark:text-[#98989D]">
+                <span>오늘의 달성률</span>
+                <span className="text-[#34C759] font-bold">{progressPercent}%</span>
               </div>
-              <div className="w-full h-2.5 bg-black/25 rounded-full overflow-hidden p-0.5">
+              <div className="w-full h-3 bg-[#E5E5EA] dark:bg-[#2C2C2E] rounded-full overflow-hidden p-0.5">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${progressPercent}%` }}
-                  transition={{ duration: 0.8, ease: 'easeOut' }}
-                  className="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full shadow-xs"
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  className="h-full bg-gradient-to-r from-[#34C759] to-[#30B0C7] rounded-full shadow-xs"
                 />
               </div>
             </div>
           )}
 
-          {/* Quick Schedule Jump */}
+          {/* Apple Style Inline Action */}
           <button
             onClick={() => onNavigateTab ? onNavigateTab('route') : onBack()}
-            className="w-full py-2.5 px-3.5 rounded-[18px] bg-white/20 hover:bg-white/30 text-white font-black text-[13px] flex items-center justify-center gap-1.5 active:scale-98 transition-all border border-white/25"
+            className="w-full py-2.5 px-3.5 rounded-[14px] bg-[#007AFF]/10 hover:bg-[#007AFF]/15 text-[#007AFF] font-bold text-[14px] flex items-center justify-center gap-1.5 active:opacity-70 transition-opacity"
           >
             <span>오늘의 방문 일정 바로보기</span>
-            <IconArrowRight size={16} />
+            <IconChevronRight size={16} strokeWidth={2.5} />
           </button>
         </div>
 
-        {/* 2. Quick Action Hub (4-Grid) */}
+        {/* Apple Control Center Style 4-Grid Quick Action Hub */}
         <div>
-          <div className="px-3 mb-2 flex items-center justify-between">
-            <span className="text-[12px] font-black text-foreground/50 uppercase tracking-wider">원터치 빠른 실행</span>
-            <span className="text-[11px] font-bold text-primary flex items-center gap-1"><IconSparkles size={13} /> 스마트 케어 허브</span>
-          </div>
+          <span className="text-[13px] font-semibold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
+            빠른 실행 (QUICK ACTIONS)
+          </span>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            {/* Quick Button 1: Add New Recipient */}
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => {
                 if (onAddNewRecipient) onAddNewRecipient();
                 else onBack();
               }}
-              className="p-4 rounded-[26px] bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-2xl border border-surface-border/60 hover:bg-surface shadow-[0_8px_20px_rgba(0,0,0,0.04)] text-left flex flex-col justify-between gap-3 active:scale-95 transition-all group"
+              className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
             >
-              <div className="w-10 h-10 rounded-[18px] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
-                <IconUserPlus size={22} strokeWidth={2.5} />
+              <div className="w-10 h-10 rounded-[12px] bg-[#007AFF] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#007AFF]/30">
+                <IconUserPlus size={22} strokeWidth={2.2} />
               </div>
-              <div>
-                <span className="font-black text-[15px] text-foreground tracking-tight block">어르신 신규 등록</span>
-                <span className="text-[11px] text-foreground/50 font-bold block mt-0.5">명단에 새 어르신 추가</span>
+              <div className="min-w-0">
+                <span className="text-[14px] font-bold text-black dark:text-white tracking-tight block truncate">어르신 등록</span>
+                <span className="text-[11px] text-[#8E8E93] dark:text-[#98989D] block truncate">새 어르신 추가</span>
               </div>
             </button>
 
-            {/* Quick Button 2: Sync to Google Calendar */}
             <button
               onClick={onSyncCalendar}
               disabled={isSyncingCalendar}
-              className="p-4 rounded-[26px] bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-2xl border border-surface-border/60 hover:bg-surface shadow-[0_8px_20px_rgba(0,0,0,0.04)] text-left flex flex-col justify-between gap-3 active:scale-95 transition-all group disabled:opacity-60"
+              className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] flex items-center gap-3 text-left active:scale-[0.98] transition-transform disabled:opacity-60"
             >
-              <div className="w-10 h-10 rounded-[18px] bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-105 transition-transform">
+              <div className="w-10 h-10 rounded-[12px] bg-[#5856D6] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#5856D6]/30">
                 {isSyncingCalendar ? (
-                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <IconBrandGoogle size={22} strokeWidth={2.5} />
+                  <IconBrandGoogle size={22} strokeWidth={2.2} />
                 )}
               </div>
-              <div>
-                <span className="font-black text-[15px] text-foreground tracking-tight block">캘린더 동기화</span>
-                <span className="text-[11px] text-foreground/50 font-bold block mt-0.5">구글 캘린더에 일정 저장</span>
+              <div className="min-w-0">
+                <span className="text-[14px] font-bold text-black dark:text-white tracking-tight block truncate">캘린더 동기화</span>
+                <span className="text-[11px] text-[#8E8E93] dark:text-[#98989D] block truncate">구글 캘린더 연동</span>
               </div>
             </button>
 
-            {/* Quick Button 3: Test System Notification */}
             <button
               onClick={handleTestNotification}
               disabled={isTestingNotif}
-              className="p-4 rounded-[26px] bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-2xl border border-surface-border/60 hover:bg-surface shadow-[0_8px_20px_rgba(0,0,0,0.04)] text-left flex flex-col justify-between gap-3 active:scale-95 transition-all group disabled:opacity-60"
+              className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] flex items-center gap-3 text-left active:scale-[0.98] transition-transform disabled:opacity-60"
             >
-              <div className="w-10 h-10 rounded-[18px] bg-purple-500/10 flex items-center justify-center text-purple-600 group-hover:scale-105 transition-transform">
+              <div className="w-10 h-10 rounded-[12px] bg-[#FF9500] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#FF9500]/30">
                 {isTestingNotif ? (
-                  <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <IconBellRinging size={22} strokeWidth={2.5} />
+                  <IconBellRinging size={22} strokeWidth={2.2} />
                 )}
               </div>
-              <div>
-                <span className="font-black text-[15px] text-foreground tracking-tight block">알림 즉시 테스트</span>
-                <span className="text-[11px] text-foreground/50 font-bold block mt-0.5">기기 알림 정상 수신 확인</span>
+              <div className="min-w-0">
+                <span className="text-[14px] font-bold text-black dark:text-white tracking-tight block truncate">알림 테스트</span>
+                <span className="text-[11px] text-[#8E8E93] dark:text-[#98989D] block truncate">방문 알림 발송</span>
               </div>
             </button>
 
-            {/* Quick Button 4: Navigate Map View */}
             <button
               onClick={() => onNavigateTab ? onNavigateTab('map') : onBack()}
-              className="p-4 rounded-[26px] bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-2xl border border-surface-border/60 hover:bg-surface shadow-[0_8px_20px_rgba(0,0,0,0.04)] text-left flex flex-col justify-between gap-3 active:scale-95 transition-all group"
+              className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
             >
-              <div className="w-10 h-10 rounded-[18px] bg-emerald-500/10 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform">
-                <IconMapPin size={22} strokeWidth={2.5} />
+              <div className="w-10 h-10 rounded-[12px] bg-[#34C759] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#34C759]/30">
+                <IconMapPin size={22} strokeWidth={2.2} />
               </div>
-              <div>
-                <span className="font-black text-[15px] text-foreground tracking-tight block">지도 전체 보기</span>
-                <span className="text-[11px] text-foreground/50 font-bold block mt-0.5">내 위치 및 어르신 핀</span>
+              <div className="min-w-0">
+                <span className="text-[14px] font-bold text-black dark:text-white tracking-tight block truncate">지도 보기</span>
+                <span className="text-[11px] text-[#8E8E93] dark:text-[#98989D] block truncate">실시간 위치 확인</span>
               </div>
             </button>
           </div>
         </div>
 
-        {/* 3. Service & Navigation Settings Group */}
-        <section>
-          <div className="px-3 mb-2">
-            <span className="text-[12px] font-black text-foreground/50 uppercase tracking-wider">서비스 & 내비게이션</span>
-          </div>
+        {/* iOS Inset Group 1: 길안내 및 서비스 (Navigation & Service) */}
+        <div>
+          <span className="text-[13px] font-semibold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
+            길안내 및 서비스 (NAVIGATION)
+          </span>
 
-          <div className="bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-2xl rounded-[30px] shadow-[0_8px_24px_rgba(0,0,0,0.04)] border border-surface-border/60 overflow-hidden flex flex-col">
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
             
-            {/* Preferred Navi App Selector */}
-            <div className="p-4.5 border-b border-surface-border/50">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <span className="text-[15px] font-black text-foreground tracking-tight block">기본 내비게이션 앱</span>
-                  <span className="text-[12px] text-foreground/50 font-bold">길안내 버튼 터치 시 우선 실행할 앱</span>
-                </div>
-                <span className="text-[11px] font-black text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
-                  {defaultNavi === 'kakao' ? '카카오맵' : defaultNavi === 'tmap' ? '티맵 (TMAP)' : '네이버 지도'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: 'naver', name: '네이버 지도', icon: 'https://ssl.pstatic.net/static/maps/assets/icons/favicon.ico' },
-                  { id: 'kakao', name: '카카오맵', icon: 'https://map.kakao.com/favicon.ico' },
-                  { id: 'tmap', name: '티맵 (TMAP)', icon: 'https://www.tmapmobility.com/favicon.ico' },
-                ].map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      localStorage.setItem('careroute_default_navi', item.id);
-                      setDefaultNavi(item.id);
-                    }}
-                    className={`py-3 px-2 rounded-[20px] border transition-all flex flex-col items-center justify-center gap-1.5 ${
-                      defaultNavi === item.id
-                        ? 'bg-primary/10 border-primary text-primary font-black shadow-xs ring-1 ring-primary'
-                        : 'bg-foreground/[0.02] border-surface-border/60 hover:bg-foreground/[0.05] text-foreground/70 font-bold'
-                    }`}
-                  >
-                    <img src={item.icon} alt="" className="w-5 h-5 rounded-[6px] object-contain" />
-                    <span className="text-xs">{item.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Cloud Realtime Sync State */}
-            <div className="p-4.5 flex items-center justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-[14px] bg-emerald-500/10 flex items-center justify-center text-emerald-600 shadow-2xs">
-                  <IconShieldLock size={20} strokeWidth={2.5} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-black text-[15px] tracking-tight">클라우드 데이터 보관</span>
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">실시간 연동</span>
+            {/* Preferred Navigation Selector Row */}
+            <div>
+              <button
+                onClick={() => setShowNaviPicker(!showNaviPicker)}
+                className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-[30px] h-[30px] rounded-[8px] bg-[#007AFF] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <IconNavigation size={17} strokeWidth={2.5} />
                   </div>
-                  <span className="text-[12px] text-foreground/50 font-bold">어르신 명단, 방문 일지, 메모가 실시간 암호화 보관됩니다</span>
+                  <div>
+                    <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight block">기본 내비게이션</span>
+                    <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">길안내 터치 시 우선 실행</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[15px] font-medium text-[#8E8E93] dark:text-[#98989D]">
+                    {defaultNavi === 'kakao' ? '카카오맵' : defaultNavi === 'tmap' ? '티맵 (TMAP)' : '네이버 지도'}
+                  </span>
+                  <IconChevronRight size={17} className={`text-[#C7C7CC] dark:text-[#48484A] transition-transform ${showNaviPicker ? 'rotate-90' : ''}`} />
+                </div>
+              </button>
+
+              {/* Collapsible Picker Options */}
+              <AnimatePresence>
+                {showNaviPicker && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="px-4 pb-3 pt-1 border-t border-black/[0.04] dark:border-white/[0.05] bg-[#F9F9FB] dark:bg-[#161618]"
+                  >
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      {[
+                        { id: 'naver', name: '네이버 지도', icon: 'https://ssl.pstatic.net/static/maps/assets/icons/favicon.ico' },
+                        { id: 'kakao', name: '카카오맵', icon: 'https://map.kakao.com/favicon.ico' },
+                        { id: 'tmap', name: '티맵 (TMAP)', icon: 'https://www.tmapmobility.com/favicon.ico' },
+                      ].map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            localStorage.setItem('careroute_default_navi', item.id);
+                            setDefaultNavi(item.id);
+                            setShowNaviPicker(false);
+                          }}
+                          className={`py-2.5 px-2 rounded-[14px] border transition-all flex flex-col items-center justify-center gap-1.5 ${
+                            defaultNavi === item.id
+                              ? 'bg-white dark:bg-[#2C2C2E] border-[#007AFF] text-[#007AFF] font-bold shadow-xs'
+                              : 'bg-white dark:bg-[#1C1C1E] border-black/[0.06] dark:border-white/[0.08] text-[#8E8E93] font-medium'
+                          }`}
+                        >
+                          <img src={item.icon} alt="" className="w-5 h-5 rounded-[5px] object-contain" />
+                          <span className="text-[12px]">{item.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Cloud Realtime Backup Status Row */}
+            <div className="px-4 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#34C759] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconShieldLock size={17} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight block">클라우드 데이터 보관</span>
+                  <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">모든 어르신 정보 실시간 암호화</span>
                 </div>
               </div>
-              <IconCheck size={18} className="text-emerald-500" strokeWidth={3} />
+              <span className="text-[13px] font-bold text-[#34C759] bg-[#34C759]/15 px-2.5 py-1 rounded-full flex items-center gap-1">
+                <IconCheck size={13} strokeWidth={3} /> 정상 연동
+              </span>
             </div>
-          </div>
-        </section>
 
-        {/* 4. Display & Personalization Settings Group */}
-        <section>
-          <div className="px-3 mb-2">
-            <span className="text-[12px] font-black text-foreground/50 uppercase tracking-wider">화면 및 테마 개인화</span>
           </div>
+        </div>
 
-          <div className="bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-2xl rounded-[30px] shadow-[0_8px_24px_rgba(0,0,0,0.04)] border border-surface-border/60 overflow-hidden flex flex-col">
-            {/* Theme Mode Segmented Switcher */}
-            <div className="p-4.5 border-b border-surface-border/50">
-              <span className="text-[14px] font-black text-foreground tracking-tight block mb-3">화면 모드</span>
-              <div className="flex p-1 bg-foreground/[0.04] dark:bg-white/[0.06] rounded-[20px] border border-surface-border/40">
+        {/* iOS Inset Group 2: 디스플레이 및 화면 (Display & Appearance) */}
+        <div>
+          <span className="text-[13px] font-semibold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
+            디스플레이 및 테마 (DISPLAY)
+          </span>
+
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+            
+            {/* iOS Native Segmented Control for Light / Dark Mode */}
+            <div className="px-4 py-3.5 flex flex-col gap-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#8E8E93] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconSun size={17} strokeWidth={2.5} />
+                </div>
+                <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight">화면 모드</span>
+              </div>
+
+              {/* Cupertino Sliding Segmented Control */}
+              <div className="flex p-1 bg-[#E3E3E8] dark:bg-[#2C2C2E] rounded-[12px]">
                 {[
-                  { id: 'light', label: '라이트', icon: <IconSun size={17} strokeWidth={2.5} /> },
-                  { id: 'dark', label: '다크', icon: <IconMoonStars size={17} strokeWidth={2.5} /> },
-                  { id: 'system', label: '시스템', icon: <IconDeviceDesktop size={17} strokeWidth={2.5} /> },
+                  { id: 'light', label: '라이트', icon: <IconSun size={15} strokeWidth={2.5} /> },
+                  { id: 'dark', label: '다크', icon: <IconMoonStars size={15} strokeWidth={2.5} /> },
+                  { id: 'system', label: '자동 (시스템)', icon: <IconDeviceDesktop size={15} strokeWidth={2.5} /> },
                 ].map(t => (
                   <button
                     key={t.id}
                     onClick={() => setTheme(t.id)}
-                    className={`flex-1 py-2.5 rounded-[16px] font-black text-[13px] flex items-center justify-center gap-1.5 transition-all ${
+                    className={`flex-1 py-1.5 rounded-[9px] font-bold text-[13px] flex items-center justify-center gap-1 transition-all ${
                       theme === t.id 
-                        ? 'bg-surface text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10' 
-                        : 'text-foreground/50 hover:text-foreground/80 font-bold'
+                        ? 'bg-white dark:bg-[#636366] text-black dark:text-white shadow-[0_2px_8px_rgba(0,0,0,0.12)]' 
+                        : 'text-[#6D6D72] dark:text-[#AEAEB2] hover:text-black dark:hover:text-white'
                     }`}
                   >
                     {t.icon}
@@ -419,226 +479,202 @@ export default function SettingsView({
               </div>
             </div>
 
-            {/* One UI 9.0 Accent Color Palettes */}
-            <div className="p-4.5">
-              <span className="text-[14px] font-black text-foreground tracking-tight block mb-3">테마 컬러 칩</span>
-              <div className="grid grid-cols-3 gap-2.5">
+            {/* Apple Accent Palette Chips */}
+            <div className="px-4 py-3.5 flex flex-col gap-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#FF9500] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconSparkles size={17} strokeWidth={2.5} />
+                </div>
+                <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight">강조 컬러 칩</span>
+              </div>
+
+              <div className="grid grid-cols-6 gap-2 pt-1">
                 {colorThemes.map(t => (
                   <button
                     key={t.id}
                     onClick={() => handleColorThemeChange(t.id)}
-                    className={`relative flex flex-col items-center justify-center py-3.5 rounded-[22px] transition-all gap-1.5 ${
-                      colorTheme === t.id 
-                        ? 'bg-primary/10 ring-2 ring-primary ring-inset' 
-                        : 'bg-foreground/[0.02] hover:bg-foreground/[0.06] border border-surface-border/40'
+                    className={`flex flex-col items-center justify-center py-2 rounded-[14px] transition-all gap-1.5 ${
+                      colorTheme === t.id ? 'bg-[#007AFF]/10 ring-2 ring-[#007AFF]' : 'bg-[#F2F2F7] dark:bg-[#2C2C2E]'
                     }`}
+                    title={t.name}
                   >
-                    <div className={`w-7 h-7 rounded-full shadow-md border-2 border-white/30 ${t.color}`} />
-                    <span className={`text-[12px] font-black ${colorTheme === t.id ? 'text-primary' : 'text-foreground/70'}`}>
-                      {t.name}
+                    <div className={`w-5 h-5 rounded-full shadow-sm border border-white/40 ${t.color}`} />
+                    <span className="text-[10px] font-bold truncate max-w-[42px] text-center text-[#8E8E93] dark:text-[#98989D]">
+                      {t.name.split('/')[0]}
                     </span>
                   </button>
                 ))}
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* 5. Smart Notifications & System Permissions Center */}
-        <section>
-          <div className="px-3 mb-2">
-            <span className="text-[12px] font-black text-foreground/50 uppercase tracking-wider">스마트 알림 & 센서 권한</span>
           </div>
+        </div>
 
-          <div className="bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-2xl rounded-[30px] shadow-[0_8px_24px_rgba(0,0,0,0.04)] border border-surface-border/60 overflow-hidden flex flex-col">
+        {/* iOS Inset Group 3: 알림 및 개인정보 (Notifications & Privacy) */}
+        <div>
+          <span className="text-[13px] font-semibold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
+            알림 및 권한 (NOTIFICATIONS & PRIVACY)
+          </span>
+
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
             
-            {/* GPS Location Status */}
-            <div className="flex items-center justify-between p-4.5 border-b border-surface-border/50">
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 flex items-center justify-center text-blue-500 shadow-2xs">
-                  <IconMapPin size={20} strokeWidth={2.5} />
+            {/* GPS Location Row */}
+            <div className="px-4 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#32ADE6] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconMapPin size={17} strokeWidth={2.5} />
                 </div>
                 <div>
-                  <span className="font-black text-[15px] tracking-tight block">GPS 위치 권한</span>
-                  <span className="text-[12px] text-foreground/50 font-bold">현재 위치 자동 감지 및 인근 어르신 탐색</span>
+                  <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight block">위치 서비스 (GPS)</span>
+                  <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">인근 어르신 자동 탐색 및 포커싱</span>
                 </div>
               </div>
-              {translateLocationPerm(locationPerm)}
+              <span className={`text-[13px] font-bold px-2.5 py-1 rounded-full ${
+                locationPerm === 'granted' 
+                  ? 'text-[#34C759] bg-[#34C759]/15' 
+                  : locationPerm === 'denied' 
+                    ? 'text-[#FF3B30] bg-[#FF3B30]/15' 
+                    : 'text-[#8E8E93] bg-[#8E8E93]/15'
+              }`}>
+                {locationPerm === 'granted' ? '허용됨' : locationPerm === 'denied' ? '차단됨' : '대기'}
+              </span>
             </div>
 
-            {/* Visit Reminder Notification Status */}
-            <div className="p-4.5 flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-9 h-9 rounded-[14px] bg-purple-500/10 flex items-center justify-center text-purple-600 shadow-2xs">
-                    <IconBellRinging size={20} strokeWidth={2.5} />
-                  </div>
-                  <div>
-                    <span className="font-black text-[15px] tracking-tight block">방문 예정 알림 (PC/모바일)</span>
-                    <span className="text-[12px] text-foreground/50 font-bold">
-                      {currentNotifPerm === 'granted' 
-                        ? '노트북 및 모바일 브라우저 알림 수신 준비 완료' 
-                        : currentNotifPerm === 'denied'
-                          ? '알림이 차단되어 있습니다'
-                          : '방문 시간 자동 알림을 받으려면 권한이 필요합니다'}
-                    </span>
-                  </div>
+            {/* Visit Notifications Status Row */}
+            <div className="px-4 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#FF2D55] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconBellRinging size={17} strokeWidth={2.5} />
                 </div>
-
                 <div>
-                  {currentNotifPerm === 'granted' && (
-                    <span className="text-primary font-black bg-primary/10 px-2.5 py-1 rounded-full text-xs flex items-center gap-1 border border-primary/20">
-                      <IconCheck size={14} strokeWidth={3} /> 정상 허용
-                    </span>
-                  )}
-                  {currentNotifPerm === 'denied' && (
-                    <span className="text-red-500 font-black bg-red-500/10 px-2.5 py-1 rounded-full text-xs flex items-center gap-1 border border-red-500/20">
-                      <IconAlertTriangle size={14} strokeWidth={3} /> 차단됨
-                    </span>
-                  )}
-                  {currentNotifPerm === 'default' && (
-                    <span className="text-amber-500 font-black bg-amber-500/10 px-2.5 py-1 rounded-full text-xs border border-amber-500/20">
-                      요청 대기
-                    </span>
-                  )}
-                  {currentNotifPerm === 'unsupported' && (
-                    <span className="text-foreground/40 font-black bg-surface-muted px-2.5 py-1 rounded-full text-xs">
-                      미지원
-                    </span>
-                  )}
+                  <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight block">방문 예정 알림</span>
+                  <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">PC 및 모바일 시스템 푸시</span>
                 </div>
               </div>
 
-              {/* Feedback Message */}
-              <AnimatePresence>
-                {feedbackMessage && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className={`p-3.5 rounded-[18px] text-xs font-black flex items-center gap-2 ${
-                      feedbackMessage.type === 'success' ? 'bg-primary/10 text-primary border border-primary/20' :
-                      feedbackMessage.type === 'error' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
-                      'bg-surface-muted text-foreground/80 border border-surface-border'
-                    }`}
-                  >
-                    <IconInfoCircle size={16} className="shrink-0" />
-                    <span>{feedbackMessage.text}</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Action Buttons for Notification */}
-              <div className="pt-1 flex flex-col gap-2">
+              <div>
                 {currentNotifPerm === 'granted' && (
-                  <button
-                    onClick={handleTestNotification}
-                    disabled={isTestingNotif}
-                    className="w-full py-3 px-4 bg-primary/10 hover:bg-primary/15 text-primary rounded-[18px] font-black text-sm transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60 border border-primary/20 shadow-xs"
-                  >
-                    <IconBell size={18} strokeWidth={2.5} />
-                    {isTestingNotif ? '테스트 알림 발송 중...' : '🔔 시스템 알림 테스트 보내기'}
-                  </button>
+                  <span className="text-[13px] font-bold text-[#34C759] bg-[#34C759]/15 px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <IconCheck size={13} strokeWidth={3} /> 허용됨
+                  </span>
                 )}
-
+                {currentNotifPerm === 'denied' && (
+                  <span className="text-[13px] font-bold text-[#FF3B30] bg-[#FF3B30]/15 px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <IconAlertTriangle size={13} strokeWidth={3} /> 차단됨
+                  </span>
+                )}
                 {currentNotifPerm === 'default' && (
                   <button
                     onClick={handleRequestNotification}
                     disabled={isRequestingNotif}
-                    className="w-full py-3.5 px-4 bg-primary text-primary-foreground hover:opacity-90 rounded-[18px] font-black text-sm shadow-md shadow-primary/20 transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60"
+                    className="text-[13px] font-bold text-white bg-[#007AFF] px-3 py-1.5 rounded-full shadow-xs active:opacity-70 disabled:opacity-50"
                   >
-                    <IconBellRinging size={18} strokeWidth={2.5} />
-                    {isRequestingNotif ? '권한 요청 진행 중...' : '🔔 방문 알림 권한 켜기'}
-                  </button>
-                )}
-
-                {currentNotifPerm === 'denied' && (
-                  <button
-                    onClick={() => setShowUnblockGuide(!showUnblockGuide)}
-                    className="w-full py-3 px-4 bg-red-500/10 hover:bg-red-500/15 text-red-600 rounded-[18px] font-black text-sm transition-all flex items-center justify-center gap-2 active:scale-98 border border-red-500/20"
-                  >
-                    <IconInfoCircle size={18} strokeWidth={2.5} />
-                    {showUnblockGuide ? '알림 차단 해제 방법 닫기' : '💡 알림 차단 해제 가이드 열기'}
+                    {isRequestingNotif ? '요청 중...' : '권한 켜기'}
                   </button>
                 )}
               </div>
+            </div>
 
-              {/* Unblock Guide Details */}
+            {/* Notification Test Action Button Row */}
+            {currentNotifPerm === 'granted' && (
+              <button
+                onClick={handleTestNotification}
+                disabled={isTestingNotif}
+                className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-[30px] h-[30px] rounded-[8px] bg-[#FF9500] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <IconBell size={17} strokeWidth={2.5} />
+                  </div>
+                  <span className="text-[16px] font-semibold text-[#007AFF] tracking-tight">시스템 알림 테스트 발송</span>
+                </div>
+                {isTestingNotif ? (
+                  <div className="w-4 h-4 border-2 border-[#007AFF] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <IconChevronRight size={17} className="text-[#C7C7CC] dark:text-[#48484A]" />
+                )}
+              </button>
+            )}
+
+            {/* Unblock Guide Button Row (if denied or requested) */}
+            <div>
+              <button
+                onClick={() => setShowUnblockGuide(!showUnblockGuide)}
+                className="w-full px-4 py-3 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-[30px] h-[30px] rounded-[8px] bg-[#8E8E93] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <IconInfoCircle size={17} strokeWidth={2.5} />
+                  </div>
+                  <span className="text-[15px] font-medium text-black dark:text-white">브라우저별 알림 차단 해제 가이드</span>
+                </div>
+                <IconChevronRight size={17} className={`text-[#C7C7CC] dark:text-[#48484A] transition-transform ${showUnblockGuide ? 'rotate-90' : ''}`} />
+              </button>
+
               <AnimatePresence>
                 {showUnblockGuide && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="mt-2 p-4 rounded-[22px] bg-foreground/[0.03] border border-surface-border text-xs leading-relaxed space-y-3"
+                    className="px-5 py-3.5 bg-[#F9F9FB] dark:bg-[#161618] border-t border-black/[0.04] dark:border-white/[0.05] text-[13px] leading-relaxed space-y-3"
                   >
-                    <p className="font-black text-[13px] text-foreground">브라우저별 알림 차단 해제 안내</p>
-                    
-                    <div className="space-y-1">
-                      <p className="font-black text-primary">1. 크롬 / 엣지 / 네이버 웨일</p>
-                      <p className="text-foreground/70 font-semibold">상단 주소창 왼쪽의 자물쇠(또는 사이트 설정 슬라이더) 아이콘 클릭 → [알림] 설정을 '허용'으로 변경한 후 페이지를 새로고침하세요.</p>
+                    <div>
+                      <p className="font-bold text-[#007AFF]">1. 크롬 / 엣지 / 웨일</p>
+                      <p className="text-[#8E8E93] dark:text-[#98989D]">상단 주소창 왼쪽 자물쇠 🔒 클릭 → [알림] 설정을 '허용'으로 변경 후 새로고침하세요.</p>
                     </div>
-
-                    <div className="space-y-1">
-                      <p className="font-black text-primary">2. 맥(Mac) 사파리(Safari)</p>
-                      <p className="text-foreground/70 font-semibold">메뉴바 [Safari] → [설정] → [웹사이트] 탭 → 좌측 [알림] 선택 → CareRoute 항목을 '허용'으로 변경하세요.</p>
+                    <div>
+                      <p className="font-bold text-[#007AFF]">2. 맥(Mac) 사파리</p>
+                      <p className="text-[#8E8E93] dark:text-[#98989D]">[Safari] → [설정] → [웹사이트] 탭 → 좌측 [알림]에서 CareRoute를 '허용'하세요.</p>
                     </div>
-
-                    <div className="space-y-1">
-                      <p className="font-black text-primary">3. 아이폰 / 아이패드 (iOS)</p>
-                      <p className="text-foreground/70 font-semibold">애플 정책상 사파리 브라우저 창에서는 웹 알림이 제한됩니다. Safari 하단 [공유] → [홈 화면에 추가] 후 홈 화면 아이콘으로 앱을 실행해주세요.</p>
+                    <div>
+                      <p className="font-bold text-[#007AFF]">3. 아이폰 / 아이패드 (iOS Safari)</p>
+                      <p className="text-[#8E8E93] dark:text-[#98989D]">애플 정책상 사파리 탭에서는 웹 알림이 제한됩니다. Safari 하단 [공유] → [홈 화면에 추가] 후 실행해야 정상 작동합니다.</p>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
-          </div>
-        </section>
 
-        {/* 6. Support & App Management Group */}
-        <section>
-          <div className="px-3 mb-2">
-            <span className="text-[12px] font-black text-foreground/50 uppercase tracking-wider">지원 및 앱 관리</span>
           </div>
+        </div>
 
-          <div className="bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-2xl rounded-[30px] shadow-[0_8px_24px_rgba(0,0,0,0.04)] border border-surface-border/60 overflow-hidden flex flex-col">
+        {/* iOS Inset Group 4: 지원 및 관리 (Support & About) */}
+        <div>
+          <span className="text-[13px] font-semibold text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
+            지원 및 관리 (ABOUT)
+          </span>
+
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
             
             {/* Replay Tutorial */}
             <button
               onClick={onReplayTutorial}
-              className="w-full flex items-center justify-between p-4.5 hover:bg-foreground/[0.04] transition-colors active:bg-foreground/[0.08] border-b border-surface-border/50 text-left"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
             >
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-[14px] bg-primary/10 flex items-center justify-center text-primary shadow-2xs">
-                  <IconHelp size={20} strokeWidth={2.5} />
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#30B0C7] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconHelp size={17} strokeWidth={2.5} />
                 </div>
-                <div>
-                  <span className="font-black text-[15px] tracking-tight block">앱 사용 가이드 다시 보기</span>
-                  <span className="text-[12px] text-foreground/50 font-bold">주요 화면별 기능 안내 튜토리얼을 다시 실행합니다</span>
-                </div>
+                <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight">앱 사용 가이드 다시 보기</span>
               </div>
-              <IconChevronRight size={18} className="text-foreground/30" />
+              <IconChevronRight size={17} className="text-[#C7C7CC] dark:text-[#48484A]" />
             </button>
 
-            {/* Version Information */}
+            {/* Version Info */}
             <a
               href="https://github.com/LeeAn0121/CareRoute/releases"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-between p-4.5 hover:bg-foreground/[0.04] transition-colors border-b border-surface-border/50 active:bg-foreground/[0.08]"
+              className="px-4 py-3.5 flex items-center justify-between active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
             >
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-[14px] bg-foreground flex items-center justify-center text-background shadow-2xs">
-                  <IconBrandGithub size={20} strokeWidth={2.5} />
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#48484A] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconBrandGithub size={17} strokeWidth={2.5} />
                 </div>
-                <div>
-                  <span className="font-black text-[15px] tracking-tight block">케어루트 버전 정보 (v1.4.0)</span>
-                  <span className="text-[12px] text-foreground/50 font-bold">오픈소스 릴리즈 및 업데이트 내역 확인</span>
-                </div>
+                <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight">버전 정보</span>
               </div>
-              <span className="text-[11px] font-black text-primary bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20">
-                최신 버전
-              </span>
+              <span className="text-[14px] font-medium text-[#8E8E93] dark:text-[#98989D]">v1.4.0 최신</span>
             </a>
 
             {/* Bug Report */}
@@ -646,21 +682,18 @@ export default function SettingsView({
               href="https://github.com/LeeAn0121/CareRoute/issues/new"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-between p-4.5 hover:bg-foreground/[0.04] transition-colors border-b border-surface-border/50 active:bg-foreground/[0.08]"
+              className="px-4 py-3.5 flex items-center justify-between active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
             >
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-[14px] bg-red-500/10 flex items-center justify-center text-red-500 shadow-2xs">
-                  <IconBug size={20} strokeWidth={2.5} />
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#AF52DE] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconBug size={17} strokeWidth={2.5} />
                 </div>
-                <div>
-                  <span className="font-black text-[15px] tracking-tight block">버그 제보 및 기능 제안</span>
-                  <span className="text-[12px] text-foreground/50 font-bold">현장 건의사항 및 문제점을 개발팀에 전달합니다</span>
-                </div>
+                <span className="text-[16px] font-semibold text-black dark:text-white tracking-tight">버그 제보 및 기능 제안</span>
               </div>
-              <IconChevronRight size={18} className="text-foreground/30" />
+              <IconChevronRight size={17} className="text-[#C7C7CC] dark:text-[#48484A]" />
             </a>
 
-            {/* Clear Cache & Hard Refresh */}
+            {/* Clear Cache & Hard Refresh Row */}
             <button
               onClick={async () => {
                 if ('caches' in window) {
@@ -676,20 +709,19 @@ export default function SettingsView({
                 try { localStorage.removeItem('careroute_pwa_install_dismissed'); } catch {}
                 window.location.href = window.location.pathname + '?t=' + Date.now();
               }}
-              className="w-full flex items-center justify-between p-4.5 hover:bg-red-500/10 transition-colors active:bg-red-500/20 text-left"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors text-[#FF3B30]"
             >
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-[14px] bg-red-500/10 flex items-center justify-center text-red-500 shadow-2xs">
-                  <IconRefresh size={20} strokeWidth={2.5} />
+              <div className="flex items-center gap-3">
+                <div className="w-[30px] h-[30px] rounded-[8px] bg-[#FF3B30] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <IconRefresh size={17} strokeWidth={2.5} />
                 </div>
-                <div>
-                  <span className="font-black text-[15px] tracking-tight text-red-500 block">앱 캐시 초기화 및 강력 새로고침</span>
-                  <span className="text-[12px] text-foreground/50 font-bold">지도 화면이나 알림이 비정상일 때 최신 데이터로 리셋</span>
-                </div>
+                <span className="text-[16px] font-semibold tracking-tight">캐시 초기화 및 강력 새로고침</span>
               </div>
+              <IconChevronRight size={17} className="text-[#C7C7CC] dark:text-[#48484A]" />
             </button>
+
           </div>
-        </section>
+        </div>
 
       </div>
     </motion.div>
