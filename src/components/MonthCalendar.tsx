@@ -51,7 +51,7 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
   };
 
   return (
-    <div className="bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[32px] shadow-[0_16px_40px_rgba(0,0,0,0.06)] border border-white/20 dark:border-white/10 p-4 mb-4 flex-1 flex flex-col min-h-[360px] transition-all">
+    <div className="bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_12px_32px_rgba(0,0,0,0.05)] border border-white/20 dark:border-white/10 p-3.5 mb-3 shrink-0 transition-all">
       {/* One UI 9.0 Header */}
       <div className="flex items-center justify-between mb-4 px-1">
         {/* Month Selector Capsule */}
@@ -123,9 +123,9 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
       </div>
 
       {/* One UI Days Grid with Squircle Pebbles */}
-      <div className="grid grid-cols-7 gap-1.5 flex-1 items-stretch">
+      <div className="grid grid-cols-7 gap-1">
         {days.map((d, i) => {
-          if (d === null) return <div key={`empty-${i}`} className="h-full min-h-[3rem]" />;
+          if (d === null) return <div key={`empty-${i}`} className="aspect-square max-h-[42px]" />;
           
           const selected = isSelected(d);
           const today = isToday(d);
@@ -140,9 +140,9 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
               whileTap={{ scale: 0.90 }}
               transition={{ type: 'spring', damping: 25, stiffness: 450 }}
               onClick={() => handleSelect(d)}
-              className={`relative h-full min-h-[3.2rem] w-full flex flex-col items-center justify-center rounded-[20px] transition-all
+              className={`relative aspect-square max-h-[42px] w-full flex flex-col items-center justify-center rounded-[16px] transition-all
                 ${selected 
-                  ? 'bg-primary text-primary-foreground shadow-[0_8px_20px_rgba(var(--primary),0.35)] font-black scale-[1.04] z-10' 
+                  ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.35)] font-black scale-[1.05] z-10' 
                   : today 
                     ? 'bg-primary/10 text-primary font-black border border-primary/30 shadow-xs' 
                     : `hover:bg-foreground/[0.04] font-bold ${
@@ -151,10 +151,10 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
                 }`
               }
             >
-              <span className="text-[15px] tracking-tight">{d}</span>
+              <span className="text-[14px] tracking-tight">{d}</span>
               {/* Glowing Indicator Dot for Scheduled Visits */}
               {scheduled && !selected && (
-                <div className="absolute bottom-1.5 w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(var(--accent),0.8)]" />
+                <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(var(--accent),0.8)]" />
               )}
             </motion.button>
           );
