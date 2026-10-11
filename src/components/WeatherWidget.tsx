@@ -7,8 +7,19 @@ interface WeatherWidgetProps {
   lng: number;
 }
 
+interface WeatherData {
+  temp: number;
+  tempApparent: number;
+  tempMax: number;
+  tempMin: number;
+  pty: string;
+  rn1: number;
+  pm10: number;
+  pm25: number;
+}
+
 export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
-  const [weather, setWeather] = useState<any>(null);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDetail, setShowDetail] = useState(false);
 
@@ -100,12 +111,13 @@ export default function WeatherWidget({ lat, lng }: WeatherWidgetProps) {
         type="button"
         onClick={() => setShowDetail(!showDetail)}
         className="flex items-center gap-3 text-[13px] font-bold text-foreground/80 hover:text-foreground py-0.5 text-left transition-colors group cursor-pointer"
-        title="날씨 상세 정보 보기"
+        title={`현재 날씨: ${desc} ${weather.temp}° (클릭 시 상세 정보)`}
       >
         {/* 날씨 및 온도 */}
         <div className="flex items-center gap-1.5">
           <span className="text-[16px] leading-none drop-shadow-sm group-hover:scale-110 transition-transform">{emoji}</span>
           <span className="text-[14px] font-black text-foreground">{weather.temp}°</span>
+          <span className="text-[11px] font-bold text-foreground/50 hidden sm:inline">{desc}</span>
         </div>
 
         {/* 최저/최고 온도 */}

@@ -44,7 +44,7 @@ export function dfs_xy_conv(code: "toXY" | "toLL", v1: number, v2: number) {
     const xn = v1 - XO;
     const yn = ro - v2 + YO;
     let ra = Math.sqrt(xn * xn + yn * yn);
-    if (sn < 0.0) -ra;
+    if (sn < 0.0) ra = -ra;
     let alat = Math.pow((re * sf / ra), (1.0 / sn));
     alat = 2.0 * Math.atan(alat) - Math.PI * 0.5;
     let theta = 0.0;

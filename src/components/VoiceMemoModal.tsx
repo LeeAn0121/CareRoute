@@ -121,22 +121,27 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
     }
   };
 
-  // isOpen 바뀔 때 초기화
-  useEffect(() => {
+  // 모달이 열릴 때 상태 초기화 (React 권장 패턴: 렌더링 중 이전 prop과 비교하여 상태 동기화)
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       const initial = initialMemo || '';
       setTranscript(initial);
       setInterimText('');
       setErrorMessage('');
       finalTranscriptRef.current = initial;
-      stopRecognition();
-    } else {
+    }
+  }
+
+  useEffect(() => {
+    if (!isOpen) {
       stopRecognition();
     }
     return () => {
       stopRecognition();
     };
-  }, [isOpen, initialMemo]);
+  }, [isOpen]);
 
   const toggleRecording = () => {
     if (isRecording) {
