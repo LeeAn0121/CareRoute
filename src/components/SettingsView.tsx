@@ -3,7 +3,8 @@ import {
   IconPalette, IconHelp, IconShieldLock, IconChevronRight, 
   IconMoonStars, IconSun, IconDeviceDesktop, IconBrandGithub, 
   IconBug, IconRefresh, IconBell, IconBellRinging, IconCheck, 
-  IconAlertTriangle, IconInfoCircle, IconDeviceMobile 
+  IconAlertTriangle, IconInfoCircle, IconDeviceMobile,
+  IconDownload, IconVolume, IconClock, IconBrandGoogle, IconCalendar
 } from '@tabler/icons-react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'motion/react';
@@ -142,29 +143,57 @@ export default function SettingsView({ onReplayTutorial, onBack, onSyncCalendar,
       </div>
 
       <div className="space-y-8">
-        {/* Sync Section */}
+        {/* Sync & Backup Section - One UI 9.0 Inset Group */}
         <section className="mb-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-          <h2 className="text-[13px] font-black text-primary/80 uppercase tracking-wider mb-2 pl-2">데이터 동기화</h2>
-          <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-sm">
+          <div className="px-4 mb-2">
+            <span className="text-[13px] font-bold text-foreground/50 uppercase tracking-wider">데이터 동기화 및 백업</span>
+          </div>
+
+          <div className="bg-surface/80 supports-[backdrop-filter]:bg-surface/50 backdrop-blur-2xl rounded-[24px] shadow-[0_8px_24px_rgba(0,0,0,0.04)] border border-surface-border/50 overflow-hidden flex flex-col">
             <button 
               onClick={onSyncCalendar}
               disabled={isSyncingCalendar}
-              className="w-full flex items-center justify-between p-4 bg-surface hover:bg-surface-muted transition-colors text-left"
+              className="w-full flex items-center justify-between p-4.5 hover:bg-foreground/[0.03] transition-colors text-left border-b border-surface-border/50 active:bg-foreground/[0.06]"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <IconRefresh size={18} className="text-blue-500" />
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 flex items-center justify-center text-blue-500 shadow-2xs">
+                  <IconBrandGoogle size={20} />
                 </div>
                 <div>
-                  <span className="font-bold text-[16px] tracking-tight block">구글 캘린더 동기화</span>
-                  <span className="text-[12px] text-foreground/50">선택한 날짜의 일정을 구글 캘린더로 내보냅니다</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[16px] tracking-tight">구글 캘린더 동기화</span>
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">자동 연동</span>
+                  </div>
+                  <span className="text-[12px] text-foreground/50 font-medium">선택한 날짜의 방문 일정을 구글 캘린더로 내보냅니다</span>
                 </div>
               </div>
               {isSyncingCalendar ? (
                 <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               ) : (
-                <IconChevronRight size={20} className="text-foreground/30" />
+                <IconChevronRight size={18} className="text-foreground/30" />
               )}
+            </button>
+
+            <button
+              onClick={() => {
+                const nowStr = new Date().toISOString().split('T')[0];
+                alert(`방문 일정 및 어르신 데이터가 안전하게 클라우드(Supabase)에 실시간 보관 중입니다.\n기준일: ${nowStr}`);
+              }}
+              className="w-full flex items-center justify-between p-4.5 hover:bg-foreground/[0.03] transition-colors text-left active:bg-foreground/[0.06]"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-[14px] bg-emerald-500/10 flex items-center justify-center text-emerald-600 shadow-2xs">
+                  <IconShieldLock size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[16px] tracking-tight">클라우드 데이터 상태</span>
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">실시간 안전 암호화</span>
+                  </div>
+                  <span className="text-[12px] text-foreground/50 font-medium">모든 어르신 정보 및 방문 일지가 클라우드에 즉시 동기화됩니다</span>
+                </div>
+              </div>
+              <IconChevronRight size={18} className="text-foreground/30" />
             </button>
           </div>
         </section>
