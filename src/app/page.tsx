@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2 } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
@@ -1137,9 +1137,78 @@ function MainApp() {
   // 오늘의 경로: 시간이 정해진 일정을 뼈대로 두고, 시간 미정인 곳은 이동
   // 거리가 가장 적게 늘어나는 위치에 끼워넣는 방식(최근접 삽입 휴리스틱)으로
   // 순서를 정한다. 실제 도로 거리가 아닌 직선 거리 기준의 근사치.
+  // 일정 순서 커스텀 지정 (Sortable / Reorder): 날짜(YYYY-MM-DD) -> 어르신 id 목록
+  const [customOrderMap, setCustomOrderMap] = useState<Record<string, string[]>>({});
+
+  const scheduleDateKey = scheduleDate
+    ? `${scheduleDate.getFullYear()}-${String(scheduleDate.getMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getDate()).padStart(2, '0')}`
+    : '';
+
+  // 로컬 스토리지에서 날짜별 커스텀 순서 불러오기
+  useEffect(() => {
+    if (!scheduleDateKey || typeof window === 'undefined') return;
+    try {
+      const saved = localStorage.getItem(`careroute_order_${scheduleDateKey}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setCustomOrderMap((prev) => ({ ...prev, [scheduleDateKey]: parsed }));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load custom route order:', e);
+    }
+  }, [scheduleDateKey]);
+
+  // 커스텀 순서 저장 헬퍼
+  const updateCustomOrder = (newOrderIds: string[]) => {
+    if (!scheduleDateKey) return;
+    setCustomOrderMap((prev) => ({ ...prev, [scheduleDateKey]: newOrderIds }));
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`careroute_order_${scheduleDateKey}`, JSON.stringify(newOrderIds));
+      } catch (e) {
+        console.error('Failed to save custom route order:', e);
+      }
+    }
+  };
+
+  // 최적 경로로 순서 초기화
+  const resetToOptimizedOrder = () => {
+    if (!scheduleDateKey) return;
+    setCustomOrderMap((prev) => {
+      const next = { ...prev };
+      delete next[scheduleDateKey];
+      return next;
+    });
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(`careroute_order_${scheduleDateKey}`);
+      } catch (e) {
+        console.error('Failed to reset custom route order:', e);
+      }
+    }
+  };
+
+  // 특정 인덱스의 순서를 위/아래로 이동
+  const moveRouteItem = (index: number, direction: 'up' | 'down') => {
+    const currentList = [...scheduleRoute];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= currentList.length) return;
+    const [moved] = currentList.splice(index, 1);
+    currentList.splice(targetIndex, 0, moved);
+    updateCustomOrder(currentList.map(r => r.id));
+  };
+
+  // 오늘의 경로: 사용자가 직접 지정한 순서가 있으면 우선 적용하고,
+  // 없을 경우 기본 알고리즘(시간 지정 일정 뼈대 + 최근접 삽입 휴리스틱)으로 정렬한다.
   const scheduleRoute = useMemo(() => {
     if (!scheduleDate) return [];
     const todays = markers.filter(r => getScheduledForDate(r, scheduleDate));
+    if (todays.length === 0) return [];
+
+    // 자동 최적화 기본 경로 계산
+    let computedRoute: Recipient[] = [];
     const timed = todays
       .filter((r) => parseVisitTime(r.visit_time, r.notes).hasTime)
       .sort((a, b) => {
@@ -1149,9 +1218,9 @@ function MainApp() {
       });
     const flexible = todays.filter((r) => !parseVisitTime(r.visit_time, r.notes).hasTime);
 
-    if (flexible.length === 0) return timed;
-
-    if (timed.length === 0) {
+    if (flexible.length === 0) {
+      computedRoute = timed;
+    } else if (timed.length === 0) {
       const route: Recipient[] = [];
       const remaining = [...flexible];
       let curLat = mapCenter.lat, curLng = mapCenter.lng;
@@ -1165,34 +1234,58 @@ function MainApp() {
         route.push(next);
         curLat = next.lat; curLng = next.lng;
       }
-      return route;
+      computedRoute = route;
+    } else {
+      const route = [...timed];
+      const remaining = [...flexible];
+      while (remaining.length > 0) {
+        let bestFlexIdx = 0, bestPos = 0, bestExtra = Infinity;
+        remaining.forEach((flex, fi) => {
+          const points = [{ lat: mapCenter.lat, lng: mapCenter.lng }, ...route];
+          for (let i = 0; i < points.length; i++) {
+            const a = points[i];
+            const b = points[i + 1];
+            const dA = getDistanceFromLatLonInKm(a.lat, a.lng, flex.lat, flex.lng);
+            const dB = b ? getDistanceFromLatLonInKm(flex.lat, flex.lng, b.lat, b.lng) : 0;
+            const dOrig = b ? getDistanceFromLatLonInKm(a.lat, a.lng, b.lat, b.lng) : 0;
+            const extra = dA + dB - dOrig;
+            if (extra < bestExtra) {
+              bestExtra = extra;
+              bestFlexIdx = fi;
+              bestPos = i;
+            }
+          }
+        });
+        const [chosen] = remaining.splice(bestFlexIdx, 1);
+        route.splice(bestPos, 0, chosen);
+      }
+      computedRoute = route;
     }
 
-    const route = [...timed];
-    const remaining = [...flexible];
-    while (remaining.length > 0) {
-      let bestFlexIdx = 0, bestPos = 0, bestExtra = Infinity;
-      remaining.forEach((flex, fi) => {
-        const points = [{ lat: mapCenter.lat, lng: mapCenter.lng }, ...route];
-        for (let i = 0; i < points.length; i++) {
-          const a = points[i];
-          const b = points[i + 1];
-          const dA = getDistanceFromLatLonInKm(a.lat, a.lng, flex.lat, flex.lng);
-          const dB = b ? getDistanceFromLatLonInKm(flex.lat, flex.lng, b.lat, b.lng) : 0;
-          const dOrig = b ? getDistanceFromLatLonInKm(a.lat, a.lng, b.lat, b.lng) : 0;
-          const extra = dA + dB - dOrig;
-          if (extra < bestExtra) {
-            bestExtra = extra;
-            bestFlexIdx = fi;
-            bestPos = i;
-          }
+    // 저장된 수동 순서가 있으면 반영
+    const customIds = scheduleDateKey ? customOrderMap[scheduleDateKey] : null;
+    if (customIds && customIds.length > 0) {
+      const idMap = new Map(todays.map(r => [r.id, r]));
+      const ordered: Recipient[] = [];
+      for (const id of customIds) {
+        const item = idMap.get(id);
+        if (item) {
+          ordered.push(item);
+          idMap.delete(id);
         }
-      });
-      const [chosen] = remaining.splice(bestFlexIdx, 1);
-      route.splice(bestPos, 0, chosen);
+      }
+      // 새로 추가되어 커스텀 순서에 아직 없는 어르신은 뒤에 추가
+      for (const item of computedRoute) {
+        if (idMap.has(item.id)) {
+          ordered.push(item);
+          idMap.delete(item.id);
+        }
+      }
+      return ordered;
     }
-    return route;
-  }, [markers, mapCenter, scheduleDate]);
+
+    return computedRoute;
+  }, [markers, mapCenter, scheduleDate, scheduleDateKey, customOrderMap]);
 
   // Google 캘린더 동기화: Google Identity Services(GIS)로 액세스 토큰만 받아서
   // Calendar REST API를 직접 호출한다 (무거운 gapi 클라이언트 라이브러리 불필요).
@@ -2027,6 +2120,26 @@ function MainApp() {
                 </div>
               )}
 
+              {/* 순서 편집 및 최적화 리셋 버튼 */}
+              {scheduleDate && scheduleRoute.length > 1 && (
+                <div className="flex items-center gap-1.5">
+                  {scheduleDateKey && customOrderMap[scheduleDateKey] && (
+                    <button
+                      type="button"
+                      onClick={resetToOptimizedOrder}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-surface-muted text-foreground/70 hover:bg-surface-border transition-colors shadow-2xs active:scale-95 border border-surface-border/40"
+                      title="거리/시간 기준 최적 순서로 복구"
+                    >
+                      <IconRotate2 size={13} />
+                      최적 순서
+                    </button>
+                  )}
+                  <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">
+                    <IconArrowsSort size={13} />
+                    순서 조정 가능
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Month Grid Calendar */}
@@ -2057,6 +2170,8 @@ function MainApp() {
                   return (
                     <motion.div
                       key={marker.id}
+                      layout
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       whileTap={{ scale: 0.99 }}
                       onClick={() => setSelectedRecipient(marker)}
                       className={`relative flex gap-3.5 items-start cursor-pointer transition-all ${completed ? 'opacity-60' : 'opacity-100'}`}
@@ -2104,6 +2219,43 @@ function MainApp() {
                               {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
                             </p>
                           </div>
+
+                          {/* 순서 조정 (위/아래 이동) 컨트롤 */}
+                          {scheduleRoute.length > 1 && (
+                            <div 
+                              className="flex flex-col gap-1 items-center shrink-0 pl-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                disabled={i === 0}
+                                onClick={(e) => { e.stopPropagation(); moveRouteItem(i, 'up'); }}
+                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                                  i === 0 
+                                    ? 'opacity-25 text-foreground/30 cursor-not-allowed' 
+                                    : 'bg-surface-muted hover:bg-surface-border text-foreground/70 active:scale-90 border border-surface-border/40 shadow-2xs'
+                                }`}
+                                aria-label="순서 위로 이동"
+                                title="순서 위로 올리기"
+                              >
+                                <IconChevronUp size={16} strokeWidth={2.5} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={i === scheduleRoute.length - 1}
+                                onClick={(e) => { e.stopPropagation(); moveRouteItem(i, 'down'); }}
+                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                                  i === scheduleRoute.length - 1 
+                                    ? 'opacity-25 text-foreground/30 cursor-not-allowed' 
+                                    : 'bg-surface-muted hover:bg-surface-border text-foreground/70 active:scale-90 border border-surface-border/40 shadow-2xs'
+                                }`}
+                                aria-label="순서 아래로 이동"
+                                title="순서 아래로 내리기"
+                              >
+                                <IconChevronDown size={16} strokeWidth={2.5} />
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                         {/* One UI Action Buttons */}
@@ -2112,10 +2264,10 @@ function MainApp() {
                             <button
                               onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
                               className={`flex-1 flex items-center justify-center gap-1 py-2.5 rounded-[16px] text-[13px] font-black transition-colors whitespace-nowrap active:scale-95 ${
-                                completed 
-                                  ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border' 
-                                  : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20'
-                              }`}
+                              completed 
+                                ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border' 
+                                : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20'
+                            }`}
                             >
                               <IconCheck size={16} strokeWidth={2.5} />
                               {completed ? '완료 취소' : '방문 완료'}
