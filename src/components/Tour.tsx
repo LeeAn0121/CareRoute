@@ -2,6 +2,7 @@ import React from 'react';
 import { Joyride, EventData, STATUS, TooltipRenderProps } from 'react-joyride';
 import { motion } from 'motion/react';
 import { IconMapPin, IconUserPlus, IconCategory, IconTarget, IconStar, IconMenu2, IconMap } from '@tabler/icons-react';
+import { requestNotificationPermission } from '@/lib/notifications';
 
 interface TourProps {
   onComplete: () => void;
@@ -127,7 +128,7 @@ export default function Tour({ onComplete }: TourProps) {
 
     if (finishedStatuses.includes(status) || action === 'close') {
       if ('Notification' in window && Notification.permission === 'default') {
-        try { await Notification.requestPermission(); } catch (e) {}
+        try { await requestNotificationPermission(); } catch (e) {}
       }
       if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(

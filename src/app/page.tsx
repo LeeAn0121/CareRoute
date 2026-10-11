@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
+import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
 import ScheduleAddModal from '@/components/ScheduleAddModal';
 import ScheduleManageModal from '@/components/ScheduleManageModal';
@@ -569,47 +570,67 @@ function MainApp() {
   const [installDismissed, setInstallDismissed] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const waitingWorkerRef = useRef<ServiceWorker | null>(null);
-  
-  // Push 알림 구독: 서버(Edge Function)가 방문 예정 시간에 맞춰 실제 Web Push를
-  // 보내주므로, 앱이 닫혀있거나 백그라운드여도 알림이 온다. (예전의 setInterval
-  // 기반 포그라운드 전용 체크는 앱이 열려있을 때만 동작해 신뢰할 수 없었음)
+
+  // 실시간 방문 알림 상태
+  const [activeVisitAlert, setActiveVisitAlert] = useState<{ recipient: Recipient; timeStr: string } | null>(null);
+  const notifiedKeysRef = useRef<Set<string>>(new Set());
+
+  // Push 알림 자동 동기화: 이미 알림 권한이 허용된 경우 백그라운드 웹푸시 구독을 갱신/등록
   useEffect(() => {
-    if (showOnboarding) return;
-    const setupPush = async () => {
-      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      registerPushSubscription().catch((err) => console.warn('Push 구독 자동 갱신 실패:', err));
+    }
+  }, []);
 
-      if (Notification.permission === 'default') {
-        const result = await Notification.requestPermission();
-        if (result !== 'granted') return;
-      }
-      if (Notification.permission !== 'granted') return;
+  // 포그라운드 방문 예정 시간 실시간 리마인더 (앱 사용 중 30초 간격 체크)
+  useEffect(() => {
+    const checkScheduledVisits = () => {
+      if (!markers || markers.length === 0) return;
+      const now = new Date();
+      const currentHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const ymd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!vapidKey) return;
+      // 오늘 방문 예정 어르신 목록
+      const scheduledToday = markers.filter((r) => getScheduledForDate(r, now));
 
-      const registration = await navigator.serviceWorker.ready;
-      let subscription = await registration.pushManager.getSubscription();
-      if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey),
-        });
-      }
+      for (const recipient of scheduledToday) {
+        if (!recipient.visit_time || recipient.visit_time === '00:00:00') continue;
+        const timePrefix = recipient.visit_time.substring(0, 5);
 
-      const json = subscription.toJSON();
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return;
+        // 현재 분과 방문 시간이 일치할 때 알림 발송
+        if (timePrefix === currentHM) {
+          const alertKey = `${recipient.id}_${ymd}_${currentHM}`;
+          if (!notifiedKeysRef.current.has(alertKey)) {
+            notifiedKeysRef.current.add(alertKey);
 
-      const { error } = await supabase.from('push_subscriptions').upsert(
-        { endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
-        { onConflict: 'endpoint' }
-      );
-      if (error) {
-        console.warn('푸시 구독 저장 실패 (Supabase RLS 확인 필요):', error.message);
+            // 1. 브라우저/OS 시스템 알림 발송 (권한 허용된 경우)
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then((reg) => {
+                  reg.showNotification('어르신 방문 예정 시간 알림 🚨', {
+                    body: `${recipient.name} 어르신 방문 시간(${timePrefix})입니다! (${recipient.address})`,
+                    icon: '/CareRoute/icon-192.png',
+                    badge: '/CareRoute/icon-192.png',
+                    tag: `visit-${recipient.id}-${ymd}`,
+                    data: { url: `/CareRoute/?focus=${recipient.id}`, recipientId: recipient.id },
+                  });
+                }).catch(() => {});
+              }
+            }
+
+            // 2. 인앱 다이내믹 아일랜드 플로팅 알림 배너 노출
+            setActiveVisitAlert({ recipient, timeStr: timePrefix });
+          }
+        }
       }
     };
 
-    setupPush().catch((err) => console.warn('Push 구독 설정 실패:', err));
-  }, []);
+    const intervalId = setInterval(checkScheduledVisits, 30000);
+    checkScheduledVisits();
+
+    return () => clearInterval(intervalId);
+  }, [markers]);
 
   useEffect(() => {
     if (!localStorage.getItem('careroute_tutorial_done_v2')) {
@@ -1407,6 +1428,51 @@ function MainApp() {
           </button>
         </div>
       )}
+
+      {/* 실시간 방문 예정 알림 인앱 플로팅 배너 */}
+      <AnimatePresence>
+        {activeVisitAlert && (
+          <motion.div
+            initial={{ opacity: 0, y: -60, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -60, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            className="fixed top-4 left-4 right-4 z-[70] max-w-lg mx-auto bg-foreground text-background p-4 rounded-[28px] shadow-2xl flex items-center justify-between border border-white/20 gap-3"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-amber-400 flex items-center justify-center text-foreground shrink-0 animate-bounce">
+                <IconBellRinging size={22} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-400">방문 예정 알림</span>
+                  <span className="text-xs text-background/60 font-bold">{activeVisitAlert.timeStr}</span>
+                </div>
+                <p className="font-black text-sm truncate">{activeVisitAlert.recipient.name} 어르신 댁 방문 시간입니다!</p>
+                <p className="text-xs text-background/60 truncate">{activeVisitAlert.recipient.address}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => {
+                  focusRecipientById(activeVisitAlert.recipient.id);
+                  setActiveVisitAlert(null);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-primary text-primary-foreground font-black text-xs active:scale-95 shadow-md shadow-primary/30 whitespace-nowrap"
+              >
+                위치 보기
+              </button>
+              <button
+                onClick={() => setActiveVisitAlert(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-background/70 active:scale-90"
+              >
+                <IconX size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Global Top-Right User Menu Button */}
       {activeTab !== 'settings' && (
