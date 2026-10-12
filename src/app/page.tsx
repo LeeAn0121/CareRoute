@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
@@ -16,6 +16,7 @@ import WeatherWidget from '@/components/WeatherWidget';
 import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/components/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import { parseVisitTime } from '@/lib/visitTime';
+import { fetchWeatherForCoord, getWeatherEmojiAndDesc } from '@/lib/weather';
 
 interface RegCode {
   code: string;
@@ -217,6 +218,18 @@ function MainApp() {
   const [myLocation, setMyLocation] = useState<{lat: number, lng: number} | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [showRegions, setShowRegions] = useState(false);
+  const [showWeatherGrid, setShowWeatherGrid] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('careroute_show_weather_grid') === 'true';
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('careroute_show_weather_grid', String(showWeatherGrid));
+    }
+  }, [showWeatherGrid]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentAddress, setCurrentAddress] = useState('위치 파악 중...');
 
@@ -493,10 +506,164 @@ function MainApp() {
   const showRegionsRef = useRef(showRegions);
   useEffect(() => { showRegionsRef.current = showRegions; }, [showRegions]);
 
+  // Weather Grid refs & rendering functions
+  const showWeatherGridRef = useRef(showWeatherGrid);
+  useEffect(() => { showWeatherGridRef.current = showWeatherGrid; }, [showWeatherGrid]);
+
+  const weatherGridPolygonsRef = useRef<any[]>([]);
+  const weatherGridMarkersRef = useRef<Map<string, any>>(new Map());
+
+  const clearWeatherGrid = () => {
+    weatherGridPolygonsRef.current.forEach((p) => p.setMap(null));
+    weatherGridPolygonsRef.current = [];
+    weatherGridMarkersRef.current.forEach((m) => m.setMap(null));
+    weatherGridMarkersRef.current.clear();
+  };
+
+  const drawWeatherGrid = (map: any) => {
+    if (!window.naver || !window.naver.maps) return;
+    if (!showWeatherGridRef.current) {
+      clearWeatherGrid();
+      return;
+    }
+
+    const bounds = map.getBounds();
+    if (!bounds) return;
+    const zoom = map.getZoom();
+
+    // 줌 레벨에 따라 적절한 격자 크기 결정
+    const step = zoom >= 14 ? 0.02 : (zoom >= 11 ? 0.05 : 0.1);
+
+    const minLat = bounds.getMin().y;
+    const minLng = bounds.getMin().x;
+    const maxLat = bounds.getMax().y;
+    const maxLng = bounds.getMax().x;
+
+    const startLat = Math.floor(minLat / step) * step;
+    const endLat = Math.ceil(maxLat / step) * step;
+    const startLng = Math.floor(minLng / step) * step;
+    const endLng = Math.ceil(maxLng / step) * step;
+
+    const center = map.getCenter();
+    const currentCenterLat = center ? center.y : mapCenter.lat;
+    const currentCenterLng = center ? center.x : mapCenter.lng;
+
+    const cells: { minLat: number; maxLat: number; minLng: number; maxLng: number; centerLat: number; centerLng: number; isCenter: boolean; key: string }[] = [];
+
+    for (let lat = startLat; lat < endLat; lat += step) {
+      for (let lng = startLng; lng < endLng; lng += step) {
+        if (cells.length >= 25) break;
+        const cellMinLat = Number(lat.toFixed(4));
+        const cellMaxLat = Number((lat + step).toFixed(4));
+        const cellMinLng = Number(lng.toFixed(4));
+        const cellMaxLng = Number((lng + step).toFixed(4));
+        const centerLat = Number((cellMinLat + step / 2).toFixed(4));
+        const centerLng = Number((cellMinLng + step / 2).toFixed(4));
+        const isCenter = currentCenterLat >= cellMinLat && currentCenterLat < cellMaxLat && currentCenterLng >= cellMinLng && currentCenterLng < cellMaxLng;
+        const key = `${cellMinLat.toFixed(3)}_${cellMinLng.toFixed(3)}`;
+        cells.push({ minLat: cellMinLat, maxLat: cellMaxLat, minLng: cellMinLng, maxLng: cellMaxLng, centerLat, centerLng, isCenter, key });
+      }
+    }
+
+    // 이전 폴리곤 제거
+    weatherGridPolygonsRef.current.forEach((p) => p.setMap(null));
+    weatherGridPolygonsRef.current = [];
+
+    const activeKeys = new Set(cells.map(c => c.key));
+    // 화면 밖으로 벗어난 라벨 마커만 제거
+    weatherGridMarkersRef.current.forEach((marker, key) => {
+      if (!activeKeys.has(key)) {
+        marker.setMap(null);
+        weatherGridMarkersRef.current.delete(key);
+      }
+    });
+
+    // 새 폴리곤 및 라벨 생성
+    cells.forEach((cell) => {
+      const polygon = new window.naver.maps.Polygon({
+        map,
+        paths: [
+          new window.naver.maps.LatLng(cell.minLat, cell.minLng),
+          new window.naver.maps.LatLng(cell.maxLat, cell.minLng),
+          new window.naver.maps.LatLng(cell.maxLat, cell.maxLng),
+          new window.naver.maps.LatLng(cell.minLat, cell.maxLng),
+        ],
+        fillColor: cell.isCenter ? '#0284c7' : '#38bdf8',
+        fillOpacity: cell.isCenter ? 0.12 : 0.035,
+        strokeColor: cell.isCenter ? '#0284c7' : '#38bdf8',
+        strokeOpacity: cell.isCenter ? 0.85 : 0.4,
+        strokeWeight: cell.isCenter ? 2.5 : 1,
+        clickable: true,
+      });
+
+      window.naver.maps.Event.addListener(polygon, 'click', () => {
+        setMapCenter({ lat: cell.centerLat, lng: cell.centerLng });
+        setActiveHeaderModal('weather');
+      });
+
+      weatherGridPolygonsRef.current.push(polygon);
+
+      // 라벨 마커 생성 또는 갱신
+      if (!weatherGridMarkersRef.current.has(cell.key)) {
+        fetchWeatherForCoord(cell.centerLat, cell.centerLng, step).then((weatherData) => {
+          if (!weatherData || !showWeatherGridRef.current) return;
+          const { emoji } = getWeatherEmojiAndDesc(weatherData.pty);
+          const marker = new window.naver.maps.Marker({
+            position: new window.naver.maps.LatLng(cell.centerLat, cell.centerLng),
+            map,
+            icon: {
+              content: `
+                <div class="weather-grid-badge" style="
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 4px;
+                  padding: 4px 9px;
+                  border-radius: 9999px;
+                  background: rgba(255, 255, 255, 0.94);
+                  color: #0f172a;
+                  font-size: 11px;
+                  font-weight: 900;
+                  border: 1.5px solid ${cell.isCenter ? '#0284c7' : 'rgba(56, 189, 248, 0.65)'};
+                  box-shadow: 0 4px 12px rgba(0,0,0,0.14);
+                  backdrop-filter: blur(8px);
+                  cursor: pointer;
+                  transform: translate(-50%, -50%);
+                  white-space: nowrap;
+                  user-select: none;
+                ">
+                  <span style="font-size: 13px;">${emoji}</span>
+                  <span>${weatherData.temp}°</span>
+                  ${cell.isCenter ? '<span style="font-size: 9px; font-weight: 900; background: #e0f2fe; color: #0284c7; padding: 1px 4px; border-radius: 5px; margin-left: 2px;">탐색중</span>' : ''}
+                </div>
+              `,
+              anchor: new window.naver.maps.Point(0, 0),
+            },
+          });
+
+          window.naver.maps.Event.addListener(marker, 'click', () => {
+            setMapCenter({ lat: cell.centerLat, lng: cell.centerLng });
+            setActiveHeaderModal('weather');
+          });
+
+          weatherGridMarkersRef.current.set(cell.key, marker);
+        });
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (showWeatherGrid) {
+      drawWeatherGrid(mapRef.current);
+    } else {
+      clearWeatherGrid();
+    }
+  }, [showWeatherGrid]);
+
   const idleListenerRegisteredRef = useRef(false);
 
   // 지도 이동/확대를 React 상태(mapZoom/mapCenter)와 항상 동기화하고, 켜져
-  // 있으면 행정구역 폴리곤/라벨도 함께 갱신한다. showRegions 여부와 무관하게
+  // 있으면 행정구역 폴리곤/라벨 및 기상 격자망도 함께 갱신한다. showRegions 여부와 무관하게
   // 항상 등록해야 한다 — 예전엔 이 리스너가 showRegions가 켜져 있을 때만
   // 등록되는 effect 안에 있어서, 꺼둔 채로 확대/축소하면 mapZoom 상태가 전혀
   // 갱신되지 않아 마커 클러스터링이 줌 레벨에 반응하지 않는 버그가 있었다.
@@ -514,6 +681,10 @@ function MainApp() {
         setMapZoom(map.getZoom());
         const center = map.getCenter();
         setMapCenter({ lat: center.y, lng: center.x });
+
+        if (showWeatherGridRef.current) {
+          drawWeatherGrid(map);
+        }
 
         if (!showRegionsRef.current || !currentRenderedLevel || !geoCache[currentRenderedLevel]) return;
         const lvl = currentRenderedLevel;
@@ -1792,6 +1963,8 @@ function MainApp() {
               isOpen={isWeatherDetailOpen}
               onToggle={toggleWeatherDetail}
               onClose={closeAllHeaderPopups}
+              showWeatherGrid={showWeatherGrid}
+              onToggleWeatherGrid={() => setShowWeatherGrid(prev => !prev)}
             />
           </div>
 
@@ -2924,6 +3097,19 @@ function MainApp() {
               title="행정구역 경계 토글"
             >
               <IconMap size={22} strokeWidth={2.5} />
+            </motion.button>
+            
+            <div className="w-7 h-[1px] bg-foreground/10" />
+
+            {/* 기상 격자망 보기 (Weather Grid Toggle) */}
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.90 }}
+              onClick={() => setShowWeatherGrid(prev => !prev)}
+              className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors ${showWeatherGrid ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
+              title="지도 기상 격자망(그리드) 토글"
+            >
+              <IconCloud size={22} strokeWidth={2.5} />
             </motion.button>
             
             <div className="w-7 h-[1px] bg-foreground/10" />

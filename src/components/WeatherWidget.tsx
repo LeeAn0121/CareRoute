@@ -2,6 +2,14 @@
 import { useState, useEffect } from 'react';
 import { IconWind, IconCloud, IconChevronDown, IconDroplet, IconThermometer, IconSparkles, IconX } from '@tabler/icons-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { 
+  WeatherData, 
+  weatherCache, 
+  getGridKey, 
+  getLatestKnownWeather, 
+  getWeatherEmojiAndDesc, 
+  fetchWeatherForCoord 
+} from '@/lib/weather';
 
 interface WeatherWidgetProps {
   lat: number;
@@ -9,28 +17,23 @@ interface WeatherWidgetProps {
   isOpen?: boolean;
   onToggle?: () => void;
   onClose?: () => void;
+  showWeatherGrid?: boolean;
+  onToggleWeatherGrid?: () => void;
 }
 
-interface WeatherData {
-  temp: number;
-  tempApparent: number;
-  tempMax: number;
-  tempMin: number;
-  pty: string;
-  rn1: number;
-  pm10: number;
-  pm25: number;
-}
-
-// Global in-memory cache for weather data per coordinate grid (~1.1km)
-const weatherCache = new Map<string, { data: WeatherData; timestamp: number }>();
-const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes TTL
-
-export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: WeatherWidgetProps) {
-  const gridKey = `${lat.toFixed(2)}_${lng.toFixed(2)}`;
+export default function WeatherWidget({ 
+  lat, 
+  lng, 
+  isOpen, 
+  onToggle, 
+  onClose,
+  showWeatherGrid,
+  onToggleWeatherGrid 
+}: WeatherWidgetProps) {
+  const gridKey = getGridKey(lat, lng, 0.02);
   const [weather, setWeather] = useState<WeatherData | null>(() => {
     const cached = weatherCache.get(gridKey);
-    return (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) ? cached.data : null;
+    return cached ? cached.data : getLatestKnownWeather();
   });
   const [internalShowDetail, setInternalShowDetail] = useState(false);
 
@@ -43,51 +46,17 @@ export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: W
     
     // Check in-memory cache first
     const cached = weatherCache.get(gridKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    if (cached) {
       setWeather(cached.data);
       return;
     }
 
-    async function fetchWeather() {
-      try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,weather_code,apparent_temperature&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FSeoul`;
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=pm10,pm2_5&timezone=Asia%2FSeoul`;
-        const aqiRes = await fetch(aqiUrl);
-        const aqiData = await aqiRes.json();
-
-        if (data?.current && isMounted) {
-          const wmo = data.current.weather_code;
-          let pty = "0"; 
-          
-          if ([51,53,55,61,63,65,80,81,82].includes(wmo)) pty = "1";
-          if ([71,73,75,77,85,86].includes(wmo)) pty = "3";
-          if ([95,96,99].includes(wmo)) pty = "4"; 
-          
-          const newWeather: WeatherData = { 
-            temp: Math.round(data.current.temperature_2m), 
-            tempApparent: Math.round(data.current.apparent_temperature),
-            tempMax: Math.round(data.daily.temperature_2m_max[0]),
-            tempMin: Math.round(data.daily.temperature_2m_min[0]),
-            pty: pty, 
-            rn1: data.current.precipitation,
-            pm10: aqiData.current?.pm10 || 0,
-            pm25: aqiData.current?.pm2_5 || 0,
-          };
-
-          weatherCache.set(gridKey, { data: newWeather, timestamp: Date.now() });
-          setWeather(newWeather);
-        }
-      } catch (err) {
-        console.error("Weather fetch failed", err);
+    const timer = setTimeout(async () => {
+      const data = await fetchWeatherForCoord(lat, lng, 0.02);
+      if (isMounted && data) {
+        setWeather(data);
       }
-    }
-    
-    const timer = setTimeout(() => {
-      fetchWeather();
-    }, 500);
+    }, 400);
     
     return () => { 
       isMounted = false; 
@@ -107,12 +76,7 @@ export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: W
     );
   }
 
-  let emoji = "☀️";
-  let desc = "맑음";
-  
-  if (weather.pty === "1") { emoji = "🌧️"; desc = "비"; }
-  else if (weather.pty === "3") { emoji = "❄️"; desc = "눈"; }
-  else if (weather.pty === "4") { emoji = "⚡"; desc = "번개"; }
+  const { emoji, desc } = getWeatherEmojiAndDesc(weather.pty);
 
   const getAqiText = (val: number) => {
     if (val <= 30) return <span className="text-blue-500 font-black">좋음</span>;
@@ -196,6 +160,35 @@ export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: W
                   <IconX size={15} strokeWidth={2.5} />
                 </button>
               </div>
+
+              {/* 지도 위 기상 격자망 표시 토글 스위치 (One UI 9.0 Style) */}
+              {onToggleWeatherGrid && (
+                <div className="flex items-center justify-between p-3 rounded-[20px] bg-sky-500/10 border border-sky-500/20 mb-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-[12px] bg-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
+                      <IconCloud size={18} strokeWidth={2.5} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[13px] font-black text-foreground block tracking-tight">지도 기상 격자망(그리드)</span>
+                      <span className="text-[11px] font-bold text-foreground/50 block truncate">지도 위에 실시간 날씨 구역 및 기온 표시</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onToggleWeatherGrid}
+                    className={`w-12 h-7 rounded-full transition-colors relative p-0.5 shrink-0 ml-2 ${
+                      showWeatherGrid ? 'bg-sky-500' : 'bg-foreground/20'
+                    }`}
+                    aria-label="기상 격자망 토글"
+                  >
+                    <motion.div
+                      animate={{ x: showWeatherGrid ? 20 : 0 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      className="w-6 h-6 rounded-full bg-white shadow-md"
+                    />
+                  </button>
+                </div>
+              )}
 
               {/* 4대 주요 기상 지표 그리드 */}
               <div className="grid grid-cols-2 gap-2 text-[12px] mb-3">
