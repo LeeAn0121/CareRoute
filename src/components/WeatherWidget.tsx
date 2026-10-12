@@ -136,7 +136,7 @@ export default function WeatherWidget({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.96 }}
               transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="absolute top-[58px] right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-50 w-[310px] sm:w-[340px] max-w-[calc(100vw-28px)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[28px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)] border border-white/40 dark:border-white/10 text-foreground animate-in fade-in"
+              className="fixed top-[calc(env(safe-area-inset-top,0px)+68px)] left-3.5 right-3.5 max-w-[360px] mx-auto z-50 bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[28px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)] border border-white/40 dark:border-white/10 text-foreground animate-in fade-in"
             >
               {/* 상단 타이틀 & 닫기 버튼 */}
               <div className="flex items-center justify-between pb-3 border-b border-surface-border/40 mb-3">
@@ -161,7 +161,7 @@ export default function WeatherWidget({
                 </button>
               </div>
 
-              {/* 지도 위 기상 격자망 표시 토글 스위치 (One UI 9.0 Style) */}
+              {/* 지도 위 행정구역별 기상 그리드 토글 스위치 (One UI 9.0 Style) */}
               {onToggleWeatherGrid && (
                 <div className="flex items-center justify-between p-3 rounded-[20px] bg-sky-500/10 border border-sky-500/20 mb-3">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -169,8 +169,8 @@ export default function WeatherWidget({
                       <IconCloud size={18} strokeWidth={2.5} />
                     </div>
                     <div className="min-w-0">
-                      <span className="text-[13px] font-black text-foreground block tracking-tight">지도 기상 격자망(그리드)</span>
-                      <span className="text-[11px] font-bold text-foreground/50 block truncate">지도 위에 실시간 날씨 구역 및 기온 표시</span>
+                      <span className="text-[13px] font-black text-foreground block tracking-tight">행정구역별 기상 그리드</span>
+                      <span className="text-[11px] font-bold text-foreground/50 block truncate">동/구 행정구역별 실시간 날씨 및 기온 표시</span>
                     </div>
                   </div>
                   <button
@@ -179,7 +179,7 @@ export default function WeatherWidget({
                     className={`w-12 h-7 rounded-full transition-colors relative p-0.5 shrink-0 ml-2 ${
                       showWeatherGrid ? 'bg-sky-500' : 'bg-foreground/20'
                     }`}
-                    aria-label="기상 격자망 토글"
+                    aria-label="행정구역별 기상 그리드 토글"
                   >
                     <motion.div
                       animate={{ x: showWeatherGrid ? 20 : 0 }}

@@ -16,7 +16,7 @@ import WeatherWidget from '@/components/WeatherWidget';
 import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/components/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import { parseVisitTime } from '@/lib/visitTime';
-import { fetchWeatherForCoord, getWeatherEmojiAndDesc } from '@/lib/weather';
+import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey } from '@/lib/weather';
 
 interface RegCode {
   code: string;
@@ -404,11 +404,11 @@ function MainApp() {
 
   // ---- 행정구역 표시 관련 헬퍼: 컴포넌트 레벨로 옮겨서 아래 두 effect가 공유 ----
   const regionStyleFor = (lvl: string) => ({
-    fillColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
-    fillOpacity: 0.1,
-    strokeColor: lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6'),
-    strokeWeight: lvl === 'dong' ? 1 : 2,
-    strokeOpacity: 0.6,
+    fillColor: showWeatherGridRef.current ? '#0ea5e9' : (lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6')),
+    fillOpacity: showWeatherGridRef.current ? 0.08 : 0.1,
+    strokeColor: showWeatherGridRef.current ? '#0284c7' : (lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6')),
+    strokeWeight: showWeatherGridRef.current ? 1.5 : (lvl === 'dong' ? 1 : 2),
+    strokeOpacity: showWeatherGridRef.current ? 0.7 : 0.6,
     visible: true
   });
 
@@ -459,25 +459,95 @@ function MainApp() {
 
   // 라벨 마커는 필요한 것만 그때그때 만들어서 재사용 (전국 데이터를 한 번에
   // 다 만들면 동/읍/면 기준 약 3,500개 생성으로 메인 스레드가 멈춘다)
+  // 기상 그리드가 켜진 경우 행정구역별 실시간 날씨 및 기온 뱃지로 표시
   const ensureRegionLabelMarker = (lvl: string, feature: any) => {
     const name = feature.properties.name;
-    const cached = labelCache[lvl].get(name);
+    const isWeather = !!showWeatherGridRef.current;
+    const cacheKey = isWeather ? `${name}_weather` : name;
+    const cached = labelCache[lvl].get(cacheKey);
     if (cached) return cached;
 
     const centerLat = feature.properties._centerLat;
     const centerLng = feature.properties._centerLng;
-    const bg = lvl === 'dong' ? 'var(--color-primary)' : (lvl === 'sigungu' ? 'var(--color-primary)' : 'var(--color-primary)');
-    const fs = lvl === 'dong' ? '11px' : '13px';
+    const fs = lvl === 'dong' ? '11px' : '12px';
 
-    const marker = new window.naver.maps.Marker({
-      position: new window.naver.maps.LatLng(centerLat, centerLng),
-      icon: {
-        content: `<div class="marker-wrapper" style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${fs}; font-weight: bold; border: 1px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; cursor: pointer;">${name}</div>`,
-        anchor: new window.naver.maps.Point(20, 10)
+    let marker: any;
+
+    if (isWeather) {
+      const renderWeatherContent = (emoji: string, tempText: string) => `
+        <div class="marker-wrapper weather-region-pill" style="
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 3px 8px;
+          background: rgba(255, 255, 255, 0.95);
+          color: #0f172a;
+          border-radius: 9999px;
+          font-size: ${fs};
+          font-weight: 800;
+          border: 1.5px solid #0284c7;
+          box-shadow: 0 4px 14px rgba(2, 132, 199, 0.24);
+          backdrop-filter: blur(8px);
+          white-space: nowrap;
+          cursor: pointer;
+          user-select: none;
+          transform: translate(-50%, -50%);
+        ">
+          <span style="font-weight: 900; color: #0284c7;">${name}</span>
+          <span style="display: inline-flex; align-items: center; gap: 2px; font-weight: 800; color: #0f172a;">
+            <span style="font-size: 13px;">${emoji}</span>
+            <span>${tempText}</span>
+          </span>
+        </div>
+      `;
+
+      // 캐시된 기상 데이터가 있으면 즉시 반영
+      const gridKey = getGridKey(centerLat, centerLng, 0.03);
+      const memWeather = weatherCache.get(gridKey)?.data;
+      const initialEmoji = memWeather ? getWeatherEmojiAndDesc(memWeather.pty).emoji : '☀️';
+      const initialTemp = memWeather ? `${memWeather.temp}°` : '';
+
+      marker = new window.naver.maps.Marker({
+        position: new window.naver.maps.LatLng(centerLat, centerLng),
+        icon: {
+          content: renderWeatherContent(initialEmoji, initialTemp),
+          anchor: new window.naver.maps.Point(0, 0),
+        },
+      });
+
+      // 캐시가 없으면 비동기로 가져와서 갱신
+      if (!memWeather) {
+        fetchWeatherForCoord(centerLat, centerLng, 0.03).then((data) => {
+          if (data && marker.getMap()) {
+            const { emoji } = getWeatherEmojiAndDesc(data.pty);
+            marker.setIcon({
+              content: renderWeatherContent(emoji, `${data.temp}°`),
+              anchor: new window.naver.maps.Point(0, 0),
+            });
+          }
+        });
       }
-    });
-    window.naver.maps.Event.addListener(marker, 'click', () => handleRegionSelect(centerLat, centerLng, lvl));
-    labelCache[lvl].set(name, marker);
+
+      // 클릭 시 해당 행정구역 중심으로 이동 및 날씨 상세 모달 표시
+      window.naver.maps.Event.addListener(marker, 'click', () => {
+        setMapCenter({ lat: centerLat, lng: centerLng });
+        setActiveHeaderModal('weather');
+      });
+    } else {
+      const bg = lvl === 'dong' ? 'var(--color-primary)' : (lvl === 'sigungu' ? 'var(--color-primary)' : 'var(--color-primary)');
+      const normalFs = lvl === 'dong' ? '11px' : '13px';
+
+      marker = new window.naver.maps.Marker({
+        position: new window.naver.maps.LatLng(centerLat, centerLng),
+        icon: {
+          content: `<div class="marker-wrapper" style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${normalFs}; font-weight: bold; border: 1px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; cursor: pointer;">${name}</div>`,
+          anchor: new window.naver.maps.Point(20, 10),
+        },
+      });
+      window.naver.maps.Event.addListener(marker, 'click', () => handleRegionSelect(centerLat, centerLng, lvl));
+    }
+
+    labelCache[lvl].set(cacheKey, marker);
     return marker;
   };
 
@@ -502,175 +572,18 @@ function MainApp() {
     });
   };
 
-  // showRegions는 아래 "항상 켜져있는" idle 리스너 안에서 최신 값을 읽어야 하니 ref로도 보관
+  // showRegions와 showWeatherGrid는 idle 리스너 안에서 최신 값을 읽기 위해 ref로 보관
   const showRegionsRef = useRef(showRegions);
   useEffect(() => { showRegionsRef.current = showRegions; }, [showRegions]);
 
-  // Weather Grid refs & rendering functions
   const showWeatherGridRef = useRef(showWeatherGrid);
   useEffect(() => { showWeatherGridRef.current = showWeatherGrid; }, [showWeatherGrid]);
-
-  const weatherGridPolygonsRef = useRef<any[]>([]);
-  const weatherGridMarkersRef = useRef<Map<string, any>>(new Map());
-
-  const clearWeatherGrid = () => {
-    weatherGridPolygonsRef.current.forEach((p) => p.setMap(null));
-    weatherGridPolygonsRef.current = [];
-    weatherGridMarkersRef.current.forEach((m) => m.setMap(null));
-    weatherGridMarkersRef.current.clear();
-  };
-
-  const drawWeatherGrid = (map: any) => {
-    if (!window.naver || !window.naver.maps) return;
-    if (!showWeatherGridRef.current) {
-      clearWeatherGrid();
-      return;
-    }
-
-    const bounds = map.getBounds();
-    if (!bounds) return;
-    const zoom = map.getZoom();
-
-    // 줌 레벨에 따라 적절한 격자 크기 결정
-    const step = zoom >= 14 ? 0.02 : (zoom >= 11 ? 0.05 : 0.1);
-
-    const minLat = bounds.getMin().y;
-    const minLng = bounds.getMin().x;
-    const maxLat = bounds.getMax().y;
-    const maxLng = bounds.getMax().x;
-
-    const startLat = Math.floor(minLat / step) * step;
-    const endLat = Math.ceil(maxLat / step) * step;
-    const startLng = Math.floor(minLng / step) * step;
-    const endLng = Math.ceil(maxLng / step) * step;
-
-    const center = map.getCenter();
-    const currentCenterLat = center ? center.y : mapCenter.lat;
-    const currentCenterLng = center ? center.x : mapCenter.lng;
-
-    const cells: { minLat: number; maxLat: number; minLng: number; maxLng: number; centerLat: number; centerLng: number; isCenter: boolean; key: string }[] = [];
-
-    for (let lat = startLat; lat < endLat; lat += step) {
-      for (let lng = startLng; lng < endLng; lng += step) {
-        if (cells.length >= 25) break;
-        const cellMinLat = Number(lat.toFixed(4));
-        const cellMaxLat = Number((lat + step).toFixed(4));
-        const cellMinLng = Number(lng.toFixed(4));
-        const cellMaxLng = Number((lng + step).toFixed(4));
-        const centerLat = Number((cellMinLat + step / 2).toFixed(4));
-        const centerLng = Number((cellMinLng + step / 2).toFixed(4));
-        const isCenter = currentCenterLat >= cellMinLat && currentCenterLat < cellMaxLat && currentCenterLng >= cellMinLng && currentCenterLng < cellMaxLng;
-        const key = `${cellMinLat.toFixed(3)}_${cellMinLng.toFixed(3)}`;
-        cells.push({ minLat: cellMinLat, maxLat: cellMaxLat, minLng: cellMinLng, maxLng: cellMaxLng, centerLat, centerLng, isCenter, key });
-      }
-    }
-
-    // 이전 폴리곤 제거
-    weatherGridPolygonsRef.current.forEach((p) => p.setMap(null));
-    weatherGridPolygonsRef.current = [];
-
-    const activeKeys = new Set(cells.map(c => c.key));
-    // 화면 밖으로 벗어난 라벨 마커만 제거
-    weatherGridMarkersRef.current.forEach((marker, key) => {
-      if (!activeKeys.has(key)) {
-        marker.setMap(null);
-        weatherGridMarkersRef.current.delete(key);
-      }
-    });
-
-    // 새 폴리곤 및 라벨 생성
-    cells.forEach((cell) => {
-      const polygon = new window.naver.maps.Polygon({
-        map,
-        paths: [
-          new window.naver.maps.LatLng(cell.minLat, cell.minLng),
-          new window.naver.maps.LatLng(cell.maxLat, cell.minLng),
-          new window.naver.maps.LatLng(cell.maxLat, cell.maxLng),
-          new window.naver.maps.LatLng(cell.minLat, cell.maxLng),
-        ],
-        fillColor: cell.isCenter ? '#0284c7' : '#38bdf8',
-        fillOpacity: cell.isCenter ? 0.12 : 0.035,
-        strokeColor: cell.isCenter ? '#0284c7' : '#38bdf8',
-        strokeOpacity: cell.isCenter ? 0.85 : 0.4,
-        strokeWeight: cell.isCenter ? 2.5 : 1,
-        clickable: true,
-      });
-
-      window.naver.maps.Event.addListener(polygon, 'click', () => {
-        setMapCenter({ lat: cell.centerLat, lng: cell.centerLng });
-        setActiveHeaderModal('weather');
-      });
-
-      weatherGridPolygonsRef.current.push(polygon);
-
-      // 라벨 마커 생성 또는 갱신
-      if (!weatherGridMarkersRef.current.has(cell.key)) {
-        fetchWeatherForCoord(cell.centerLat, cell.centerLng, step).then((weatherData) => {
-          if (!weatherData || !showWeatherGridRef.current) return;
-          const { emoji } = getWeatherEmojiAndDesc(weatherData.pty);
-          const marker = new window.naver.maps.Marker({
-            position: new window.naver.maps.LatLng(cell.centerLat, cell.centerLng),
-            map,
-            icon: {
-              content: `
-                <div class="weather-grid-badge" style="
-                  display: inline-flex;
-                  align-items: center;
-                  gap: 4px;
-                  padding: 4px 9px;
-                  border-radius: 9999px;
-                  background: rgba(255, 255, 255, 0.94);
-                  color: #0f172a;
-                  font-size: 11px;
-                  font-weight: 900;
-                  border: 1.5px solid ${cell.isCenter ? '#0284c7' : 'rgba(56, 189, 248, 0.65)'};
-                  box-shadow: 0 4px 12px rgba(0,0,0,0.14);
-                  backdrop-filter: blur(8px);
-                  cursor: pointer;
-                  transform: translate(-50%, -50%);
-                  white-space: nowrap;
-                  user-select: none;
-                ">
-                  <span style="font-size: 13px;">${emoji}</span>
-                  <span>${weatherData.temp}°</span>
-                  ${cell.isCenter ? '<span style="font-size: 9px; font-weight: 900; background: #e0f2fe; color: #0284c7; padding: 1px 4px; border-radius: 5px; margin-left: 2px;">탐색중</span>' : ''}
-                </div>
-              `,
-              anchor: new window.naver.maps.Point(0, 0),
-            },
-          });
-
-          window.naver.maps.Event.addListener(marker, 'click', () => {
-            setMapCenter({ lat: cell.centerLat, lng: cell.centerLng });
-            setActiveHeaderModal('weather');
-          });
-
-          weatherGridMarkersRef.current.set(cell.key, marker);
-        });
-      }
-    });
-  };
-
-  useEffect(() => {
-    if (!mapRef.current) return;
-    if (showWeatherGrid) {
-      drawWeatherGrid(mapRef.current);
-    } else {
-      clearWeatherGrid();
-    }
-  }, [showWeatherGrid]);
 
   const idleListenerRegisteredRef = useRef(false);
 
   // 지도 이동/확대를 React 상태(mapZoom/mapCenter)와 항상 동기화하고, 켜져
-  // 있으면 행정구역 폴리곤/라벨 및 기상 격자망도 함께 갱신한다. showRegions 여부와 무관하게
-  // 항상 등록해야 한다 — 예전엔 이 리스너가 showRegions가 켜져 있을 때만
-  // 등록되는 effect 안에 있어서, 꺼둔 채로 확대/축소하면 mapZoom 상태가 전혀
-  // 갱신되지 않아 마커 클러스터링이 줌 레벨에 반응하지 않는 버그가 있었다.
+  // 있으면 행정구역 폴리곤/라벨(기상 그리드 포함)도 함께 갱신한다.
   useEffect(() => {
-    // effect가 한 번만 도는 타이밍에 mapRef.current가 아직 준비 안 됐을 가능성을
-    // 완전히 없애기 위해, 폴링해서 준비되는 즉시 등록한다 (아래서 실제로 검증된
-    // 줌 폴링과 동일한 패턴 — 한 번뿐인 effect 타이밍에 의존하지 않는다).
     const id = setInterval(() => {
       if (!mapRef.current || !window.naver?.maps?.Event || idleListenerRegisteredRef.current) return;
       idleListenerRegisteredRef.current = true;
@@ -682,11 +595,8 @@ function MainApp() {
         const center = map.getCenter();
         setMapCenter({ lat: center.y, lng: center.x });
 
-        if (showWeatherGridRef.current) {
-          drawWeatherGrid(map);
-        }
-
-        if (!showRegionsRef.current || !currentRenderedLevel || !geoCache[currentRenderedLevel]) return;
+        const shouldShow = showRegionsRef.current || showWeatherGridRef.current;
+        if (!shouldShow || !currentRenderedLevel || !geoCache[currentRenderedLevel]) return;
         const lvl = currentRenderedLevel;
         const bounds = map.getBounds();
         const visible = regionFeaturesInView(lvl, bounds);
@@ -713,24 +623,31 @@ function MainApp() {
     return () => clearInterval(id);
   }, []);
 
+  // 렌더링 상태 캐싱 (불필요한 중복 렌더 방지 및 토글 상태 변경 즉각 감지)
+  const lastRenderedKeyRef = useRef<string>('');
+
   // Semantic Zoom (시도 -> 시군구 -> 동): 어떤 레벨을 그릴지 결정하고 데이터를 로드
   useEffect(() => {
     if (!mapRef.current || !window.naver) return;
     const map = mapRef.current;
 
-    if (!showRegions) {
+    const shouldShow = showRegions || showWeatherGrid;
+    if (!shouldShow) {
       map.data.setStyle({ visible: false });
       ['sido', 'sigungu', 'dong'].forEach(lvl => {
         labelCache[lvl].forEach((m: any) => m.setMap(null));
       });
       currentRenderedLevel = '';
+      lastRenderedKeyRef.current = '';
       return;
     }
 
     const level = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
+    const currentKey = `${level}_r:${showRegions}_w:${showWeatherGrid}`;
 
-    // 🔥 Optimization: Don't re-render if the level hasn't changed!
-    if (currentRenderedLevel === level) return;
+    // Optimization: 레벨과 표시 모드가 동일하면 재렌더하지 않음
+    if (lastRenderedKeyRef.current === currentKey) return;
+    lastRenderedKeyRef.current = currentKey;
 
     const urlMap: any = {
       sido: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_provinces_geo_simple.json',
@@ -738,13 +655,18 @@ function MainApp() {
       dong: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_submunicipalities_geo_simple.json'
     };
 
-    // 폴리곤 클릭 시 해당 구역으로 드롭다운 자동 필터링 (Reverse Geocoding)
+    // 폴리곤 클릭 시: 기상 그리드 모드면 해당 구역 날씨 상세 열기, 아니면 행정구역 선택
     if (!window.naver.maps.Event.hasListener(map.data, 'click')) {
       window.naver.maps.Event.addListener(map.data, 'click', (e: any) => {
         const lat = e.feature.properties?._centerLat;
         const lng = e.feature.properties?._centerLng;
         if (!lat || !lng) return;
-        handleRegionSelect(lat, lng, currentRenderedLevel);
+        if (showWeatherGridRef.current) {
+          setMapCenter({ lat, lng });
+          setActiveHeaderModal('weather');
+        } else {
+          handleRegionSelect(lat, lng, currentRenderedLevel);
+        }
       });
     }
 
@@ -754,8 +676,7 @@ function MainApp() {
       fetch(urlMap[level])
         .then(r => r.json())
         .then(geojson => {
-          // 마커는 만들지 않고 각 feature의 중심 좌표만 가볍게 미리 계산해둔다
-          // (실제 라벨 마커 생성은 drawLevel/idle 단계에서 화면에 보이는 것만 lazy하게)
+          // 각 feature의 중심 좌표만 가볍게 미리 계산해둔다
           if (geojson.features) {
             geojson.features.forEach((feature: any) => {
               const coords = feature.geometry?.coordinates;
@@ -782,12 +703,12 @@ function MainApp() {
 
           // 로딩 중에 줌이 바뀌었으면 그리지 않음
           const currentLevel = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
-          if (level === currentLevel && showRegions) {
+          if (level === currentLevel && (showRegions || showWeatherGrid)) {
             drawRegionLevel(map, level);
           }
         });
     }
-  }, [mapZoom, showRegions]);
+  }, [mapZoom, showRegions, showWeatherGrid]);
 
   useEffect(() => {
     if (!window.naver || !window.naver.maps || !window.naver.maps.Service) return;
@@ -3101,13 +3022,13 @@ function MainApp() {
             
             <div className="w-7 h-[1px] bg-foreground/10" />
 
-            {/* 기상 격자망 보기 (Weather Grid Toggle) */}
+            {/* 행정구역별 기상 그리드 보기 (Weather Grid Toggle) */}
             <motion.button
               type="button"
               whileTap={{ scale: 0.90 }}
               onClick={() => setShowWeatherGrid(prev => !prev)}
               className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors ${showWeatherGrid ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
-              title="지도 기상 격자망(그리드) 토글"
+              title="행정구역별 기상 그리드 토글"
             >
               <IconCloud size={22} strokeWidth={2.5} />
             </motion.button>
