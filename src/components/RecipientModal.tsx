@@ -80,9 +80,10 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       setDoorPasscode(recipientToEdit.door_passcode || '');
       // @ts-ignore
       setParkingMemo(recipientToEdit.parking_memo || '');
-      // @ts-ignore
-      setHealthTags(recipientToEdit.health_tags ? recipientToEdit.health_tags.split(',').filter(Boolean) : []);
-        setExistingPhotoUrl(recipientToEdit.photo_url || null);
+      const savedHealthTags = recipientToEdit.health_tags || 
+        (typeof window !== 'undefined' ? localStorage.getItem(`careroute_health_tags_${recipientToEdit.id}`) : null);
+      setHealthTags(savedHealthTags ? savedHealthTags.split(',').filter(Boolean) : []);
+      setExistingPhotoUrl(recipientToEdit.photo_url || null);
       } else {
         setName('');
         setAddress('');
@@ -205,7 +206,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         photoUrl = publicUrlData.publicUrl;
       }
 
-      const recipientData = {
+      const recipientData: Record<string, any> = {
         name,
         address,
         detail_address: detailAddress || null,
@@ -223,12 +224,39 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         health_tags: healthTags.length > 0 ? healthTags.join(',') : null,
       };
 
+      const tagsStr = healthTags.length > 0 ? healthTags.join(',') : null;
+
       if (recipientToEdit?.id) {
-        const { error } = await supabase.from('recipients').update(recipientData).eq('id', recipientToEdit.id);
+        let { error } = await supabase.from('recipients').update(recipientData).eq('id', recipientToEdit.id);
+        if (error && (error.message?.includes('health_tags') || error.details?.includes('health_tags'))) {
+          delete recipientData.health_tags;
+          const retry = await supabase.from('recipients').update(recipientData).eq('id', recipientToEdit.id);
+          error = retry.error;
+        }
         if (error) throw error;
+        if (typeof window !== 'undefined') {
+          if (tagsStr) {
+            localStorage.setItem(`careroute_health_tags_${recipientToEdit.id}`, tagsStr);
+          } else {
+            localStorage.removeItem(`careroute_health_tags_${recipientToEdit.id}`);
+          }
+        }
       } else {
-        const { error } = await supabase.from('recipients').insert([recipientData]);
-        if (error) throw error;
+        let insertRes = await supabase.from('recipients').insert([recipientData]).select('id');
+        if (insertRes.error && (insertRes.error.message?.includes('health_tags') || insertRes.error.details?.includes('health_tags'))) {
+          delete recipientData.health_tags;
+          insertRes = await supabase.from('recipients').insert([recipientData]).select('id');
+        }
+        if (insertRes.error) {
+          let fallback = await supabase.from('recipients').insert([recipientData]);
+          if (fallback.error && (fallback.error.message?.includes('health_tags') || fallback.error.details?.includes('health_tags'))) {
+            delete recipientData.health_tags;
+            fallback = await supabase.from('recipients').insert([recipientData]);
+          }
+          if (fallback.error) throw fallback.error;
+        } else if (insertRes.data?.[0]?.id && typeof window !== 'undefined' && tagsStr) {
+          localStorage.setItem(`careroute_health_tags_${insertRes.data[0].id}`, tagsStr);
+        }
       }
 
       onSuccess();

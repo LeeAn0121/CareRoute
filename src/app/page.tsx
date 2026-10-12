@@ -893,12 +893,18 @@ function MainApp() {
     query.then(({ data, error }) => {
       if (!error && data) {
         setIsOffline(false);
+        // Supabase DB 스키마 캐시에 health_tags가 없더라도 로컬 스토리지에 캐시된 건강 태그로 자동 병합(Hydration)
+        const hydratedData = data.map((marker: any) => ({
+          ...marker,
+          health_tags: marker.health_tags || (typeof window !== 'undefined' ? localStorage.getItem(`careroute_health_tags_${marker.id}`) : null),
+        }));
+
         // 근접 마커 자동 분산 처리: 완전히 같은 좌표뿐 아니라 같은 건물/블록처럼
         // '근처'인 경우까지 하나의 클러스터로 묶어 부챗살 모양으로 벌려서 배치한다.
         const PROXIMITY_KM = 0.02; // 약 20m 이내는 같은 클러스터로 취급
-        const clusters: typeof data[] = [];
+        const clusters: typeof hydratedData[] = [];
 
-        data.forEach((marker) => {
+        hydratedData.forEach((marker) => {
           const cluster = clusters.find((c) =>
             getDistanceFromLatLonInKm(c[0].lat, c[0].lng, marker.lat, marker.lng) < PROXIMITY_KM
           );
@@ -906,7 +912,7 @@ function MainApp() {
           else clusters.push([marker]);
         });
 
-        const offsetData: typeof data = [];
+        const offsetData: typeof hydratedData = [];
         clusters.forEach((cluster) => {
           if (cluster.length === 1) {
             offsetData.push(cluster[0]);
@@ -3002,23 +3008,32 @@ function MainApp() {
                   {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
                 </p>
 
-                {/* Badges: Passcode & Parking */}
-                {(selectedRecipient.door_passcode || selectedRecipient.parking_memo) && (
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    {selectedRecipient.door_passcode && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-black text-[10px] border border-amber-500/20 shadow-2xs">
-                        <IconKey size={11} strokeWidth={2.5} />
-                        <span>비번: {selectedRecipient.door_passcode}</span>
-                      </span>
-                    )}
-                    {selectedRecipient.parking_memo && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-400 font-bold text-[10px] border border-sky-500/20">
-                        <IconCar size={11} />
-                        <span className="max-w-[120px] truncate">{selectedRecipient.parking_memo}</span>
-                      </span>
-                    )}
-                  </div>
-                )}
+                {/* Badges: Health Tags & Passcode & Parking */}
+                {(() => {
+                  const activeTags = selectedRecipient.health_tags || 
+                    (typeof window !== 'undefined' ? localStorage.getItem(`careroute_health_tags_${selectedRecipient.id}`) : null);
+                  return (selectedRecipient.door_passcode || selectedRecipient.parking_memo || activeTags) ? (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      {activeTags && activeTags.split(',').filter(Boolean).slice(0, 2).map((tag, idx) => (
+                        <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 font-black text-[10px] border border-red-500/20 shadow-2xs">
+                          #{tag.trim()}
+                        </span>
+                      ))}
+                      {selectedRecipient.door_passcode && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-black text-[10px] border border-amber-500/20 shadow-2xs">
+                          <IconKey size={11} strokeWidth={2.5} />
+                          <span>비번: {selectedRecipient.door_passcode}</span>
+                        </span>
+                      )}
+                      {selectedRecipient.parking_memo && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-400 font-bold text-[10px] border border-sky-500/20">
+                          <IconCar size={11} />
+                          <span className="max-w-[120px] truncate">{selectedRecipient.parking_memo}</span>
+                        </span>
+                      )}
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               {/* Close Button */}
@@ -3132,15 +3147,20 @@ function MainApp() {
                     )}
                   </div>
 
-                  {selectedRecipient.health_tags && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {selectedRecipient.health_tags.split(',').filter(Boolean).map((tag, idx) => (
-                        <span key={idx} className="px-2.5 py-0.5 bg-red-500/10 text-red-600 rounded-full text-xs font-black border border-red-500/20">
-                          #{tag.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    const activeTags = selectedRecipient.health_tags || 
+                      (typeof window !== 'undefined' ? localStorage.getItem(`careroute_health_tags_${selectedRecipient.id}`) : null);
+                    if (!activeTags) return null;
+                    return (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {activeTags.split(',').filter(Boolean).map((tag, idx) => (
+                          <span key={idx} className="px-2.5 py-0.5 bg-red-500/10 text-red-600 rounded-full text-xs font-black border border-red-500/20">
+                            #{tag.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
 
                   <div className="mt-2">
                     <Chip icon={<IconClock size={13} strokeWidth={2.5} className="text-accent" />} className="bg-accent/15 text-accent border border-accent/20 font-black">
