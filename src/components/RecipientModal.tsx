@@ -260,14 +260,14 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       <form onSubmit={handleSubmit}>
         <div className="flex flex-col gap-4 px-6 py-3">
           {/* Avatar Upload Pebble */}
-          <div className="flex justify-center my-2">
+          <div className="flex flex-col items-center justify-center my-2">
             <div className="relative">
               <button
                 type="button"
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isSubmitting}
                 className="w-24 h-24 rounded-[28px] overflow-hidden bg-primary/5 flex items-center justify-center border-2 border-dashed border-surface-border/80 transition-colors hover:border-primary shadow-2xs"
-                aria-label="사진 선택"
+                aria-label="사진 등록 (카메라 또는 앨범 선택)"
               >
                 {photoPreview ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -305,11 +305,14 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                 ref={photoInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="hidden"
+                onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                 onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
               />
             </div>
+            <p className="text-[11px] font-bold text-foreground/50 mt-1.5 text-center">
+              카메라 촬영 또는 앨범에서 사진 선택
+            </p>
           </div>
 
           {/* Grouped Inset: Basic Info */}
