@@ -86,7 +86,7 @@ export default function Tour({ onComplete }: TourProps) {
     {
       target: '#tour-header',
       title: <><IconTarget className="text-primary" /> 실시간 위치 및 검색</>,
-      content: '이곳에서 현재 접속 중인 GPS 주소와 날씨를 확인하거나, 다른 지역을 바로 검색할 수 있습니다.',
+      content: '이곳에서 현재 접속 중인 GPS 주소를 확인하거나, 다른 지역 및 어르신을 바로 검색할 수 있습니다.',
       disableBeacon: true,
     },
     {

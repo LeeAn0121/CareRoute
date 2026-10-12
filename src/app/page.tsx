@@ -1876,19 +1876,6 @@ function MainApp() {
             <IconChevronDown size={16} className={`text-foreground/40 shrink-0 ml-1.5 transition-transform ${isRegionFilterOpen ? 'rotate-180 text-primary' : ''}`} />
           </button>
 
-          {/* Integrated Live Weather Widget Capsule */}
-          <div className="shrink-0 flex items-center">
-            <WeatherWidget 
-              lat={mapCenter.lat} 
-              lng={mapCenter.lng} 
-              isOpen={isWeatherDetailOpen}
-              onToggle={toggleWeatherDetail}
-              onClose={closeAllHeaderPopups}
-              showWeatherGrid={showWeatherGrid}
-              onToggleWeatherGrid={() => setShowWeatherGrid(prev => !prev)}
-            />
-          </div>
-
           {/* Map Search Toggle Button */}
           <button
             onClick={toggleMapSearch}
@@ -1900,6 +1887,17 @@ function MainApp() {
             {isMapSearchOpen ? <IconX size={20} /> : <IconSearch size={20} strokeWidth={2.5} />}
           </button>
         </div>
+
+        {/* 행정구역 기상 마커 및 폴리곤 터치 시 표시되는 상세 날씨 모달 */}
+        <WeatherWidget 
+          lat={mapCenter.lat} 
+          lng={mapCenter.lng} 
+          isOpen={isWeatherDetailOpen}
+          onClose={closeAllHeaderPopups}
+          showWeatherGrid={showWeatherGrid}
+          onToggleWeatherGrid={() => setShowWeatherGrid(prev => !prev)}
+          modalOnly
+        />
 
         {/* In-Map Search & Region Filter Common Backdrop */}
         {(isMapSearchOpen || isRegionFilterOpen) && (

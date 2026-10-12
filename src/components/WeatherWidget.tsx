@@ -19,6 +19,7 @@ interface WeatherWidgetProps {
   onClose?: () => void;
   showWeatherGrid?: boolean;
   onToggleWeatherGrid?: () => void;
+  modalOnly?: boolean;
 }
 
 export default function WeatherWidget({ 
@@ -28,7 +29,8 @@ export default function WeatherWidget({
   onToggle, 
   onClose,
   showWeatherGrid,
-  onToggleWeatherGrid 
+  onToggleWeatherGrid,
+  modalOnly = false,
 }: WeatherWidgetProps) {
   const gridKey = getGridKey(lat, lng, 0.02);
   const [weather, setWeather] = useState<WeatherData | null>(() => {
@@ -101,25 +103,27 @@ export default function WeatherWidget({
   else if (weather.tempApparent >= 28) fieldCareTip = "어르신 수분 섭취와 실내 환기에 유의하세요.";
 
   return (
-    <div className="relative">
-      {/* 컴팩트 날씨 캡슐 버튼 (헤더 높이 50px 통일) */}
-      <button
-        type="button"
-        onClick={handleToggle}
-        className={`h-[50px] px-4 rounded-[25px] flex items-center gap-1.5 transition-all active:scale-95 border ${
-          showDetail
-            ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/30'
-            : 'bg-surface/90 supports-[backdrop-filter]:bg-surface/80 hover:bg-surface text-foreground/85 border-white/40 dark:border-white/10 shadow-[0_12px_36px_rgba(0,0,0,0.1)]'
-        }`}
-        title={`현재 날씨: ${desc} ${weather.temp}° (터치 시 상세 정보)`}
-      >
-        <span className="text-[18px] leading-none drop-shadow-2xs">{emoji}</span>
-        <span className="text-[15px] font-black">{weather.temp}°</span>
-        <IconChevronDown
-          size={15}
-          className={`transition-transform duration-200 ${showDetail ? 'rotate-180 text-primary-foreground' : 'text-foreground/40'}`}
-        />
-      </button>
+    <div className={modalOnly ? '' : 'relative'}>
+      {/* 컴팩트 날씨 캡슐 버튼 (modalOnly가 아닐 때만 렌더링) */}
+      {!modalOnly && (
+        <button
+          type="button"
+          onClick={handleToggle}
+          className={`h-[50px] px-4 rounded-[25px] flex items-center gap-1.5 transition-all active:scale-95 border ${
+            showDetail
+              ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/30'
+              : 'bg-surface/90 supports-[backdrop-filter]:bg-surface/80 hover:bg-surface text-foreground/85 border-white/40 dark:border-white/10 shadow-[0_12px_36px_rgba(0,0,0,0.1)]'
+          }`}
+          title={`현재 날씨: ${desc} ${weather.temp}° (터치 시 상세 정보)`}
+        >
+          <span className="text-[18px] leading-none drop-shadow-2xs">{emoji}</span>
+          <span className="text-[15px] font-black">{weather.temp}°</span>
+          <IconChevronDown
+            size={15}
+            className={`transition-transform duration-200 ${showDetail ? 'rotate-180 text-primary-foreground' : 'text-foreground/40'}`}
+          />
+        </button>
+      )}
 
       {/* 펼침 상세 정보 플로팅 카드 (독립 오버레이 - 헤더 레이아웃을 절대 깨뜨리지 않음) */}
       <AnimatePresence>
@@ -127,7 +131,7 @@ export default function WeatherWidget({
           <>
             {/* 바깥 클릭 시 닫히는 투명 배경 오버레이 */}
             <div
-              className="fixed inset-0 z-10 bg-black/10 backdrop-blur-[1px]"
+              className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px] pointer-events-auto"
               onClick={handleClose}
             />
 
@@ -136,7 +140,7 @@ export default function WeatherWidget({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.96 }}
               transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="fixed top-[calc(env(safe-area-inset-top,0px)+68px)] left-3.5 right-3.5 max-w-[360px] mx-auto z-50 bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[28px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)] border border-white/40 dark:border-white/10 text-foreground animate-in fade-in"
+              className="fixed top-[calc(env(safe-area-inset-top,0px)+68px)] left-3.5 right-3.5 max-w-[360px] mx-auto z-50 bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[28px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)] border border-white/40 dark:border-white/10 text-foreground animate-in fade-in pointer-events-auto"
             >
               {/* 상단 타이틀 & 닫기 버튼 */}
               <div className="flex items-center justify-between pb-3 border-b border-surface-border/40 mb-3">
