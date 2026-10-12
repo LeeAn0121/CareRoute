@@ -22,9 +22,16 @@ interface WeatherData {
   pm25: number;
 }
 
+// Global in-memory cache for weather data per coordinate grid (~1.1km)
+const weatherCache = new Map<string, { data: WeatherData; timestamp: number }>();
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes TTL
+
 export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: WeatherWidgetProps) {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const gridKey = `${lat.toFixed(2)}_${lng.toFixed(2)}`;
+  const [weather, setWeather] = useState<WeatherData | null>(() => {
+    const cached = weatherCache.get(gridKey);
+    return (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) ? cached.data : null;
+  });
   const [internalShowDetail, setInternalShowDetail] = useState(false);
 
   const showDetail = isOpen !== undefined ? isOpen : internalShowDetail;
@@ -34,9 +41,15 @@ export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: W
   useEffect(() => {
     let isMounted = true;
     
+    // Check in-memory cache first
+    const cached = weatherCache.get(gridKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      setWeather(cached.data);
+      return;
+    }
+
     async function fetchWeather() {
       try {
-        setLoading(true);
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,weather_code,apparent_temperature&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FSeoul`;
         const res = await fetch(url);
         const data = await res.json();
@@ -53,7 +66,7 @@ export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: W
           if ([71,73,75,77,85,86].includes(wmo)) pty = "3";
           if ([95,96,99].includes(wmo)) pty = "4"; 
           
-          setWeather({ 
+          const newWeather: WeatherData = { 
             temp: Math.round(data.current.temperature_2m), 
             tempApparent: Math.round(data.current.apparent_temperature),
             tempMax: Math.round(data.daily.temperature_2m_max[0]),
@@ -62,12 +75,13 @@ export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: W
             rn1: data.current.precipitation,
             pm10: aqiData.current?.pm10 || 0,
             pm25: aqiData.current?.pm2_5 || 0,
-          });
+          };
+
+          weatherCache.set(gridKey, { data: newWeather, timestamp: Date.now() });
+          setWeather(newWeather);
         }
       } catch (err) {
         console.error("Weather fetch failed", err);
-      } finally {
-        if (isMounted) setLoading(false);
       }
     }
     
@@ -79,9 +93,19 @@ export default function WeatherWidget({ lat, lng, isOpen, onToggle, onClose }: W
       isMounted = false; 
       clearTimeout(timer);
     };
-  }, [lat, lng]);
+  }, [gridKey, lat, lng]);
 
-  if (loading || !weather) return null;
+  if (!weather) {
+    return (
+      <div
+        className="h-[50px] min-w-[78px] px-3.5 rounded-[25px] flex items-center justify-center gap-1.5 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 border border-white/40 dark:border-white/10 shadow-[0_12px_36px_rgba(0,0,0,0.1)] text-foreground/40 animate-pulse select-none shrink-0"
+        title="현장 날씨 정보 동기화 중..."
+      >
+        <span className="text-[17px] opacity-70">🌤️</span>
+        <span className="text-[14px] font-extrabold opacity-60">--°</span>
+      </div>
+    );
+  }
 
   let emoji = "☀️";
   let desc = "맑음";

@@ -1785,7 +1785,7 @@ function MainApp() {
           </button>
 
           {/* Integrated Live Weather Widget Capsule */}
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center">
             <WeatherWidget 
               lat={mapCenter.lat} 
               lng={mapCenter.lng} 
