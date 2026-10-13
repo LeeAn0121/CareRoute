@@ -273,20 +273,20 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       onClose={() => { if (!isSubmitting && !isAddressSearchOpen) onClose(); }}
       closeOnBackdrop={!isSubmitting && !isAddressSearchOpen}
     >
-      <div className="flex items-center justify-between px-6 pt-6 pb-2">
-        <div>
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 sm:px-6 pt-4 sm:pt-6 pb-3 bg-surface">
+        <div className="min-w-0">
           <h2 className="text-[20px] font-black text-foreground tracking-tight">
             {recipientToEdit ? '어르신 정보 수정' : '새 어르신 등록'}
           </h2>
           <p className="text-[12px] font-bold text-foreground/50">방문 관리에 필요한 필수 정보를 입력해주세요</p>
         </div>
-        <IconButton onClick={onClose} disabled={isSubmitting} className="w-9 h-9 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="닫기">
+        <IconButton onClick={onClose} disabled={isSubmitting} className="shrink-0 w-9 h-9 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="닫기">
           <IconX size={18} />
         </IconButton>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="flex flex-col gap-4 px-6 py-3">
+        <div className="flex flex-col gap-4 px-5 sm:px-6 py-3">
           {/* Avatar Upload Pebble */}
           <div className="flex flex-col items-center justify-center my-2">
             <div className="relative">
@@ -361,7 +361,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             />
 
             <div className="flex items-end gap-2">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <TextField label="기본 주소" required value={address} placeholder="도로명 또는 지번 주소" disabled />
               </div>
               <Button
@@ -369,7 +369,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                 onClick={handleSearchAddress}
                 disabled={isSubmitting}
                 startIcon={<IconSearch size={18} />}
-                className="mb-[1px] rounded-[18px] px-5 font-black text-sm"
+                className="mb-[1px] shrink-0 whitespace-nowrap rounded-[18px] px-4 sm:px-5 font-black text-sm"
               >
                 검색
               </Button>
@@ -425,7 +425,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                     }
                   }
                 }}
-                className="flex-1 px-4 py-2.5 text-[13px] font-bold border border-surface-border/60 rounded-[16px] bg-surface/90 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="flex-1 min-w-0 px-4 py-2.5 text-[13px] font-bold border border-surface-border/60 rounded-[16px] bg-surface/90 focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <button
                 type="button"
@@ -435,7 +435,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                     setCustomTag('');
                   }
                 }}
-                className="px-4 py-2.5 bg-primary/10 hover:bg-primary/15 text-primary rounded-[16px] text-[13px] font-black active:scale-95 transition-all"
+                className="shrink-0 whitespace-nowrap px-4 py-2.5 bg-primary/10 hover:bg-primary/15 text-primary rounded-[16px] text-[13px] font-black active:scale-95 transition-all"
               >
                 추가
               </button>
@@ -475,8 +475,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
         </div>
 
-        <div className="px-6 pb-6 pt-2">
-          <Button type="submit" fullWidth loading={isSubmitting} className="py-3.5 text-[16px] font-black rounded-[22px] shadow-lg shadow-primary/20">
+        {/* 하단 고정 액션 바: 폼이 길어도 저장 버튼이 항상 화면 안에 보이도록 sticky + 홈 인디케이터 안전영역 확보 */}
+        <div className="sticky bottom-0 z-10 px-5 sm:px-6 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-xl border-t border-surface-border/40">
+          <Button type="submit" fullWidth loading={isSubmitting} className="whitespace-nowrap py-3.5 text-[16px] font-black rounded-[22px] shadow-lg shadow-primary/20">
             {recipientToEdit ? '수정 내용 저장하기' : '어르신 등록 완료'}
           </Button>
         </div>
@@ -492,7 +493,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
             <IconX size={20} />
           </IconButton>
         </div>
-        <div style={{ height: 500 }}>
+        <div style={{ height: 'min(500px, 65dvh)' }}>
           {isAddressSearchOpen && (
             <DaumPostcodeEmbed
               scriptUrl="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"

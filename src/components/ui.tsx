@@ -267,7 +267,7 @@ export function Modal({
                 }}
               >
                 <motion.div
-                  className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-[36px] sm:rounded-[36px] bg-surface shadow-[0_24px_60px_rgba(0,0,0,0.3)] pointer-events-auto border border-white/20 dark:border-white/10"
+                  className="w-full max-w-md max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overscroll-contain scroll-pb-28 scroll-pt-20 rounded-t-[36px] sm:rounded-[36px] bg-surface shadow-[0_24px_60px_rgba(0,0,0,0.3)] pointer-events-auto border border-white/20 dark:border-white/10"
                   initial={{ opacity: 0, scale: 0.95, y: 16 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 16 }}
