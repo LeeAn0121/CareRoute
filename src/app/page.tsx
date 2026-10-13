@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Container, NaverMap, Marker } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud } from '@tabler/icons-react';
+import { Container, NaverMap, Marker, Polyline } from 'react-naver-maps';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
@@ -17,6 +17,7 @@ import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/compon
 import { motion, AnimatePresence } from 'motion/react';
 import { parseVisitTime } from '@/lib/visitTime';
 import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey } from '@/lib/weather';
+import { fetchDrivingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode } from '@/lib/directions';
 
 interface RegCode {
   code: string;
@@ -62,6 +63,12 @@ const SIDO_CENTERS: Record<string, { lat: number, lng: number }> = {
   '경상북도': { lat: 36.5760, lng: 128.5055 },
   '경상남도': { lat: 35.2382, lng: 128.6925 },
   '제주특별자치도': { lat: 33.4890, lng: 126.4983 }
+};
+
+const ROUTE_MODE_COLOR: Record<TravelMode, string> = {
+  walk: '#10B981',
+  drive: '#2563EB',
+  transit: '#9333EA',
 };
 
 function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -234,6 +241,107 @@ function MainApp() {
       localStorage.setItem('careroute_show_weather_grid', String(showWeatherGrid));
     }
   }, [showWeatherGrid]);
+
+  // ---- 두 지점(출발/도착) 경로 안내 ----
+  const [isRoutePickMode, setIsRoutePickMode] = useState(false);
+  const [routeOrigin, setRouteOrigin] = useState<Recipient | null>(null);
+  const [routeDestination, setRouteDestination] = useState<Recipient | null>(null);
+  const [routeMode, setRouteMode] = useState<TravelMode | null>(null);
+  const [routePath, setRoutePath] = useState<{ lat: number; lng: number }[] | null>(null);
+  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
+  const [routeDurationMin, setRouteDurationMin] = useState<number | null>(null);
+  const [isRouteLoading, setIsRouteLoading] = useState(false);
+  const [isRouteFallback, setIsRouteFallback] = useState(false);
+
+  const clearRoutePick = () => {
+    setRouteOrigin(null);
+    setRouteDestination(null);
+  };
+
+  // 지도 탭에서 마커를 순서대로 탭하거나, 목록 탭에서 버튼을 눌러 출발/도착을 지정한다.
+  // 같은 사람을 다시 탭하면 지정을 해제하고, 둘 다 이미 지정된 상태에서 새 사람을 탭하면
+  // 그 사람을 새 출발로 삼아 처음부터 다시 지정한다.
+  const assignRoutePoint = (marker: Recipient) => {
+    if (routeOrigin?.id === marker.id) {
+      setRouteOrigin(routeDestination);
+      setRouteDestination(null);
+      return;
+    }
+    if (routeDestination?.id === marker.id) {
+      setRouteDestination(null);
+      return;
+    }
+    if (!routeOrigin) {
+      setRouteOrigin(marker);
+      return;
+    }
+    if (!routeDestination) {
+      setRouteDestination(marker);
+      return;
+    }
+    setRouteOrigin(marker);
+    setRouteDestination(null);
+  };
+
+  // 출발/도착이 모두 정해지면 직선거리로 이동수단을 추천하고,
+  // 차량 추천일 때만 실제 도로 경로(Directions API)를 가져온다. 그 외엔 직선 점선으로 표시.
+  useEffect(() => {
+    if (!routeOrigin || !routeDestination) {
+      setRoutePath(null);
+      setRouteMode(null);
+      setRouteDistanceKm(null);
+      setRouteDurationMin(null);
+      setIsRouteFallback(false);
+      return;
+    }
+
+    let cancelled = false;
+    const straightKm = getDistanceFromLatLonInKm(routeOrigin.lat, routeOrigin.lng, routeDestination.lat, routeDestination.lng);
+    const mode = recommendTravelMode(straightKm);
+    setRouteMode(mode);
+    setIsRouteFallback(false);
+
+    if (mode !== 'drive') {
+      setRoutePath([
+        { lat: routeOrigin.lat, lng: routeOrigin.lng },
+        { lat: routeDestination.lat, lng: routeDestination.lng },
+      ]);
+      setRouteDistanceKm(straightKm);
+      setRouteDurationMin(mode === 'walk' ? Math.round((straightKm / 4) * 60) : null);
+      return;
+    }
+
+    setIsRouteLoading(true);
+    fetchDrivingRoute(
+      { lat: routeOrigin.lat, lng: routeOrigin.lng },
+      { lat: routeDestination.lat, lng: routeDestination.lng }
+    )
+      .then((result) => {
+        if (cancelled) return;
+        if (result) {
+          setRoutePath(result.path);
+          setRouteDistanceKm(result.distanceKm);
+          setRouteDurationMin(result.durationMin);
+        } else {
+          // Directions API 실패(미설정 포함) 시 직선 경로로 폴백
+          setRoutePath([
+            { lat: routeOrigin.lat, lng: routeOrigin.lng },
+            { lat: routeDestination.lat, lng: routeDestination.lng },
+          ]);
+          setRouteDistanceKm(straightKm);
+          setRouteDurationMin(null);
+          setIsRouteFallback(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsRouteLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [routeOrigin, routeDestination]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [currentAddress, setCurrentAddress] = useState('위치 파악 중...');
 
@@ -2150,24 +2258,63 @@ function MainApp() {
                   />
                 )}
                 
+                {/* 오늘의 경로 추천: 전체 동선을 점선으로 연결 (직선 기준, 실제 도로선 아님) */}
+                {scheduleRoute.length > 1 && scheduleRoute.map((stop, i) => {
+                  const next = scheduleRoute[i + 1];
+                  if (!next) return null;
+                  return (
+                    <Polyline
+                      key={`schedule-leg-${stop.id}-${next.id}`}
+                      path={[{ lat: stop.lat, lng: stop.lng }, { lat: next.lat, lng: next.lng }]}
+                      strokeColor="#F59E0B"
+                      strokeOpacity={0.85}
+                      strokeWeight={4}
+                      strokeStyle="shortdash"
+                      zIndex={5}
+                    />
+                  );
+                })}
+
+                {/* 두 어르신 출발→도착 경로 (차량 추천 시 실제 도로 경로, 그 외엔 직선) */}
+                {routePath && routeMode && (
+                  <Polyline
+                    path={routePath}
+                    strokeColor={ROUTE_MODE_COLOR[routeMode]}
+                    strokeOpacity={0.95}
+                    strokeWeight={5}
+                    strokeStyle="shortdash"
+                    zIndex={10}
+                  />
+                )}
+
                 {/* 전역 행정구역 날씨 맵 마커 (방해되지 않도록 작고 반투명하게) */}
                 {markers.map((marker) => {
                   const isSelected = selectedRecipient?.id === marker.id;
                   const isCompleted = isCompletedToday(marker);
+                  const routeBadge = routeOrigin?.id === marker.id ? '출발' : routeDestination?.id === marker.id ? '도착' : null;
                   return (
                     <Marker
                       key={marker.id}
                       position={{ lat: marker.lat, lng: marker.lng }}
                       onClick={() => {
+                        if (isRoutePickMode) {
+                          assignRoutePoint(marker);
+                          return;
+                        }
                         setSelectedRecipient(marker);
                         setMapCenter({ lat: marker.lat, lng: marker.lng });
                       }}
                       icon={{
                         content: `
                           <div class="marker-wrapper relative flex flex-col items-center ${isSelected ? 'scale-115 z-50' : 'scale-100'} transition-transform duration-300">
+                            ${routeBadge ? `
+                              <div class="mb-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black text-white shadow-sm ${routeBadge === '출발' ? 'bg-emerald-500' : 'bg-rose-500'}">
+                                ${routeBadge}
+                              </div>
+                            ` : ''}
                             <div class="relative w-11 h-11 flex items-center justify-center">
                               ${isSelected ? '<div class="absolute -inset-1.5 bg-accent rounded-full opacity-60 animate-ping"></div>' : ''}
-                              <div class="relative w-11 h-11 rounded-full overflow-hidden ${isCompleted ? 'bg-emerald-600' : 'bg-primary'} flex items-center justify-center border-2 ${isSelected ? 'border-accent ring-2 ring-accent/50' : isCompleted ? 'border-emerald-400' : 'border-white'} shadow-md shadow-foreground/20 transition-colors duration-300">
+                              <div class="relative w-11 h-11 rounded-full overflow-hidden ${isCompleted ? 'bg-emerald-600' : 'bg-primary'} flex items-center justify-center border-2 ${routeBadge ? (routeBadge === '출발' ? 'border-emerald-400 ring-2 ring-emerald-400/50' : 'border-rose-400 ring-2 ring-rose-400/50') : isSelected ? 'border-accent ring-2 ring-accent/50' : isCompleted ? 'border-emerald-400' : 'border-white'} shadow-md shadow-foreground/20 transition-colors duration-300">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                 ${marker.photo_url ? `<img src="${marker.photo_url}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
                               </div>
@@ -2473,16 +2620,35 @@ function MainApp() {
                           </div>
 
                           <div className="flex flex-col gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-                            <IconButton 
-                              onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} 
+                            <IconButton
+                              onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
                               className={`w-10 h-10 rounded-[18px] transition-all ${
-                                isCompletedToday(marker) 
-                                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' 
+                                isCompletedToday(marker)
+                                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
                                   : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'
-                              }`} 
+                              }`}
                               aria-label="방문 완료 토글"
                             >
                               <IconCheck size={18} strokeWidth={2.5} />
+                            </IconButton>
+                            {/* 경로 출발/도착 지정: 누르면 지도 탭의 경로 그리기 모드가 켜지고 순서대로 출발→도착이 지정된다 */}
+                            <IconButton
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsRoutePickMode(true);
+                                assignRoutePoint(marker);
+                                setActiveTab('map');
+                              }}
+                              className={`w-10 h-10 rounded-[18px] transition-all ${
+                                routeOrigin?.id === marker.id
+                                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
+                                  : routeDestination?.id === marker.id
+                                    ? 'bg-rose-500 text-white shadow-md shadow-rose-500/30'
+                                    : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'
+                              }`}
+                              aria-label="경로 출발/도착 지정"
+                            >
+                              <IconRoute2 size={18} strokeWidth={2.5} />
                             </IconButton>
                           </div>
                         </div>
@@ -3043,7 +3209,26 @@ function MainApp() {
             >
               <IconCloud size={22} strokeWidth={2.5} />
             </motion.button>
-            
+
+            <div className="w-7 h-[1px] bg-foreground/10" />
+
+            {/* 두 어르신 경로 그리기 모드 토글 */}
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.90 }}
+              onClick={() => {
+                setIsRoutePickMode(prev => {
+                  const next = !prev;
+                  if (!next) clearRoutePick();
+                  return next;
+                });
+              }}
+              className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors ${isRoutePickMode ? 'bg-accent text-primary shadow-md' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
+              title="두 어르신 경로 그리기"
+            >
+              <IconRoute2 size={22} strokeWidth={2.5} />
+            </motion.button>
+
             <div className="w-7 h-[1px] bg-foreground/10" />
 
             {/* 내 위치 */}
@@ -3081,7 +3266,7 @@ function MainApp() {
 
       {/* 지도 하단 어르신 퀵 프리뷰 플로팅 카드 (Senior Floating Peek Card) */}
       <AnimatePresence>
-        {activeTab === 'map' && selectedRecipient && !isDetailModalOpen && (
+        {activeTab === 'map' && selectedRecipient && !isDetailModalOpen && !isRoutePickMode && (
           <motion.div
             initial={{ opacity: 0, y: 40, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -3207,6 +3392,93 @@ function MainApp() {
                 <span>상세정보</span>
               </button>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 두 어르신 경로 보기 패널 (출발/도착 지정 안내 + 결과 요약) */}
+      <AnimatePresence>
+        {activeTab === 'map' && isRoutePickMode && (
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 30, scale: 0.96 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            className="fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-lg mx-auto z-40 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[40px] saturate-200 rounded-[30px] p-4 border border-white/30 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.18)]"
+          >
+            {!routeOrigin || !routeDestination ? (
+              <div className="flex items-center gap-3 py-1">
+                <div className="w-11 h-11 rounded-[18px] bg-accent/20 text-primary flex items-center justify-center shrink-0">
+                  <IconRoute2 size={22} strokeWidth={2.5} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-black text-foreground">
+                    {!routeOrigin ? '출발할 어르신을 지도에서 탭하세요' : `${routeOrigin.name} 어르신 출발 · 도착할 어르신을 탭하세요`}
+                  </p>
+                  <p className="text-[12px] text-foreground/50 font-semibold mt-0.5">목록 탭의 경로 버튼으로도 지정할 수 있어요</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setIsRoutePickMode(false); clearRoutePick(); }}
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1] transition-colors shrink-0"
+                  aria-label="경로 모드 종료"
+                >
+                  <IconX size={16} strokeWidth={2.5} />
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-1.5 min-w-0 text-[13px] font-black text-foreground truncate">
+                    <span className="text-emerald-600">{routeOrigin.name}</span>
+                    <IconChevronRight size={14} className="text-foreground/30 shrink-0" />
+                    <span className="text-rose-600">{routeDestination.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearRoutePick}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1] transition-colors shrink-0"
+                  >
+                    <IconX size={12} strokeWidth={2.5} />
+                    지정 초기화
+                  </button>
+                </div>
+
+                {isRouteLoading ? (
+                  <div className="flex items-center gap-2 py-2 text-[13px] font-bold text-foreground/60">
+                    <Spinner size={16} />
+                    실제 도로 경로를 불러오는 중...
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-black text-white shrink-0"
+                        style={{ backgroundColor: routeMode ? ROUTE_MODE_COLOR[routeMode] : undefined }}
+                      >
+                        {routeMode === 'walk' && <IconWalk size={14} />}
+                        {routeMode === 'drive' && <IconCar size={14} />}
+                        {routeMode === 'transit' && <IconBus size={14} />}
+                        {routeMode ? TRAVEL_MODE_LABEL[routeMode] : ''}
+                      </span>
+                      <span className="text-[12px] font-bold text-foreground/60 truncate">
+                        {routeDistanceKm !== null && `${routeDistanceKm.toFixed(1)}km`}
+                        {routeDurationMin !== null && ` · 약 ${routeDurationMin}분`}
+                        {isRouteFallback && ' · 직선 거리 기준'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDirections(routeDestination.lat, routeDestination.lng, routeDestination.address, routeDestination.detail_address)}
+                      className="py-2 px-3.5 rounded-[14px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs shrink-0"
+                    >
+                      <IconNavigation size={14} />
+                      길찾기
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
