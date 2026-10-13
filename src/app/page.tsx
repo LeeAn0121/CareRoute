@@ -17,7 +17,7 @@ import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/compon
 import { motion, AnimatePresence } from 'motion/react';
 import { parseVisitTime } from '@/lib/visitTime';
 import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey } from '@/lib/weather';
-import { fetchDrivingRoute, fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode, RouteStep, WalkSearchOption, WALK_SEARCH_OPTION_LABEL, buildRouteArrows } from '@/lib/directions';
+import { fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode, RouteStep, WalkSearchOption, WALK_SEARCH_OPTION_LABEL, buildRouteArrows } from '@/lib/directions';
 
 interface RegCode {
   code: string;
@@ -280,8 +280,9 @@ function MainApp() {
   };
 
   // 출발/도착이 모두 정해지면 직선거리로 이동수단을 추천하고,
-  // 차량/도보는 실제 경로(Directions / 보행자 경로 API)를 가져와 도로·인도를 따라가는 선을 그린다.
-  // 대중교통은 공개 API가 없어 직선거리 추정으로 안내한다. API가 없거나 실패하면 직선으로 폴백.
+  // 도보만 이 앱 지도 위에 실제 경로(보행자 경로 API)를 그린다. 차량/대중교통은 실제 도로/노선
+  // 탐색을 이 앱 안에서 흉내내지 않고, 이미 잘 하는 시스템 지도 앱(네이버/카카오/티맵)의
+  // 내비게이션으로 바로 넘긴다 — 직선거리만 참고용으로 보여준다.
   useEffect(() => {
     if (!routeOrigin || !routeDestination) {
       setRoutePath(null);
@@ -296,7 +297,6 @@ function MainApp() {
     let cancelled = false;
     const origin = { lat: routeOrigin.lat, lng: routeOrigin.lng };
     const destination = { lat: routeDestination.lat, lng: routeDestination.lng };
-    const straightLine = [origin, destination];
     const straightKm = getDistanceFromLatLonInKm(origin.lat, origin.lng, destination.lat, destination.lng);
     const mode = manualTravelMode ?? recommendTravelMode(straightKm);
     setRouteMode(mode);
@@ -304,21 +304,17 @@ function MainApp() {
     setRouteSteps(null);
     setIsWalkNavActive(false);
     setWalkNavStepIndex(0);
+    setRouteDistanceKm(straightKm);
 
-    if (mode === 'transit') {
-      // 제3자용 대중교통 경로 API가 없어 직선거리 추정치만 제공 (항상 폴백 취급)
-      setRoutePath(straightLine);
-      setRouteDistanceKm(straightKm);
+    if (mode !== 'walk') {
+      // 차량/대중교통: 인앱 경로선 없이 직선거리만 참고로 보여주고, 길찾기는 외부 앱이 담당
+      setRoutePath(null);
       setRouteDurationMin(null);
-      setIsRouteFallback(true);
       return;
     }
 
-    const routePromise = mode === 'drive'
-      ? fetchDrivingRoute(origin, destination)
-      : fetchWalkingRoute(origin, destination, walkSearchOption);
     setIsRouteLoading(true);
-    routePromise
+    fetchWalkingRoute(origin, destination, walkSearchOption)
       .then((result) => {
         if (cancelled) return;
         if (result) {
@@ -327,10 +323,9 @@ function MainApp() {
           setRouteDurationMin(result.durationMin);
           setRouteSteps(result.steps && result.steps.length > 0 ? result.steps : null);
         } else {
-          // API 실패(미설정 포함) 시 직선 경로로 폴백
-          setRoutePath(straightLine);
-          setRouteDistanceKm(straightKm);
-          setRouteDurationMin(mode === 'walk' ? Math.round((straightKm / 4) * 60) : null);
+          // Tmap API 실패(미설정 포함) 시 직선 경로로 폴백
+          setRoutePath([origin, destination]);
+          setRouteDurationMin(Math.round((straightKm / 4) * 60));
           setIsRouteFallback(true);
         }
       })
@@ -2282,8 +2277,9 @@ function MainApp() {
                       content: myLocation.heading != null ? `
                         <div class="relative flex items-center justify-center w-12 h-12 pointer-events-none" style="transform: rotate(${myLocation.heading}deg);">
                           <div class="absolute inset-0 bg-blue-500 rounded-full opacity-20"></div>
-                          <svg width="26" height="26" viewBox="0 0 24 24" fill="#2b7fff" stroke="white" stroke-width="1.5" style="filter: drop-shadow(0 2px 4px rgba(43,127,255,0.5));">
-                            <path d="M12 2 L19 21 L12 17 L5 21 Z" />
+                          <div class="relative w-5 h-5 bg-blue-500 border-2 border-white rounded-full shadow-lg shadow-blue-500/50"></div>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2b7fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; top:-2px; filter: drop-shadow(0 1px 2px rgba(43,127,255,0.4));">
+                            <path d="M7 11 L12 5 L17 11" />
                           </svg>
                         </div>
                       ` : `
@@ -2309,6 +2305,8 @@ function MainApp() {
                       strokeOpacity={0.85}
                       strokeWeight={4}
                       strokeStyle="shortdash"
+                      strokeLineCap="round"
+                      strokeLineJoin="round"
                       zIndex={5}
                     />
                   );
@@ -2323,6 +2321,7 @@ function MainApp() {
                     strokeWeight={isRouteFallback ? 4 : 6}
                     strokeStyle={isRouteFallback ? 'shortdash' : 'solid'}
                     strokeLineCap="round"
+                    strokeLineJoin="round"
                     zIndex={10}
                   />
                 )}
@@ -2336,8 +2335,8 @@ function MainApp() {
                     icon={{
                       content: `
                         <div style="transform: rotate(${arrow.bearingDeg}deg); width:22px; height:22px; display:flex; align-items:center; justify-content:center; pointer-events:none;">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="${ROUTE_MODE_COLOR[routeMode]}" stroke="white" stroke-width="1.5" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));">
-                            <path d="M12 2 L19 21 L12 17 L5 21 Z" />
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${ROUTE_MODE_COLOR[routeMode]}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));">
+                            <path d="M7 14 L12 7 L17 14" />
                           </svg>
                         </div>
                       `,
@@ -3468,8 +3467,9 @@ function MainApp() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.96 }}
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-lg mx-auto z-40 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[40px] saturate-200 rounded-[30px] p-4 border border-white/30 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.18)]"
+            className="fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-lg mx-auto z-40 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[40px] saturate-200 rounded-[32px] p-4 border border-white/30 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.14)]"
           >
+            <div className="w-10 h-1 rounded-full bg-foreground/15 mx-auto mb-3" />
             {!routeOrigin || !routeDestination ? (
               <div className="flex items-center gap-3 py-1">
                 <div className="w-11 h-11 rounded-[18px] bg-accent/20 text-primary flex items-center justify-center shrink-0">
@@ -3571,16 +3571,16 @@ function MainApp() {
                 </div>
 
                 {/* 이동수단 수동 전환: 기본은 거리 기준 자동 추천이지만 언제든 직접 바꿀 수 있다 */}
-                <div className="flex items-center gap-1.5 mb-2.5">
+                <div className="flex items-center gap-1 mb-3 p-1 rounded-[18px] bg-foreground/[0.05]">
                   {(['walk', 'drive', 'transit'] as TravelMode[]).map((m) => (
                     <button
                       key={m}
                       type="button"
                       onClick={() => setManualTravelMode(m)}
-                      className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[14px] text-[12px] font-black transition-colors ${
-                        routeMode === m ? 'text-white' : 'bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1]'
+                      className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[14px] text-[12px] font-black transition-all ${
+                        routeMode === m ? 'bg-surface shadow-xs' : 'text-foreground/45 hover:text-foreground/70'
                       }`}
-                      style={routeMode === m ? { backgroundColor: ROUTE_MODE_COLOR[m] } : undefined}
+                      style={routeMode === m ? { color: ROUTE_MODE_COLOR[m] } : undefined}
                     >
                       {m === 'walk' && <IconWalk size={14} />}
                       {m === 'drive' && <IconCar size={14} />}
@@ -3591,7 +3591,7 @@ function MainApp() {
                 </div>
 
                 {routeMode === 'walk' && (
-                  <div className="flex items-center gap-1.5 mb-2.5 overflow-x-auto no-scrollbar">
+                  <div className="flex items-center gap-1.5 mb-3 overflow-x-auto no-scrollbar">
                     {(Object.keys(WALK_SEARCH_OPTION_LABEL) as WalkSearchOption[]).map((opt) => (
                       <button
                         key={opt}
@@ -3599,7 +3599,7 @@ function MainApp() {
                         onClick={() => setWalkSearchOption(opt)}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-black whitespace-nowrap transition-colors shrink-0 ${
                           walkSearchOption === opt
-                            ? 'bg-emerald-500 text-white'
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
                             : 'bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1]'
                         }`}
                       >
@@ -3609,35 +3609,59 @@ function MainApp() {
                   </div>
                 )}
 
-                {isRouteLoading ? (
+                {routeMode !== 'walk' ? (
+                  // 차량/대중교통: 인앱 경로 없이 직선거리만 참고로 보여주고, 실제 길찾기는
+                  // 이미 잘 하는 시스템 지도 앱(네이버/카카오/티맵)으로 바로 넘긴다.
+                  <div className="flex items-center gap-3 rounded-[20px] bg-foreground/[0.035] p-3">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `${ROUTE_MODE_COLOR[routeMode!]}1A`, color: ROUTE_MODE_COLOR[routeMode!] }}
+                    >
+                      {routeMode === 'drive' ? <IconCar size={20} /> : <IconBus size={20} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-black text-foreground truncate">{routeDestination.name} 어르신 댁까지</p>
+                      <p className="text-[12px] font-bold text-foreground/50">
+                        {routeDistanceKm !== null && `${routeDistanceKm.toFixed(1)}km`} · 직선거리 · 실제 경로는 지도 앱에서 확인
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDirections(routeDestination.lat, routeDestination.lng, routeDestination.address, routeDestination.detail_address)}
+                      className="py-2.5 px-4 rounded-full text-white text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs shrink-0"
+                      style={{ backgroundColor: ROUTE_MODE_COLOR[routeMode!] }}
+                    >
+                      <IconNavigation size={14} />
+                      길찾기
+                    </button>
+                  </div>
+                ) : isRouteLoading ? (
                   <div className="flex items-center gap-2 py-2 text-[13px] font-bold text-foreground/60">
                     <Spinner size={16} />
-                    {routeMode === 'walk' ? '실제 도보 경로를 불러오는 중...' : '실제 도로 경로를 불러오는 중...'}
+                    실제 도보 경로를 불러오는 중...
                   </div>
                 ) : (
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <span
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-black text-white shrink-0"
-                        style={{ backgroundColor: routeMode ? ROUTE_MODE_COLOR[routeMode] : undefined }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-black shrink-0"
+                        style={{ backgroundColor: `${ROUTE_MODE_COLOR.walk}1A`, color: ROUTE_MODE_COLOR.walk }}
                       >
-                        {routeMode === 'walk' && <IconWalk size={14} />}
-                        {routeMode === 'drive' && <IconCar size={14} />}
-                        {routeMode === 'transit' && <IconBus size={14} />}
-                        {routeMode ? TRAVEL_MODE_LABEL[routeMode] : ''}
+                        <IconWalk size={14} />
+                        도보
                       </span>
                       <span className="text-[12px] font-bold text-foreground/60 truncate">
                         {routeDistanceKm !== null && `${routeDistanceKm.toFixed(1)}km`}
                         {routeDurationMin !== null && ` · 약 ${routeDurationMin}분`}
-                        {isRouteFallback && (routeMode === 'transit' ? ' · 직선 거리 추정' : ' · 직선 거리 기준(폴백)')}
+                        {isRouteFallback && ' · 직선 거리 기준(폴백)'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {routeMode === 'walk' && !isRouteFallback && routeSteps && (
+                      {!isRouteFallback && routeSteps && (
                         <button
                           type="button"
                           onClick={() => { setWalkNavStepIndex(0); setIsWalkNavActive(true); }}
-                          className="py-2 px-3.5 rounded-[14px] bg-emerald-500 text-white text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs"
+                          className="py-2 px-3.5 rounded-full bg-emerald-500 text-white text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs"
                         >
                           <IconWalk size={14} />
                           안내 시작
@@ -3646,7 +3670,7 @@ function MainApp() {
                       <button
                         type="button"
                         onClick={() => routePath && fitMapToRoute(routePath)}
-                        className="w-9 h-9 rounded-[14px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 flex items-center justify-center active:scale-95 transition-all shadow-xs shrink-0"
+                        className="w-9 h-9 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 flex items-center justify-center active:scale-95 transition-all shadow-xs shrink-0"
                         aria-label="경로에 맞춰 보기"
                       >
                         <IconMap size={15} />
