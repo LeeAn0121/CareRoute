@@ -1,4 +1,4 @@
-const CACHE_NAME = 'careroute-store-v4';
+const CACHE_NAME = 'careroute-store-v5';
 
 self.addEventListener('install', () => {});
 
@@ -46,7 +46,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Network First for HTML, Cache First for Static Assets
+  // HTML도 Network First (정적 자산과 동일 전략)
   if (request.headers.get('accept')?.includes('text/html')) {
     e.respondWith(
       fetch(request)
@@ -60,17 +60,19 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
+  // Network First: 접속할 때마다(온라인이면) 항상 서버의 최신 파일을 먼저 받아오고,
+  // 오프라인일 때만 마지막으로 저장해둔 캐시를 대신 보여준다. 캐시가 "먼저" 응답하는 일이
+  // 없어야 "매번 접속 시 새로고침된 상태"가 보장된다.
   e.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
+    fetch(request)
+      .then((response) => {
         if (response.ok && request.url.startsWith('http')) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
         return response;
-      });
-    }),
+      })
+      .catch(() => caches.match(request)),
   );
 });
 

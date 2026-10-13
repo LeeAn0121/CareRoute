@@ -908,6 +908,9 @@ function MainApp() {
   const [installDismissed, setInstallDismissed] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const waitingWorkerRef = useRef<ServiceWorker | null>(null);
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const appLoadedAtRef = useRef(0);
+  const hasAutoAppliedInitialUpdateRef = useRef(false);
 
   // 실시간 방문 알림 상태
   const [activeVisitAlert, setActiveVisitAlert] = useState<{ recipient: Recipient; timeStr: string } | null>(null);
@@ -1009,9 +1012,44 @@ function MainApp() {
     const standalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     setIsStandalone(standalone);
 
+    appLoadedAtRef.current = Date.now();
+
+    // 백그라운드에 있다가 다시 화면으로 돌아오는 것도 "접속"으로 보고, 그 순간 바로 최신
+    // 버전을 확인한다. 막 돌아온 직후(=아직 아무 조작도 안 한 시점)라 자동 적용도 안전하다.
+    const handleVisibilityResume = () => {
+      if (document.visibilityState !== 'visible') return;
+      appLoadedAtRef.current = Date.now();
+      hasAutoAppliedInitialUpdateRef.current = false;
+      registrationRef.current?.update().catch(() => {});
+    };
+    document.addEventListener('visibilitychange', handleVisibilityResume);
+
     // Register Service Worker and handle updates
     if ('serviceWorker' in navigator) {
+      const clearAllCaches = async () => {
+        if (!('caches' in window)) return;
+        try {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((key) => caches.delete(key)));
+        } catch {}
+      };
+
+      // 앱을 막 열었을 때(= 아직 아무 작업도 시작하지 않았을 때) 발견된 업데이트는
+      // 묻지 않고 캐시를 비우고 바로 최신 버전으로 전환해, "매번 접속 시 최신 상태"를 보장한다.
+      // 이미 쓰고 있는 도중에 발견된 업데이트는 입력 중인 내용을 잃지 않도록 기존처럼 배너로만 안내한다.
+      const applyUpdateSilently = async (worker: ServiceWorker) => {
+        await clearAllCaches();
+        worker.postMessage('SKIP_WAITING');
+      };
+
       const notifyUpdateAvailable = (worker: ServiceWorker) => {
+        const elapsedSinceLoad = Date.now() - appLoadedAtRef.current;
+        if (!hasAutoAppliedInitialUpdateRef.current && elapsedSinceLoad < 8000) {
+          hasAutoAppliedInitialUpdateRef.current = true;
+          applyUpdateSilently(worker);
+          return;
+        }
+
         waitingWorkerRef.current = worker;
         setUpdateAvailable(true);
         // 앱이 백그라운드/다른 화면에 있어도 알아챌 수 있도록 시스템 알림도 함께 띄움
@@ -1028,6 +1066,10 @@ function MainApp() {
       };
 
       navigator.serviceWorker.register('/CareRoute/sw.js').then((registration) => {
+        registrationRef.current = registration;
+        // 접속 직후 바로 최신 버전 여부를 확인(브라우저의 기본 업데이트 체크 주기를 기다리지 않음)
+        registration.update().catch(() => {});
+
         // 등록 시점에 이미 새 버전이 대기 중인 경우 (예: 이전 방문 때 못 보고 넘어간 업데이트)
         if (registration.waiting && navigator.serviceWorker.controller) {
           notifyUpdateAvailable(registration.waiting);
@@ -1082,6 +1124,7 @@ function MainApp() {
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      document.removeEventListener('visibilitychange', handleVisibilityResume);
       clearInterval(checkMap);
     };
   }, []);
