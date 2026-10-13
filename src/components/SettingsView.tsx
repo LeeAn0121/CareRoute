@@ -13,12 +13,15 @@ import {
 } from '@tabler/icons-react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  getDetailedNotificationStatus, 
-  requestNotificationPermission, 
-  sendTestNotification, 
-  NotificationStatus 
+import {
+  getDetailedNotificationStatus,
+  requestNotificationPermission,
+  sendTestNotification,
+  NotificationStatus
 } from '@/lib/notifications';
+import packageJson from '../../package.json';
+
+const APP_VERSION = packageJson.version;
 
 export interface SettingsViewProps {
   onReplayTutorial: () => void;
@@ -149,7 +152,7 @@ export default function SettingsView({
     try {
       const dataToExport = {
         app: 'CareRoute',
-        version: '1.4.0',
+        version: APP_VERSION,
         exportedAt: new Date().toISOString(),
         totalCount: recipients.length || totalRecipientsCount,
         recipients: recipients,
@@ -261,7 +264,7 @@ export default function SettingsView({
     { id: 'backup', category: '데이터 및 저장공간', title: '수급자 데이터 백업 다운로드', desc: 'JSON 파일로 안전하게 보관' },
     { id: 'cache', category: '데이터 및 저장공간', title: '오프라인 캐시 초기화 및 강력 새로고침', desc: '오프라인 캐시 및 앱 새로고침' },
     { id: 'tutorial', category: '앱 정보 및 고객지원', title: '앱 사용법 가이드 튜토리얼', desc: '핵심 사용법 튜토리얼 다시 보기' },
-    { id: 'version', category: '앱 정보 및 고객지원', title: '버전 정보', desc: '최신 정식 빌드 v1.4.0' },
+    { id: 'version', category: '앱 정보 및 고객지원', title: '버전 정보', desc: `최신 정식 빌드 v${APP_VERSION}` },
     { id: 'support', category: '앱 정보 및 고객지원', title: '현장 개선 건의 및 버그 제보', desc: '기능 제안 및 버그 제보' },
   ], []);
 
@@ -900,7 +903,7 @@ export default function SettingsView({
                       <span className="text-[12px] text-[#8E8E93]">최신 정식 빌드</span>
                     </div>
                   </div>
-                  <span className="text-[14px] font-black text-[#007AFF]">v1.4.0</span>
+                  <span className="text-[14px] font-black text-[#007AFF]">v{APP_VERSION}</span>
                 </a>
 
                 {/* 기능 제안 및 버그 제보 */}
