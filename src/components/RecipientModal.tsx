@@ -198,7 +198,12 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
       let photoUrl = existingPhotoUrl;
       if (photoFile) {
-        const ext = photoFile.name.split('.').pop() || 'jpg';
+        // 파일명(한글/공백 등 비ASCII 문자 포함 가능)은 Storage 키로 쓰기 안전하지 않으니,
+        // MIME 타입에서 확장자를 뽑고 영문/숫자만 남겨 "Invalid Key" 업로드 오류를 방지한다.
+        const mimeExt = photoFile.type.split('/').pop();
+        const nameExt = photoFile.name.split('.').pop();
+        const rawExt = (mimeExt || nameExt || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
+        const ext = rawExt || 'jpg';
         const path = `${crypto.randomUUID()}.${ext}`;
         const { error: uploadError } = await supabase.storage.from('recipient-photos').upload(path, photoFile);
         if (uploadError) throw uploadError;
