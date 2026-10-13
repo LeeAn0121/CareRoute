@@ -44,6 +44,9 @@ export default function WeatherWidget({
   const handleClose = onClose || (() => setInternalShowDetail(false));
 
   useEffect(() => {
+    // modalOnly 모드는 상세 모달이 열려 있을 때만 날씨를 조회한다 (지도 이동마다 불필요한 API 호출 방지)
+    if (modalOnly && !showDetail) return;
+
     let isMounted = true;
     
     // Check in-memory cache first
@@ -64,9 +67,11 @@ export default function WeatherWidget({
       isMounted = false; 
       clearTimeout(timer);
     };
-  }, [gridKey, lat, lng]);
+  }, [gridKey, lat, lng, modalOnly, showDetail]);
 
   if (!weather) {
+    // 모달 전용 모드에서는 헤더에 스켈레톤 캡슐을 노출하지 않는다
+    if (modalOnly) return null;
     return (
       <div
         className="h-[50px] min-w-[78px] px-3.5 rounded-[25px] flex items-center justify-center gap-1.5 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 border border-white/40 dark:border-white/10 shadow-[0_12px_36px_rgba(0,0,0,0.1)] text-foreground/40 animate-pulse select-none shrink-0"

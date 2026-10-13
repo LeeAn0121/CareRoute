@@ -92,6 +92,10 @@ const labelCache: any = { sido: new Map(), sigungu: new Map(), dong: new Map() }
 // 현재 map.data에 실제로 추가되어 있는 폴리곤의 feature 이름 집합.
 // idle(패닝)마다 map.data.getAllFeature()로 전수조사하지 않기 위해 직접 추적.
 const renderedFeatureKeys: any = { sido: new Set(), sigungu: new Set(), dong: new Set() };
+// 같은 이름의 행정구역(예: 중앙동 31개, 동구 6개)이 존재하므로 이름만으로는 구분할 수 없다.
+// 이름 + 중심 좌표로 고유 키를 만들어 라벨/폴리곤 중복·누락을 방지한다.
+const regionFeatureKey = (f: any): string =>
+  `${f.properties.name}_${Number(f.properties._centerLat).toFixed(4)}_${Number(f.properties._centerLng).toFixed(4)}`;
 let currentRenderedLevel = ''; // Track currently rendered level to prevent re-rendering
 
 function MainApp() {
@@ -463,7 +467,8 @@ function MainApp() {
   const ensureRegionLabelMarker = (lvl: string, feature: any) => {
     const name = feature.properties.name;
     const isWeather = !!showWeatherGridRef.current;
-    const cacheKey = isWeather ? `${name}_weather` : name;
+    const baseKey = regionFeatureKey(feature);
+    const cacheKey = isWeather ? `${baseKey}_weather` : baseKey;
     const cached = labelCache[lvl].get(cacheKey);
     if (cached) return cached;
 
@@ -502,10 +507,10 @@ function MainApp() {
       `;
 
       // 캐시된 기상 데이터가 있으면 즉시 반영
-      const gridKey = getGridKey(centerLat, centerLng, 0.03);
+      const gridKey = 'L:' + getGridKey(centerLat, centerLng, 0.03);
       const memWeather = weatherCache.get(gridKey)?.data;
-      const initialEmoji = memWeather ? getWeatherEmojiAndDesc(memWeather.pty).emoji : '☀️';
-      const initialTemp = memWeather ? `${memWeather.temp}°` : '';
+      const initialEmoji = memWeather ? getWeatherEmojiAndDesc(memWeather.pty).emoji : '🌤️';
+      const initialTemp = memWeather ? `${memWeather.temp}°` : '--°';
 
       marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(centerLat, centerLng),
@@ -517,8 +522,9 @@ function MainApp() {
 
       // 캐시가 없으면 비동기로 가져와서 갱신
       if (!memWeather) {
-        fetchWeatherForCoord(centerLat, centerLng, 0.03).then((data) => {
-          if (data && marker.getMap()) {
+        fetchWeatherForCoord(centerLat, centerLng, 0.03, true).then((data) => {
+          // 마커가 일시적으로 지도에서 내려가 있어도 아이콘은 갱신해야 다시 표시될 때 최신 값이 보인다
+          if (data) {
             const { emoji } = getWeatherEmojiAndDesc(data.pty);
             marker.setIcon({
               content: renderWeatherContent(emoji, `${data.temp}°`),
@@ -547,6 +553,7 @@ function MainApp() {
       window.naver.maps.Event.addListener(marker, 'click', () => handleRegionSelect(centerLat, centerLng, lvl));
     }
 
+    marker.__isWeather = isWeather;
     labelCache[lvl].set(cacheKey, marker);
     return marker;
   };
@@ -567,7 +574,7 @@ function MainApp() {
     map.data.addGeoJson({ type: 'FeatureCollection', features: visible });
     map.data.setStyle(regionStyleFor(lvl));
     visible.forEach((f: any) => {
-      renderedFeatureKeys[lvl].add(f.properties.name);
+      renderedFeatureKeys[lvl].add(regionFeatureKey(f));
       ensureRegionLabelMarker(lvl, f).setMap(map);
     });
   };
@@ -600,18 +607,24 @@ function MainApp() {
         const lvl = currentRenderedLevel;
         const bounds = map.getBounds();
         const visible = regionFeaturesInView(lvl, bounds);
-        const toAdd = visible.filter((f: any) => !renderedFeatureKeys[lvl].has(f.properties.name));
+        const toAdd = visible.filter((f: any) => !renderedFeatureKeys[lvl].has(regionFeatureKey(f)));
 
         if (toAdd.length > 0) {
           map.data.addGeoJson({ type: 'FeatureCollection', features: toAdd });
           map.data.setStyle(regionStyleFor(lvl));
           toAdd.forEach((f: any) => {
-            renderedFeatureKeys[lvl].add(f.properties.name);
+            renderedFeatureKeys[lvl].add(regionFeatureKey(f));
             ensureRegionLabelMarker(lvl, f).setMap(map);
           });
         }
 
+        const weatherMode = !!showWeatherGridRef.current;
         labelCache[lvl].forEach((m: any) => {
+          // 표시 모드(기상/일반)가 다른 이전 라벨이 겹쳐 보이지 않도록 숨긴다
+          if (!!m.__isWeather !== weatherMode) {
+            if (m.getMap()) m.setMap(null);
+            return;
+          }
           if (bounds.hasLatLng(m.getPosition())) {
             if (!m.getMap()) m.setMap(map);
           } else {
