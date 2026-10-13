@@ -17,19 +17,15 @@ interface WeatherWidgetProps {
   isOpen?: boolean;
   onToggle?: () => void;
   onClose?: () => void;
-  showWeatherGrid?: boolean;
-  onToggleWeatherGrid?: () => void;
   modalOnly?: boolean;
 }
 
-export default function WeatherWidget({ 
-  lat, 
-  lng, 
-  isOpen, 
-  onToggle, 
+export default function WeatherWidget({
+  lat,
+  lng,
+  isOpen,
+  onToggle,
   onClose,
-  showWeatherGrid,
-  onToggleWeatherGrid,
   modalOnly = false,
 }: WeatherWidgetProps) {
   const gridKey = getGridKey(lat, lng, 0.02);
@@ -169,35 +165,6 @@ export default function WeatherWidget({
                   <IconX size={15} strokeWidth={2.5} />
                 </button>
               </div>
-
-              {/* 지도 위 행정구역별 기상 그리드 토글 스위치 (One UI 9.0 Style) */}
-              {onToggleWeatherGrid && (
-                <div className="flex items-center justify-between p-3 rounded-[20px] bg-sky-500/10 border border-sky-500/20 mb-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-[12px] bg-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
-                      <IconCloud size={18} strokeWidth={2.5} />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-[13px] font-black text-foreground block tracking-tight">행정구역별 기상 그리드</span>
-                      <span className="text-[11px] font-bold text-foreground/50 block truncate">동/구 행정구역별 실시간 날씨 및 기온 표시</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onToggleWeatherGrid}
-                    className={`w-12 h-7 rounded-full transition-colors relative p-0.5 shrink-0 ml-2 ${
-                      showWeatherGrid ? 'bg-sky-500' : 'bg-foreground/20'
-                    }`}
-                    aria-label="행정구역별 기상 그리드 토글"
-                  >
-                    <motion.div
-                      animate={{ x: showWeatherGrid ? 20 : 0 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                      className="w-6 h-6 rounded-full bg-white shadow-md"
-                    />
-                  </button>
-                </div>
-              )}
 
               {/* 4대 주요 기상 지표 그리드 */}
               <div className="grid grid-cols-2 gap-2 text-[12px] mb-3">

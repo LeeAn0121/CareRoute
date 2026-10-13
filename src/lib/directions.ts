@@ -1,10 +1,11 @@
 /**
- * 두 지점(출발/도착) 사이의 이동수단 추천과, 자동차 경로일 때 실제 도로를 따라가는
- * 경로 좌표를 가져오는 유틸리티.
+ * 두 지점(출발/도착) 사이의 이동수단 추천과, 자동차/도보일 때 실제 경로를 따라가는
+ * 좌표를 가져오는 유틸리티.
  *
- * 네이버 Directions 5(자동차 길찾기) API는 비밀키가 필요해 브라우저에서 직접 호출할 수
- * 없으므로, Supabase Edge Function(`naver-directions`)을 프록시로 거쳐 호출한다.
- * 도보/대중교통은 네이버가 제3자용 API를 제공하지 않아 직선 거리 기반으로만 안내한다.
+ * - 자동차: 네이버 Directions 5 API (비밀키 필요 → Supabase Edge Function `naver-directions` 경유)
+ * - 도보: Tmap 보행자 경로 API (appKey 필요 → Supabase Edge Function `tmap-pedestrian` 경유)
+ *   네이버는 제3자용 도보 경로 API를 제공하지 않아 Tmap(SK Open API)을 사용한다.
+ * - 대중교통: 공개된 제3자용 경로 API가 없어 직선 거리 기준 추정치만 제공한다.
  */
 
 export type TravelMode = 'walk' | 'drive' | 'transit';
@@ -30,41 +31,39 @@ export interface LatLng {
   lng: number;
 }
 
-export interface DrivingRouteResult {
+export interface RouteResult {
   path: LatLng[];
   distanceKm: number;
   durationMin: number;
 }
 
-// 동일 출발/도착 쌍에 대한 반복 요청을 줄이기 위한 메모리 캐시
-const routeCache = new Map<string, { data: DrivingRouteResult; timestamp: number }>();
+// 동일 출발/도착 쌍에 대한 반복 요청을 줄이기 위한 메모리 캐시 (수단별로 분리)
+const routeCache = new Map<string, { data: RouteResult; timestamp: number }>();
 const ROUTE_CACHE_TTL_MS = 30 * 60 * 1000; // 30분
 
-function routeCacheKey(origin: LatLng, destination: LatLng): string {
+function routeCacheKey(prefix: string, origin: LatLng, destination: LatLng): string {
   const r = (n: number) => n.toFixed(5);
-  return `${r(origin.lat)},${r(origin.lng)}->${r(destination.lat)},${r(destination.lng)}`;
+  return `${prefix}:${r(origin.lat)},${r(origin.lng)}->${r(destination.lat)},${r(destination.lng)}`;
 }
 
-/**
- * 자동차 기준 실제 도로 경로를 Supabase Edge Function(naver-directions)을 통해 가져온다.
- * 실패하거나 아직 배포/설정 전이면 null을 반환하며, 호출부에서 직선 경로로 폴백해야 한다.
- */
-export async function fetchDrivingRoute(
+interface RouteFunctionResponse {
+  path: LatLng[];
+  distanceM: number;
+  durationMs?: number;
+  durationS?: number;
+}
+
+async function fetchRouteFromFunction(
+  functionName: string,
   origin: LatLng,
   destination: LatLng
-): Promise<DrivingRouteResult | null> {
-  const key = routeCacheKey(origin, destination);
-  const cached = routeCache.get(key);
-  if (cached && Date.now() - cached.timestamp < ROUTE_CACHE_TTL_MS) {
-    return cached.data;
-  }
-
+): Promise<RouteFunctionResponse | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !anonKey) return null;
 
   try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/naver-directions`, {
+    const res = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -78,20 +77,55 @@ export async function fetchDrivingRoute(
         goalLng: destination.lng,
       }),
     });
-
     if (!res.ok) return null;
     const data = await res.json();
     if (!Array.isArray(data?.path) || data.path.length === 0) return null;
-
-    const result: DrivingRouteResult = {
-      path: data.path,
-      distanceKm: data.distanceM / 1000,
-      durationMin: Math.round(data.durationMs / 60000),
-    };
-    routeCache.set(key, { data: result, timestamp: Date.now() });
-    return result;
+    return data;
   } catch (err) {
-    console.error('Driving route fetch error:', err);
+    console.error(`${functionName} fetch error:`, err);
     return null;
   }
+}
+
+/**
+ * 자동차 기준 실제 도로 경로를 Supabase Edge Function(naver-directions)을 통해 가져온다.
+ * 실패하거나 아직 배포/설정 전이면 null을 반환하며, 호출부에서 직선 경로로 폴백해야 한다.
+ */
+export async function fetchDrivingRoute(origin: LatLng, destination: LatLng): Promise<RouteResult | null> {
+  const key = routeCacheKey('drive', origin, destination);
+  const cached = routeCache.get(key);
+  if (cached && Date.now() - cached.timestamp < ROUTE_CACHE_TTL_MS) return cached.data;
+
+  const data = await fetchRouteFromFunction('naver-directions', origin, destination);
+  if (!data) return null;
+
+  const result: RouteResult = {
+    path: data.path,
+    distanceKm: data.distanceM / 1000,
+    durationMin: Math.round((data.durationMs ?? 0) / 60000),
+  };
+  routeCache.set(key, { data: result, timestamp: Date.now() });
+  return result;
+}
+
+/**
+ * 도보 기준 실제 보행자 경로(인도/횡단보도 반영)를 Supabase Edge Function(tmap-pedestrian)을
+ * 통해 가져온다. 실패하거나 아직 배포/설정 전이면 null을 반환하며, 호출부에서 직선 경로로
+ * 폴백해야 한다.
+ */
+export async function fetchWalkingRoute(origin: LatLng, destination: LatLng): Promise<RouteResult | null> {
+  const key = routeCacheKey('walk', origin, destination);
+  const cached = routeCache.get(key);
+  if (cached && Date.now() - cached.timestamp < ROUTE_CACHE_TTL_MS) return cached.data;
+
+  const data = await fetchRouteFromFunction('tmap-pedestrian', origin, destination);
+  if (!data) return null;
+
+  const result: RouteResult = {
+    path: data.path,
+    distanceKm: data.distanceM / 1000,
+    durationMin: data.durationS != null ? Math.round(data.durationS / 60) : Math.round((data.distanceM / 1000 / 4) * 60),
+  };
+  routeCache.set(key, { data: result, timestamp: Date.now() });
+  return result;
 }

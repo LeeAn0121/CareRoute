@@ -17,7 +17,7 @@ import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/compon
 import { motion, AnimatePresence } from 'motion/react';
 import { parseVisitTime } from '@/lib/visitTime';
 import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey } from '@/lib/weather';
-import { fetchDrivingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode } from '@/lib/directions';
+import { fetchDrivingRoute, fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode } from '@/lib/directions';
 
 interface RegCode {
   code: string;
@@ -229,6 +229,7 @@ function MainApp() {
   const [myLocation, setMyLocation] = useState<{lat: number, lng: number} | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [showRegions, setShowRegions] = useState(false);
+  const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
   const [showWeatherGrid, setShowWeatherGrid] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('careroute_show_weather_grid') === 'true';
@@ -284,7 +285,8 @@ function MainApp() {
   };
 
   // 출발/도착이 모두 정해지면 직선거리로 이동수단을 추천하고,
-  // 차량 추천일 때만 실제 도로 경로(Directions API)를 가져온다. 그 외엔 직선 점선으로 표시.
+  // 차량/도보는 실제 경로(Directions / 보행자 경로 API)를 가져와 도로·인도를 따라가는 선을 그린다.
+  // 대중교통은 공개 API가 없어 직선거리 추정으로 안내한다. API가 없거나 실패하면 직선으로 폴백.
   useEffect(() => {
     if (!routeOrigin || !routeDestination) {
       setRoutePath(null);
@@ -296,26 +298,26 @@ function MainApp() {
     }
 
     let cancelled = false;
-    const straightKm = getDistanceFromLatLonInKm(routeOrigin.lat, routeOrigin.lng, routeDestination.lat, routeDestination.lng);
+    const origin = { lat: routeOrigin.lat, lng: routeOrigin.lng };
+    const destination = { lat: routeDestination.lat, lng: routeDestination.lng };
+    const straightLine = [origin, destination];
+    const straightKm = getDistanceFromLatLonInKm(origin.lat, origin.lng, destination.lat, destination.lng);
     const mode = recommendTravelMode(straightKm);
     setRouteMode(mode);
     setIsRouteFallback(false);
 
-    if (mode !== 'drive') {
-      setRoutePath([
-        { lat: routeOrigin.lat, lng: routeOrigin.lng },
-        { lat: routeDestination.lat, lng: routeDestination.lng },
-      ]);
+    if (mode === 'transit') {
+      // 제3자용 대중교통 경로 API가 없어 직선거리 추정치만 제공 (항상 폴백 취급)
+      setRoutePath(straightLine);
       setRouteDistanceKm(straightKm);
-      setRouteDurationMin(mode === 'walk' ? Math.round((straightKm / 4) * 60) : null);
+      setRouteDurationMin(null);
+      setIsRouteFallback(true);
       return;
     }
 
+    const fetchRealRoute = mode === 'drive' ? fetchDrivingRoute : fetchWalkingRoute;
     setIsRouteLoading(true);
-    fetchDrivingRoute(
-      { lat: routeOrigin.lat, lng: routeOrigin.lng },
-      { lat: routeDestination.lat, lng: routeDestination.lng }
-    )
+    fetchRealRoute(origin, destination)
       .then((result) => {
         if (cancelled) return;
         if (result) {
@@ -323,13 +325,10 @@ function MainApp() {
           setRouteDistanceKm(result.distanceKm);
           setRouteDurationMin(result.durationMin);
         } else {
-          // Directions API 실패(미설정 포함) 시 직선 경로로 폴백
-          setRoutePath([
-            { lat: routeOrigin.lat, lng: routeOrigin.lng },
-            { lat: routeDestination.lat, lng: routeDestination.lng },
-          ]);
+          // API 실패(미설정 포함) 시 직선 경로로 폴백
+          setRoutePath(straightLine);
           setRouteDistanceKm(straightKm);
-          setRouteDurationMin(null);
+          setRouteDurationMin(mode === 'walk' ? Math.round((straightKm / 4) * 60) : null);
           setIsRouteFallback(true);
         }
       })
@@ -475,7 +474,23 @@ function MainApp() {
   const regionsLoaded = useRef(false);
   const regionLabelsRef = useRef<any[]>([]);
 
+  // 경로(출발→도착) 전체 구간이 한 화면에 들어오도록 지도를 맞춘다.
+  // "길찾기"로 외부 앱을 띄우는 대신, 이 지도 화면 안에서 바로 확인할 수 있게 하기 위함.
+  const fitMapToRoute = (path: { lat: number; lng: number }[]) => {
+    if (path.length === 0 || !mapRef.current || !window.naver?.maps) return;
+    try {
+      const bounds = new window.naver.maps.LatLngBounds(
+        new window.naver.maps.LatLng(path[0].lat, path[0].lng),
+        new window.naver.maps.LatLng(path[0].lat, path[0].lng)
+      );
+      path.forEach((p) => bounds.extend(new window.naver.maps.LatLng(p.lat, p.lng)));
+      mapRef.current.fitBounds(bounds, { top: 90, right: 50, bottom: 240, left: 50 });
+    } catch {}
+  };
 
+  useEffect(() => {
+    if (routePath) fitMapToRoute(routePath);
+  }, [routePath]);
 
   // 컴포넌트 언마운트 시 위치 추적 해제
   useEffect(() => {
@@ -1979,44 +1994,42 @@ function MainApp() {
         {/* Dynamic NowBar Capsule */}
         <div id="tour-header" className="relative flex w-full items-center gap-2 pointer-events-auto">
           {/* Location Button */}
-          <button 
+          <button
             onClick={toggleRegionFilter}
-            className="h-[50px] flex-1 min-w-0 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[36px] saturate-200 rounded-[25px] px-4 shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-between hover:bg-surface active:scale-[0.98] transition-all text-left"
+            className="h-16 sm:h-[72px] flex-1 min-w-0 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[36px] saturate-200 rounded-[28px] sm:rounded-[32px] px-4 shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-between hover:bg-surface active:scale-[0.98] transition-all text-left"
           >
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <div className="w-8 h-8 shrink-0 rounded-[11px] bg-primary/10 flex items-center justify-center text-primary shadow-2xs">
-                <IconMapPin size={17} strokeWidth={2.5} />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-[13px] bg-primary/10 flex items-center justify-center text-primary shadow-2xs">
+                <IconMapPin size={19} strokeWidth={2.5} />
               </div>
               <div className="min-w-0 flex-1">
                 <span className="text-[10px] font-black uppercase tracking-wider text-primary/70 block leading-none">탐색 위치</span>
-                <span className="text-[14px] font-extrabold text-foreground truncate block leading-tight mt-0.5">
+                <span className="text-[15px] font-extrabold text-foreground truncate block leading-tight mt-1">
                   {currentAddress}
                 </span>
               </div>
             </div>
-            <IconChevronDown size={16} className={`text-foreground/40 shrink-0 ml-1.5 transition-transform ${isRegionFilterOpen ? 'rotate-180 text-primary' : ''}`} />
+            <IconChevronDown size={18} className={`text-foreground/40 shrink-0 ml-1.5 transition-transform ${isRegionFilterOpen ? 'rotate-180 text-primary' : ''}`} />
           </button>
 
           {/* Map Search Toggle Button */}
           <button
             onClick={toggleMapSearch}
-            className={`w-[50px] h-[50px] rounded-[25px] shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-center shrink-0 active:scale-95 transition-all ${
+            className={`w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-[28px] sm:rounded-[32px] shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-center shrink-0 active:scale-95 transition-all ${
               isMapSearchOpen ? 'bg-primary text-primary-foreground shadow-primary/30' : 'bg-surface/90 supports-[backdrop-filter]:bg-surface/80 text-foreground/80 hover:bg-surface'
             }`}
             title="지도에서 어르신 검색"
           >
-            {isMapSearchOpen ? <IconX size={20} /> : <IconSearch size={20} strokeWidth={2.5} />}
+            {isMapSearchOpen ? <IconX size={22} /> : <IconSearch size={22} strokeWidth={2.5} />}
           </button>
         </div>
 
         {/* 행정구역 기상 마커 및 폴리곤 터치 시 표시되는 상세 날씨 모달 */}
-        <WeatherWidget 
-          lat={mapCenter.lat} 
-          lng={mapCenter.lng} 
+        <WeatherWidget
+          lat={mapCenter.lat}
+          lng={mapCenter.lng}
           isOpen={isWeatherDetailOpen}
           onClose={closeAllHeaderPopups}
-          showWeatherGrid={showWeatherGrid}
-          onToggleWeatherGrid={() => setShowWeatherGrid(prev => !prev)}
           modalOnly
         />
 
@@ -2275,14 +2288,15 @@ function MainApp() {
                   );
                 })}
 
-                {/* 두 어르신 출발→도착 경로 (차량 추천 시 실제 도로 경로, 그 외엔 직선) */}
+                {/* 두 어르신 출발→도착 경로. 실제 도로/인도 경로를 가져왔으면 실선, 직선 추정(폴백/대중교통)이면 점선 */}
                 {routePath && routeMode && (
                   <Polyline
                     path={routePath}
                     strokeColor={ROUTE_MODE_COLOR[routeMode]}
                     strokeOpacity={0.95}
-                    strokeWeight={5}
-                    strokeStyle="shortdash"
+                    strokeWeight={isRouteFallback ? 4 : 6}
+                    strokeStyle={isRouteFallback ? 'shortdash' : 'solid'}
+                    strokeLineCap="round"
                     zIndex={10}
                   />
                 )}
@@ -3186,29 +3200,58 @@ function MainApp() {
 
             <div className="w-7 h-[1px] bg-foreground/10" />
 
-            {/* 행정구역 보기 (Map Layers) */}
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.90 }}
-              onClick={() => setShowRegions(!showRegions)}
-              className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors ${showRegions ? 'bg-primary text-primary-foreground shadow-md' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
-              title="행정구역 경계 토글"
-            >
-              <IconMap size={22} strokeWidth={2.5} />
-            </motion.button>
-            
-            <div className="w-7 h-[1px] bg-foreground/10" />
+            {/* 지도 레이어 (행정구역 경계 + 기상 그리드) 통합 메뉴 */}
+            <div className="relative">
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.90 }}
+                onClick={() => setIsLayerMenuOpen(prev => !prev)}
+                className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors ${(showRegions || showWeatherGrid) ? 'bg-primary text-primary-foreground shadow-md' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
+                title="지도 레이어"
+              >
+                <IconMap size={22} strokeWidth={2.5} />
+              </motion.button>
 
-            {/* 행정구역별 기상 그리드 보기 (Weather Grid Toggle) */}
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.90 }}
-              onClick={() => setShowWeatherGrid(prev => !prev)}
-              className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors ${showWeatherGrid ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
-              title="행정구역별 기상 그리드 토글"
-            >
-              <IconCloud size={22} strokeWidth={2.5} />
-            </motion.button>
+              <AnimatePresence>
+                {isLayerMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsLayerMenuOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, x: 8 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, x: 8 }}
+                      transition={{ type: 'spring', damping: 28, stiffness: 400 }}
+                      className="absolute right-[56px] top-1/2 -translate-y-1/2 z-20 bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[22px] p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.14)] border border-white/30 dark:border-white/10 w-[196px] pointer-events-auto"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setShowRegions(v => !v)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[16px] hover:bg-foreground/[0.05] transition-colors"
+                      >
+                        <span className="flex items-center gap-2 text-[13px] font-bold text-foreground/80">
+                          <IconMap size={16} /> 행정구역 경계
+                        </span>
+                        <span className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${showRegions ? 'bg-primary' : 'bg-foreground/15'}`}>
+                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showRegions ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowWeatherGrid(v => !v)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[16px] hover:bg-foreground/[0.05] transition-colors"
+                      >
+                        <span className="flex items-center gap-2 text-[13px] font-bold text-foreground/80">
+                          <IconCloud size={16} /> 기상 그리드
+                        </span>
+                        <span className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${showWeatherGrid ? 'bg-sky-500' : 'bg-foreground/15'}`}>
+                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showWeatherGrid ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                        </span>
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
 
             <div className="w-7 h-[1px] bg-foreground/10" />
 
@@ -3447,7 +3490,7 @@ function MainApp() {
                 {isRouteLoading ? (
                   <div className="flex items-center gap-2 py-2 text-[13px] font-bold text-foreground/60">
                     <Spinner size={16} />
-                    실제 도로 경로를 불러오는 중...
+                    {routeMode === 'walk' ? '실제 도보 경로를 불러오는 중...' : '실제 도로 경로를 불러오는 중...'}
                   </div>
                 ) : (
                   <div className="flex items-center justify-between gap-3">
@@ -3464,16 +3507,16 @@ function MainApp() {
                       <span className="text-[12px] font-bold text-foreground/60 truncate">
                         {routeDistanceKm !== null && `${routeDistanceKm.toFixed(1)}km`}
                         {routeDurationMin !== null && ` · 약 ${routeDurationMin}분`}
-                        {isRouteFallback && ' · 직선 거리 기준'}
+                        {isRouteFallback && (routeMode === 'transit' ? ' · 직선 거리 추정' : ' · 직선 거리 기준(폴백)')}
                       </span>
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleDirections(routeDestination.lat, routeDestination.lng, routeDestination.address, routeDestination.detail_address)}
+                      onClick={() => routePath && fitMapToRoute(routePath)}
                       className="py-2 px-3.5 rounded-[14px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs shrink-0"
                     >
-                      <IconNavigation size={14} />
-                      길찾기
+                      <IconMap size={14} />
+                      경로에 맞춰 보기
                     </button>
                   </div>
                 )}
