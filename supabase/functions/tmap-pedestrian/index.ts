@@ -22,7 +22,19 @@ function json(body: unknown, status = 200) {
 interface TmapFeature {
   type: "Feature";
   geometry: { type: "Point" | "LineString"; coordinates: number[] | number[][] };
-  properties?: { totalDistance?: number; totalTime?: number };
+  properties?: { totalDistance?: number; totalTime?: number; description?: string };
+}
+
+// 두 WGS84 좌표 사이의 거리(m), 각 구간 실제 이동 거리를 직접 계산해
+// Tmap 응답의 필드 이름에 의존하지 않고 정확한 값을 보장한다.
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 Deno.serve(async (req) => {
@@ -75,10 +87,31 @@ Deno.serve(async (req) => {
     }
 
     const path: { lat: number; lng: number }[] = [];
+    // 턴바이턴 안내: Tmap이 생성한 자연어 description을 그대로 신뢰해서 보여준다
+    // (좌/우회전 같은 방향 정보를 직접 코드로 추정하면 틀렸을 때 위험하므로 추정하지 않음).
+    // 각 안내 지점 바로 다음에 오는 LineString 구간의 실제 좌표로 거리를 계산해 붙인다.
+    const steps: { lat: number; lng: number; description: string; distanceM: number }[] = [];
+    let pendingStep: { lat: number; lng: number; description: string } | null = null;
+
     for (const feature of features) {
-      if (feature.geometry?.type === "LineString") {
-        for (const [lng, lat] of feature.geometry.coordinates as number[][]) {
+      if (feature.geometry?.type === "Point") {
+        const [lng, lat] = feature.geometry.coordinates as number[];
+        const description = feature.properties?.description;
+        if (description) {
+          pendingStep = { lat, lng, description };
+        }
+      } else if (feature.geometry?.type === "LineString") {
+        const coords = feature.geometry.coordinates as number[][];
+        for (const [lng, lat] of coords) {
           path.push({ lat, lng });
+        }
+        if (pendingStep) {
+          let segmentM = 0;
+          for (let i = 1; i < coords.length; i++) {
+            segmentM += haversineM(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
+          }
+          steps.push({ ...pendingStep, distanceM: Math.round(segmentM) });
+          pendingStep = null;
         }
       }
     }
@@ -92,6 +125,7 @@ Deno.serve(async (req) => {
       path,
       distanceM: summary.totalDistance,
       durationS: summary.totalTime ?? null,
+      steps,
     });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);

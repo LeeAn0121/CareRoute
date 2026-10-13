@@ -31,10 +31,18 @@ export interface LatLng {
   lng: number;
 }
 
+export interface RouteStep {
+  lat: number;
+  lng: number;
+  description: string;
+  distanceM: number;
+}
+
 export interface RouteResult {
   path: LatLng[];
   distanceKm: number;
   durationMin: number;
+  steps?: RouteStep[];
 }
 
 // 동일 출발/도착 쌍에 대한 반복 요청을 줄이기 위한 메모리 캐시 (수단별로 분리)
@@ -51,6 +59,7 @@ interface RouteFunctionResponse {
   distanceM: number;
   durationMs?: number;
   durationS?: number;
+  steps?: RouteStep[];
 }
 
 async function fetchRouteFromFunction(
@@ -125,6 +134,7 @@ export async function fetchWalkingRoute(origin: LatLng, destination: LatLng): Pr
     path: data.path,
     distanceKm: data.distanceM / 1000,
     durationMin: data.durationS != null ? Math.round(data.durationS / 60) : Math.round((data.distanceM / 1000 / 4) * 60),
+    steps: data.steps,
   };
   routeCache.set(key, { data: result, timestamp: Date.now() });
   return result;

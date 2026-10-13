@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker, Polyline } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconMinus, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
@@ -17,7 +17,7 @@ import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/compon
 import { motion, AnimatePresence } from 'motion/react';
 import { parseVisitTime } from '@/lib/visitTime';
 import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey } from '@/lib/weather';
-import { fetchDrivingRoute, fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode } from '@/lib/directions';
+import { fetchDrivingRoute, fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode, RouteStep } from '@/lib/directions';
 
 interface RegCode {
   code: string;
@@ -128,7 +128,7 @@ function MainApp() {
       // 한 번 버튼을 누른 이후부터는 위치를 계속 추적해서 파란 점을 이동시킴
       if (watchIdRef.current === null) {
         watchIdRef.current = navigator.geolocation.watchPosition(
-          (pos) => setMyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          (pos) => setMyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, heading: pos.coords.heading }),
           (err) => console.warn("Watch position error:", err),
           { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
         );
@@ -184,24 +184,6 @@ function MainApp() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [mapSearchQuery, setMapSearchQuery] = useState('');
 
-  const handleZoomIn = () => {
-    if (mapRef.current) {
-      const curZoom = mapRef.current.getZoom?.() ?? mapZoom;
-      const nextZoom = Math.min(curZoom + 1, 20);
-      mapRef.current.setZoom(nextZoom);
-      setMapZoom(nextZoom);
-    }
-  };
-
-  const handleZoomOut = () => {
-    if (mapRef.current) {
-      const curZoom = mapRef.current.getZoom?.() ?? mapZoom;
-      const nextZoom = Math.max(curZoom - 1, 6);
-      mapRef.current.setZoom(nextZoom);
-      setMapZoom(nextZoom);
-    }
-  };
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   const [completingRecipient, setCompletingRecipient] = useState<Recipient | null>(null);
@@ -226,7 +208,7 @@ function MainApp() {
   }, [mapLoaded, dataLoaded]);
   const [mapZoom, setMapZoom] = useState(15);
   const [isLocating, setIsLocating] = useState(false);
-  const [myLocation, setMyLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [myLocation, setMyLocation] = useState<{lat: number, lng: number, heading?: number | null} | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [showRegions, setShowRegions] = useState(false);
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
@@ -253,10 +235,15 @@ function MainApp() {
   const [routeDurationMin, setRouteDurationMin] = useState<number | null>(null);
   const [isRouteLoading, setIsRouteLoading] = useState(false);
   const [isRouteFallback, setIsRouteFallback] = useState(false);
+  const [routeSteps, setRouteSteps] = useState<RouteStep[] | null>(null);
+  const [isWalkNavActive, setIsWalkNavActive] = useState(false);
+  const [walkNavStepIndex, setWalkNavStepIndex] = useState(0);
 
   const clearRoutePick = () => {
     setRouteOrigin(null);
     setRouteDestination(null);
+    setIsWalkNavActive(false);
+    setWalkNavStepIndex(0);
   };
 
   // 지도 탭에서 마커를 순서대로 탭하거나, 목록 탭에서 버튼을 눌러 출발/도착을 지정한다.
@@ -294,6 +281,7 @@ function MainApp() {
       setRouteDistanceKm(null);
       setRouteDurationMin(null);
       setIsRouteFallback(false);
+      setRouteSteps(null);
       return;
     }
 
@@ -305,6 +293,9 @@ function MainApp() {
     const mode = recommendTravelMode(straightKm);
     setRouteMode(mode);
     setIsRouteFallback(false);
+    setRouteSteps(null);
+    setIsWalkNavActive(false);
+    setWalkNavStepIndex(0);
 
     if (mode === 'transit') {
       // 제3자용 대중교통 경로 API가 없어 직선거리 추정치만 제공 (항상 폴백 취급)
@@ -324,6 +315,7 @@ function MainApp() {
           setRoutePath(result.path);
           setRouteDistanceKm(result.distanceKm);
           setRouteDurationMin(result.durationMin);
+          setRouteSteps(result.steps && result.steps.length > 0 ? result.steps : null);
         } else {
           // API 실패(미설정 포함) 시 직선 경로로 폴백
           setRoutePath(straightLine);
@@ -340,6 +332,19 @@ function MainApp() {
       cancelled = true;
     };
   }, [routeOrigin, routeDestination]);
+
+  // 도보 안내 모드: 실시간 위치가 현재 단계의 안내 지점에 가까워지면(20m 이내)
+  // 자동으로 다음 단계로 넘어간다. 마지막 단계를 지나면 도착으로 간주.
+  const WALK_NAV_ADVANCE_RADIUS_M = 20;
+  useEffect(() => {
+    if (!isWalkNavActive || !routeSteps || !myLocation) return;
+    const currentStep = routeSteps[walkNavStepIndex];
+    if (!currentStep) return;
+    const distToStepM = getDistanceFromLatLonInKm(myLocation.lat, myLocation.lng, currentStep.lat, currentStep.lng) * 1000;
+    if (distToStepM <= WALK_NAV_ADVANCE_RADIUS_M && walkNavStepIndex < routeSteps.length - 1) {
+      setWalkNavStepIndex((i) => i + 1);
+    }
+  }, [myLocation, isWalkNavActive, routeSteps, walkNavStepIndex]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentAddress, setCurrentAddress] = useState('위치 파악 중...');
@@ -1253,8 +1258,8 @@ function MainApp() {
           (pos) => {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
-            setMyLocation({ lat, lng });
-            
+            setMyLocation({ lat, lng, heading: pos.coords.heading });
+
             // 최초 1회, 정확한 GPS가 잡히면 화면을 정교하게 다시 맞춰줌.
             if (!firstAccuratePanDone && !(selectedSido || selectedSigungu || selectedDong)) {
               firstAccuratePanDone = true;
@@ -2254,13 +2259,21 @@ function MainApp() {
                   }
                 }}
               >
-                                                {/* 내 위치 (파란 점) */}
+                                                {/* 내 위치 (파란 점). 걷는 중이라 GPS 진행 방향(heading)이 잡히면 화살표로 바꿔서 보여준다.
+                    정지 상태면 heading이 null이라 일반 점으로 표시(없는 방향을 지어내지 않음). */}
                 {myLocation && (
                   <Marker
                     position={{ lat: myLocation.lat, lng: myLocation.lng }}
                     zIndex={999}
                     icon={{
-                      content: `
+                      content: myLocation.heading != null ? `
+                        <div class="relative flex items-center justify-center w-12 h-12 pointer-events-none" style="transform: rotate(${myLocation.heading}deg);">
+                          <div class="absolute inset-0 bg-blue-500 rounded-full opacity-20"></div>
+                          <svg width="26" height="26" viewBox="0 0 24 24" fill="#2b7fff" stroke="white" stroke-width="1.5" style="filter: drop-shadow(0 2px 4px rgba(43,127,255,0.5));">
+                            <path d="M12 2 L19 21 L12 17 L5 21 Z" />
+                          </svg>
+                        </div>
+                      ` : `
                         <div class="relative flex items-center justify-center w-12 h-12 pointer-events-none">
                           <div class="absolute inset-0 bg-blue-500 rounded-full opacity-25 animate-ping"></div>
                           <div class="relative w-5 h-5 bg-blue-500 border-2 border-white rounded-full shadow-lg shadow-blue-500/50"></div>
@@ -3174,32 +3187,6 @@ function MainApp() {
         <div id="tour-map-controls" className={`absolute right-4 ${selectedRecipient && !isDetailModalOpen ? 'bottom-[230px]' : 'bottom-[104px]'} transition-all duration-300 z-40 flex flex-col items-center gap-3.5 pointer-events-none`}>
           
           <div className="flex flex-col items-center bg-surface/85 supports-[backdrop-filter]:bg-surface/70 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-white/30 dark:border-white/10 pointer-events-auto p-1.5 gap-1.5">
-            {/* 줌 확대 (+) */}
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.90 }}
-              onClick={handleZoomIn}
-              className="w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors hover:bg-foreground/[0.04] text-foreground/80 active:bg-foreground/[0.08]"
-              title="지도 확대"
-            >
-              <IconPlus size={20} strokeWidth={2.5} />
-            </motion.button>
-            
-            <div className="w-7 h-[1px] bg-foreground/10" />
-
-            {/* 줌 축소 (-) */}
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.90 }}
-              onClick={handleZoomOut}
-              className="w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors hover:bg-foreground/[0.04] text-foreground/80 active:bg-foreground/[0.08]"
-              title="지도 축소"
-            >
-              <IconMinus size={20} strokeWidth={2.5} />
-            </motion.button>
-
-            <div className="w-7 h-[1px] bg-foreground/10" />
-
             {/* 지도 레이어 (행정구역 경계 + 기상 그리드) 통합 메뉴 */}
             <div className="relative">
               <motion.button
@@ -3255,25 +3242,6 @@ function MainApp() {
 
             <div className="w-7 h-[1px] bg-foreground/10" />
 
-            {/* 두 어르신 경로 그리기 모드 토글 */}
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.90 }}
-              onClick={() => {
-                setIsRoutePickMode(prev => {
-                  const next = !prev;
-                  if (!next) clearRoutePick();
-                  return next;
-                });
-              }}
-              className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors ${isRoutePickMode ? 'bg-accent text-primary shadow-md' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
-              title="두 어르신 경로 그리기"
-            >
-              <IconRoute2 size={22} strokeWidth={2.5} />
-            </motion.button>
-
-            <div className="w-7 h-[1px] bg-foreground/10" />
-
             {/* 내 위치 */}
             <motion.button
               type="button"
@@ -3290,6 +3258,27 @@ function MainApp() {
               )}
             </motion.button>
           </div>
+
+          {/* 두 어르신 경로 그리기 모드 (보조 FAB, 평소엔 뷰 컨트롤과 분리) */}
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.90 }}
+            onClick={() => {
+              setIsRoutePickMode(prev => {
+                const next = !prev;
+                if (!next) clearRoutePick();
+                return next;
+              });
+            }}
+            className={`w-[52px] h-[52px] flex items-center justify-center rounded-[24px] shadow-[0_12px_28px_rgba(0,0,0,0.14)] border transition-colors backdrop-blur-[40px] saturate-200 pointer-events-auto ${
+              isRoutePickMode
+                ? 'bg-accent text-primary border-accent/40 shadow-accent/30'
+                : 'bg-surface/85 supports-[backdrop-filter]:bg-surface/70 text-foreground/80 border-white/30 dark:border-white/10'
+            }`}
+            aria-label="두 어르신 경로 그리기"
+          >
+            <IconRoute2 size={24} strokeWidth={2.5} />
+          </motion.button>
 
           {/* 어르신 추가 (One UI 9.0 강조형 Squircle FAB) */}
           <motion.button
@@ -3469,6 +3458,46 @@ function MainApp() {
                   <IconX size={16} strokeWidth={2.5} />
                 </button>
               </div>
+            ) : isWalkNavActive && routeSteps ? (
+              (() => {
+                const currentStep = routeSteps[walkNavStepIndex];
+                const isLastStep = walkNavStepIndex === routeSteps.length - 1;
+                const liveDistM = myLocation
+                  ? getDistanceFromLatLonInKm(myLocation.lat, myLocation.lng, currentStep.lat, currentStep.lng) * 1000
+                  : currentStep.distanceM;
+                const isArrived = isLastStep && liveDistM <= WALK_NAV_ADVANCE_RADIUS_M;
+                return (
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black text-white bg-emerald-500">
+                        <IconWalk size={13} />
+                        {isArrived ? '도착' : `${walkNavStepIndex + 1} / ${routeSteps.length}단계`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsWalkNavActive(false)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1] transition-colors shrink-0"
+                      >
+                        <IconX size={12} strokeWidth={2.5} />
+                        안내 종료
+                      </button>
+                    </div>
+                    {isArrived ? (
+                      <p className="text-[16px] font-black text-foreground leading-snug">
+                        {routeDestination.name} 어르신 댁에 도착했어요 👏
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-[16px] font-black text-foreground leading-snug">{currentStep.description}</p>
+                        <p className="text-[12px] font-bold text-foreground/50 mt-1">
+                          다음 안내까지 약 {Math.max(0, Math.round(liveDistM))}m
+                          {myLocation?.heading == null && ' · 이동 중이어야 진행 방향이 표시돼요'}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                );
+              })()
             ) : (
               <div>
                 <div className="flex items-center justify-between gap-2 mb-3">
@@ -3510,14 +3539,26 @@ function MainApp() {
                         {isRouteFallback && (routeMode === 'transit' ? ' · 직선 거리 추정' : ' · 직선 거리 기준(폴백)')}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => routePath && fitMapToRoute(routePath)}
-                      className="py-2 px-3.5 rounded-[14px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs shrink-0"
-                    >
-                      <IconMap size={14} />
-                      경로에 맞춰 보기
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {routeMode === 'walk' && !isRouteFallback && routeSteps && (
+                        <button
+                          type="button"
+                          onClick={() => { setWalkNavStepIndex(0); setIsWalkNavActive(true); }}
+                          className="py-2 px-3.5 rounded-[14px] bg-emerald-500 text-white text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs"
+                        >
+                          <IconWalk size={14} />
+                          안내 시작
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => routePath && fitMapToRoute(routePath)}
+                        className="w-9 h-9 rounded-[14px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 flex items-center justify-center active:scale-95 transition-all shadow-xs shrink-0"
+                        aria-label="경로에 맞춰 보기"
+                      >
+                        <IconMap size={15} />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
