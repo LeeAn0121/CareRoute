@@ -31,6 +31,16 @@ export interface LatLng {
   lng: number;
 }
 
+// Tmap 보행자 경로 API 공식 탐색 옵션(추측 금지 — SK Open API 문서 기준 값 그대로 사용)
+export type WalkSearchOption = '0' | '4' | '10' | '30';
+
+export const WALK_SEARCH_OPTION_LABEL: Record<WalkSearchOption, string> = {
+  '0': '추천 경로',
+  '4': '추천(대로 우선)',
+  '10': '최단거리',
+  '30': '최단거리(계단 제외)',
+};
+
 export interface RouteStep {
   lat: number;
   lng: number;
@@ -49,9 +59,9 @@ export interface RouteResult {
 const routeCache = new Map<string, { data: RouteResult; timestamp: number }>();
 const ROUTE_CACHE_TTL_MS = 30 * 60 * 1000; // 30분
 
-function routeCacheKey(prefix: string, origin: LatLng, destination: LatLng): string {
+function routeCacheKey(prefix: string, origin: LatLng, destination: LatLng, option = ''): string {
   const r = (n: number) => n.toFixed(5);
-  return `${prefix}:${r(origin.lat)},${r(origin.lng)}->${r(destination.lat)},${r(destination.lng)}`;
+  return `${prefix}:${option}:${r(origin.lat)},${r(origin.lng)}->${r(destination.lat)},${r(destination.lng)}`;
 }
 
 interface RouteFunctionResponse {
@@ -65,7 +75,8 @@ interface RouteFunctionResponse {
 async function fetchRouteFromFunction(
   functionName: string,
   origin: LatLng,
-  destination: LatLng
+  destination: LatLng,
+  extraBody?: Record<string, unknown>
 ): Promise<RouteFunctionResponse | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -84,6 +95,7 @@ async function fetchRouteFromFunction(
         startLng: origin.lng,
         goalLat: destination.lat,
         goalLng: destination.lng,
+        ...extraBody,
       }),
     });
     if (!res.ok) return null;
@@ -122,12 +134,16 @@ export async function fetchDrivingRoute(origin: LatLng, destination: LatLng): Pr
  * 통해 가져온다. 실패하거나 아직 배포/설정 전이면 null을 반환하며, 호출부에서 직선 경로로
  * 폴백해야 한다.
  */
-export async function fetchWalkingRoute(origin: LatLng, destination: LatLng): Promise<RouteResult | null> {
-  const key = routeCacheKey('walk', origin, destination);
+export async function fetchWalkingRoute(
+  origin: LatLng,
+  destination: LatLng,
+  searchOption: WalkSearchOption = '0'
+): Promise<RouteResult | null> {
+  const key = routeCacheKey('walk', origin, destination, searchOption);
   const cached = routeCache.get(key);
   if (cached && Date.now() - cached.timestamp < ROUTE_CACHE_TTL_MS) return cached.data;
 
-  const data = await fetchRouteFromFunction('tmap-pedestrian', origin, destination);
+  const data = await fetchRouteFromFunction('tmap-pedestrian', origin, destination, { searchOption });
   if (!data) return null;
 
   const result: RouteResult = {

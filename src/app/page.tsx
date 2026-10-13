@@ -17,7 +17,7 @@ import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/compon
 import { motion, AnimatePresence } from 'motion/react';
 import { parseVisitTime } from '@/lib/visitTime';
 import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey } from '@/lib/weather';
-import { fetchDrivingRoute, fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode, RouteStep } from '@/lib/directions';
+import { fetchDrivingRoute, fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode, RouteStep, WalkSearchOption, WALK_SEARCH_OPTION_LABEL } from '@/lib/directions';
 
 interface RegCode {
   code: string;
@@ -238,6 +238,7 @@ function MainApp() {
   const [routeSteps, setRouteSteps] = useState<RouteStep[] | null>(null);
   const [isWalkNavActive, setIsWalkNavActive] = useState(false);
   const [walkNavStepIndex, setWalkNavStepIndex] = useState(0);
+  const [walkSearchOption, setWalkSearchOption] = useState<WalkSearchOption>('0');
 
   const clearRoutePick = () => {
     setRouteOrigin(null);
@@ -306,9 +307,11 @@ function MainApp() {
       return;
     }
 
-    const fetchRealRoute = mode === 'drive' ? fetchDrivingRoute : fetchWalkingRoute;
+    const routePromise = mode === 'drive'
+      ? fetchDrivingRoute(origin, destination)
+      : fetchWalkingRoute(origin, destination, walkSearchOption);
     setIsRouteLoading(true);
-    fetchRealRoute(origin, destination)
+    routePromise
       .then((result) => {
         if (cancelled) return;
         if (result) {
@@ -331,7 +334,7 @@ function MainApp() {
     return () => {
       cancelled = true;
     };
-  }, [routeOrigin, routeDestination]);
+  }, [routeOrigin, routeDestination, walkSearchOption]);
 
   // 도보 안내 모드: 실시간 위치가 현재 단계의 안내 지점에 가까워지면(20m 이내)
   // 자동으로 다음 단계로 넘어간다. 마지막 단계를 지나면 도착으로 간주.
@@ -3515,6 +3518,25 @@ function MainApp() {
                     지정 초기화
                   </button>
                 </div>
+
+                {routeMode === 'walk' && (
+                  <div className="flex items-center gap-1.5 mb-2.5 overflow-x-auto no-scrollbar">
+                    {(Object.keys(WALK_SEARCH_OPTION_LABEL) as WalkSearchOption[]).map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setWalkSearchOption(opt)}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-black whitespace-nowrap transition-colors shrink-0 ${
+                          walkSearchOption === opt
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1]'
+                        }`}
+                      >
+                        {WALK_SEARCH_OPTION_LABEL[opt]}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {isRouteLoading ? (
                   <div className="flex items-center gap-2 py-2 text-[13px] font-bold text-foreground/60">

@@ -53,11 +53,16 @@ Deno.serve(async (req) => {
     return json({ error: "invalid JSON body" }, 400);
   }
 
-  const { startLat, startLng, goalLat, goalLng } = body ?? {};
+  const { startLat, startLng, goalLat, goalLng, searchOption } = body ?? {};
   const coords = [startLat, startLng, goalLat, goalLng];
   if (coords.some((v) => typeof v !== "number" || Number.isNaN(v))) {
     return json({ error: "startLat/startLng/goalLat/goalLng(숫자)가 모두 필요합니다." }, 400);
   }
+
+  // Tmap 공식 문서 기준 보행자 경로 탐색 옵션: 0=추천(기본), 4=추천+대로우선,
+  // 10=최단거리, 30=최단거리+계단제외. 그 외 값이 오면 기본값으로 안전하게 대체한다.
+  const VALID_SEARCH_OPTIONS = new Set(["0", "4", "10", "30"]);
+  const safeSearchOption = VALID_SEARCH_OPTIONS.has(String(searchOption)) ? String(searchOption) : "0";
 
   try {
     const res = await fetch("https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1", {
@@ -76,6 +81,7 @@ Deno.serve(async (req) => {
         resCoordType: "WGS84GEO",
         startName: "출발",
         endName: "도착",
+        searchOption: safeSearchOption,
       }),
     });
 
