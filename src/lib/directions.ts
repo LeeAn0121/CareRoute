@@ -26,6 +26,41 @@ export function recommendTravelMode(distanceKm: number): TravelMode {
   return 'transit';
 }
 
+/** 두 좌표 사이의 진행 방향(나침반 기준, 0~360도, 북쪽=0)을 계산한다. */
+export function computeBearingDeg(from: { lat: number; lng: number }, to: { lat: number; lng: number }): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const toDeg = (r: number) => (r * 180) / Math.PI;
+  const phi1 = toRad(from.lat);
+  const phi2 = toRad(to.lat);
+  const deltaLambda = toRad(to.lng - from.lng);
+  const y = Math.sin(deltaLambda) * Math.cos(phi2);
+  const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+export interface RouteArrow {
+  lat: number;
+  lng: number;
+  bearingDeg: number;
+}
+
+/**
+ * 경로선 위에 "출발→도착" 진행 방향을 보여줄 화살표 위치를 일정 간격(인덱스 기준)으로 뽑는다.
+ * 점 개수가 적은 짧은 경로에서는 화살표를 생략해 어수선해지지 않게 한다.
+ */
+export function buildRouteArrows(path: LatLng[], count = 6): RouteArrow[] {
+  if (path.length < 4) return [];
+  const arrows: RouteArrow[] = [];
+  for (let k = 1; k <= count; k++) {
+    const idx = Math.round((path.length - 1) * (k / (count + 1)));
+    const from = path[idx];
+    const to = path[Math.min(idx + 1, path.length - 1)];
+    if (!from || !to || (from.lat === to.lat && from.lng === to.lng)) continue;
+    arrows.push({ lat: from.lat, lng: from.lng, bearingDeg: computeBearingDeg(from, to) });
+  }
+  return arrows;
+}
+
 export interface LatLng {
   lat: number;
   lng: number;

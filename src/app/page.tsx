@@ -17,7 +17,7 @@ import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/compon
 import { motion, AnimatePresence } from 'motion/react';
 import { parseVisitTime } from '@/lib/visitTime';
 import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey } from '@/lib/weather';
-import { fetchDrivingRoute, fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode, RouteStep, WalkSearchOption, WALK_SEARCH_OPTION_LABEL } from '@/lib/directions';
+import { fetchDrivingRoute, fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode, RouteStep, WalkSearchOption, WALK_SEARCH_OPTION_LABEL, buildRouteArrows } from '@/lib/directions';
 
 interface RegCode {
   code: string;
@@ -239,6 +239,13 @@ function MainApp() {
   const [isWalkNavActive, setIsWalkNavActive] = useState(false);
   const [walkNavStepIndex, setWalkNavStepIndex] = useState(0);
   const [walkSearchOption, setWalkSearchOption] = useState<WalkSearchOption>('0');
+  // null이면 직선거리 기준 자동 추천을 따르고, 값이 있으면 사용자가 직접 고른 이동수단을 우선한다.
+  const [manualTravelMode, setManualTravelMode] = useState<TravelMode | null>(null);
+
+  // 새 출발/도착 쌍이 지정될 때마다 수동 선택을 초기화해 자동 추천으로 되돌린다.
+  useEffect(() => {
+    setManualTravelMode(null);
+  }, [routeOrigin, routeDestination]);
 
   const clearRoutePick = () => {
     setRouteOrigin(null);
@@ -291,7 +298,7 @@ function MainApp() {
     const destination = { lat: routeDestination.lat, lng: routeDestination.lng };
     const straightLine = [origin, destination];
     const straightKm = getDistanceFromLatLonInKm(origin.lat, origin.lng, destination.lat, destination.lng);
-    const mode = recommendTravelMode(straightKm);
+    const mode = manualTravelMode ?? recommendTravelMode(straightKm);
     setRouteMode(mode);
     setIsRouteFallback(false);
     setRouteSteps(null);
@@ -334,7 +341,7 @@ function MainApp() {
     return () => {
       cancelled = true;
     };
-  }, [routeOrigin, routeDestination, walkSearchOption]);
+  }, [routeOrigin, routeDestination, walkSearchOption, manualTravelMode]);
 
   // 도보 안내 모드: 실시간 위치가 현재 단계의 안내 지점에 가까워지면(20m 이내)
   // 자동으로 다음 단계로 넘어간다. 마지막 단계를 지나면 도착으로 간주.
@@ -499,6 +506,9 @@ function MainApp() {
   useEffect(() => {
     if (routePath) fitMapToRoute(routePath);
   }, [routePath]);
+
+  // 경로선 위에 출발→도착 진행 방향을 보여줄 화살표 위치(일정 간격)
+  const routeArrows = useMemo(() => (routePath ? buildRouteArrows(routePath) : []), [routePath]);
 
   // 컴포넌트 언마운트 시 위치 추적 해제
   useEffect(() => {
@@ -2317,6 +2327,25 @@ function MainApp() {
                   />
                 )}
 
+                {/* 경로선 위 진행 방향 화살표 (출발→도착 흐름 표시용, 실시간 위치와 무관) */}
+                {routeMode && routeArrows.map((arrow, i) => (
+                  <Marker
+                    key={`route-arrow-${i}`}
+                    position={{ lat: arrow.lat, lng: arrow.lng }}
+                    zIndex={11}
+                    icon={{
+                      content: `
+                        <div style="transform: rotate(${arrow.bearingDeg}deg); width:22px; height:22px; display:flex; align-items:center; justify-content:center; pointer-events:none;">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="${ROUTE_MODE_COLOR[routeMode]}" stroke="white" stroke-width="1.5" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));">
+                            <path d="M12 2 L19 21 L12 17 L5 21 Z" />
+                          </svg>
+                        </div>
+                      `,
+                      anchor: { x: 11, y: 11 }
+                    }}
+                  />
+                ))}
+
                 {/* 전역 행정구역 날씨 맵 마커 (방해되지 않도록 작고 반투명하게) */}
                 {markers.map((marker) => {
                   const isSelected = selectedRecipient?.id === marker.id;
@@ -3498,6 +3527,28 @@ function MainApp() {
                         </p>
                       </>
                     )}
+
+                    {/* 실제로 이동 중이 아니어도 전체 턴바이턴 안내를 미리 넘겨볼 수 있게 수동 이전/다음 */}
+                    <div className="flex items-center gap-2 mt-3">
+                      <button
+                        type="button"
+                        onClick={() => setWalkNavStepIndex((i) => Math.max(0, i - 1))}
+                        disabled={walkNavStepIndex === 0}
+                        className="flex-1 flex items-center justify-center gap-1 py-2 rounded-[14px] text-[12px] font-black bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.1] disabled:opacity-35 disabled:hover:bg-foreground/[0.06] transition-colors"
+                      >
+                        <IconChevronUp size={14} className="-rotate-90" />
+                        이전 단계
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWalkNavStepIndex((i) => Math.min(routeSteps.length - 1, i + 1))}
+                        disabled={walkNavStepIndex === routeSteps.length - 1}
+                        className="flex-1 flex items-center justify-center gap-1 py-2 rounded-[14px] text-[12px] font-black bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.1] disabled:opacity-35 disabled:hover:bg-foreground/[0.06] transition-colors"
+                      >
+                        다음 단계
+                        <IconChevronDown size={14} className="-rotate-90" />
+                      </button>
+                    </div>
                   </div>
                 );
               })()
@@ -3517,6 +3568,26 @@ function MainApp() {
                     <IconX size={12} strokeWidth={2.5} />
                     지정 초기화
                   </button>
+                </div>
+
+                {/* 이동수단 수동 전환: 기본은 거리 기준 자동 추천이지만 언제든 직접 바꿀 수 있다 */}
+                <div className="flex items-center gap-1.5 mb-2.5">
+                  {(['walk', 'drive', 'transit'] as TravelMode[]).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setManualTravelMode(m)}
+                      className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[14px] text-[12px] font-black transition-colors ${
+                        routeMode === m ? 'text-white' : 'bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1]'
+                      }`}
+                      style={routeMode === m ? { backgroundColor: ROUTE_MODE_COLOR[m] } : undefined}
+                    >
+                      {m === 'walk' && <IconWalk size={14} />}
+                      {m === 'drive' && <IconCar size={14} />}
+                      {m === 'transit' && <IconBus size={14} />}
+                      {TRAVEL_MODE_LABEL[m]}
+                    </button>
+                  ))}
                 </div>
 
                 {routeMode === 'walk' && (
