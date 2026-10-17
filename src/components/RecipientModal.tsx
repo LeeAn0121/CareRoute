@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { DaumPostcodeEmbed } from 'react-daum-postcode';
 import { IconX, IconSearch, IconCamera, IconUser } from '@tabler/icons-react';
 import { motion } from 'motion/react';
-import { Button, IconButton, Modal, TextField } from './ui';
+import { Button, IconButton, Modal, NativeSelect, TextField } from './ui';
 
 interface Recipient {
   id: string;
@@ -24,7 +24,11 @@ interface Recipient {
   door_passcode?: string | null;
   parking_memo?: string | null;
   health_tags?: string | null;
+  age?: number | null;
+  care_grade?: string | null;
 }
+
+const CARE_GRADE_OPTIONS = ['1등급', '2등급', '3등급', '4등급', '5등급', '인지지원등급', '등급외'];
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -43,6 +47,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   
   const [visitDate, setVisitDate] = useState('');
   
+  const [age, setAge] = useState('');
+  const [careGrade, setCareGrade] = useState('');
   const [doorPasscode, setDoorPasscode] = useState('');
   const [parkingMemo, setParkingMemo] = useState('');
   const [healthTags, setHealthTags] = useState<string[]>([]);
@@ -75,7 +81,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setDetailAddress(recipientToEdit.detail_address || '');
         setBcode(recipientToEdit.dong);
         setVisitDate(recipientToEdit.notes || '');
-        
+        setAge(recipientToEdit.age != null ? String(recipientToEdit.age) : '');
+        setCareGrade(recipientToEdit.care_grade || '');
+
       // @ts-ignore
       setDoorPasscode(recipientToEdit.door_passcode || '');
       // @ts-ignore
@@ -91,7 +99,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setBcode('');
         
         setVisitDate('');
-        
+        setAge('');
+        setCareGrade('');
+
       setDoorPasscode('');
       setParkingMemo('');
       setHealthTags([]);
@@ -227,14 +237,27 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         door_passcode: doorPasscode.trim() || null,
         parking_memo: parkingMemo.trim() || null,
         health_tags: healthTags.length > 0 ? healthTags.join(',') : null,
+        age: age.trim() ? parseInt(age.trim(), 10) : null,
+        care_grade: careGrade.trim() || null,
       };
 
       const tagsStr = healthTags.length > 0 ? healthTags.join(',') : null;
 
+      // 일부 환경에서는 아직 마이그레이션이 적용되지 않아 age/care_grade/health_tags 컬럼이 없을 수 있다.
+      // 해당 컬럼을 참조하는 오류가 나면 그 컬럼만 제거하고 재시도한다.
+      const OPTIONAL_COLUMNS = ['health_tags', 'age', 'care_grade'];
+      const stripMissingColumn = (error: any): boolean => {
+        const col = OPTIONAL_COLUMNS.find(
+          (c) => recipientData[c] !== undefined && (error?.message?.includes(c) || error?.details?.includes(c))
+        );
+        if (!col) return false;
+        delete recipientData[col];
+        return true;
+      };
+
       if (recipientToEdit?.id) {
         let { error } = await supabase.from('recipients').update(recipientData).eq('id', recipientToEdit.id);
-        if (error && (error.message?.includes('health_tags') || error.details?.includes('health_tags'))) {
-          delete recipientData.health_tags;
+        while (error && stripMissingColumn(error)) {
           const retry = await supabase.from('recipients').update(recipientData).eq('id', recipientToEdit.id);
           error = retry.error;
         }
@@ -248,14 +271,12 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         }
       } else {
         let insertRes = await supabase.from('recipients').insert([recipientData]).select('id');
-        if (insertRes.error && (insertRes.error.message?.includes('health_tags') || insertRes.error.details?.includes('health_tags'))) {
-          delete recipientData.health_tags;
+        while (insertRes.error && stripMissingColumn(insertRes.error)) {
           insertRes = await supabase.from('recipients').insert([recipientData]).select('id');
         }
         if (insertRes.error) {
           let fallback = await supabase.from('recipients').insert([recipientData]);
-          if (fallback.error && (fallback.error.message?.includes('health_tags') || fallback.error.details?.includes('health_tags'))) {
-            delete recipientData.health_tags;
+          while (fallback.error && stripMissingColumn(fallback.error)) {
             fallback = await supabase.from('recipients').insert([recipientData]);
           }
           if (fallback.error) throw fallback.error;
@@ -388,6 +409,30 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
               disabled={isSubmitting}
               inputRef={detailAddressRef}
             />
+
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <TextField
+                  label="나이"
+                  type="number"
+                  placeholder="예: 82"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block">
+                  <span className="block text-[13px] font-bold text-foreground/70 mb-1.5 pl-1">장기요양등급</span>
+                  <NativeSelect value={careGrade} onChange={(e) => setCareGrade(e.target.value)} disabled={isSubmitting}>
+                    <option value="">선택 안 함</option>
+                    {CARE_GRADE_OPTIONS.map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </NativeSelect>
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* Grouped Inset: Health Tags */}

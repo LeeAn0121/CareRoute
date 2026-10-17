@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker, Polyline } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus, IconPrinter } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
@@ -10,6 +10,7 @@ import ScheduleManageModal from '@/components/ScheduleManageModal';
 import MonthCalendar from '@/components/MonthCalendar';
 import VoiceMemoModal from '@/components/VoiceMemoModal';
 import ShareReportModal from '@/components/ShareReportModal';
+import PrintProfileModal from '@/components/PrintProfileModal';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
 import WeatherWidget from '@/components/WeatherWidget';
@@ -43,6 +44,8 @@ interface Recipient {
   parking_memo?: string | null;
   health_tags?: string | null;
   last_completed_memo?: string | null;
+  age?: number | null;
+  care_grade?: string | null;
 }
 
 const SIDO_CENTERS: Record<string, { lat: number, lng: number }> = {
@@ -188,6 +191,7 @@ function MainApp() {
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   const [completingRecipient, setCompletingRecipient] = useState<Recipient | null>(null);
   const [sharingRecipient, setSharingRecipient] = useState<Recipient | null>(null);
+  const [printingRecipient, setPrintingRecipient] = useState<Recipient | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
@@ -3833,10 +3837,10 @@ function MainApp() {
               </div>
 
               {/* One UI 9.0 Quick Action Pill Bar */}
-              <div className="grid grid-cols-3 gap-2.5 my-4">
+              <div className="grid grid-cols-4 gap-2 my-4">
                 <button
                   onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
-                  className="py-3 px-2 rounded-[20px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
+                  className="py-3 px-1 rounded-[20px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
                 >
                   <IconNavigation size={20} />
                   <span className="text-[12px] font-black">길안내</span>
@@ -3844,7 +3848,7 @@ function MainApp() {
 
                 <button
                   onClick={() => setCompletingRecipient(selectedRecipient)}
-                  className="py-3 px-2 rounded-[20px] bg-primary/10 hover:bg-primary/15 text-primary flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
+                  className="py-3 px-1 rounded-[20px] bg-primary/10 hover:bg-primary/15 text-primary flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
                 >
                   <IconMessageCircle size={20} />
                   <span className="text-[12px] font-black">음성 일지</span>
@@ -3852,10 +3856,18 @@ function MainApp() {
 
                 <button
                   onClick={() => handleShareReport(selectedRecipient)}
-                  className="py-3 px-2 rounded-[20px] bg-[#FEE500]/20 hover:bg-[#FEE500]/30 text-amber-900 dark:text-amber-200 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-amber-500/20"
+                  className="py-3 px-1 rounded-[20px] bg-[#FEE500]/20 hover:bg-[#FEE500]/30 text-amber-900 dark:text-amber-200 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-amber-500/20"
                 >
                   <IconShare size={20} />
                   <span className="text-[12px] font-black">안심 공유</span>
+                </button>
+
+                <button
+                  onClick={() => setPrintingRecipient(selectedRecipient)}
+                  className="py-3 px-1 rounded-[20px] bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-surface-border/40"
+                >
+                  <IconPrinter size={20} />
+                  <span className="text-[12px] font-black">출력</span>
                 </button>
               </div>
 
@@ -4041,6 +4053,12 @@ function MainApp() {
         onClose={() => setSharingRecipient(null)}
         recipient={sharingRecipient}
         selectedDate={scheduleDate}
+      />
+
+      <PrintProfileModal
+        isOpen={Boolean(printingRecipient)}
+        onClose={() => setPrintingRecipient(null)}
+        recipient={printingRecipient}
       />
 
             {isScheduleAddOpen && (

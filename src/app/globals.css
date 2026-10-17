@@ -116,3 +116,32 @@ body {
 .dark #react-naver-map .marker-wrapper {
   filter: invert(100%) hue-rotate(180deg) brightness(115%) contrast(110%);
 }
+
+/* 어르신 정보 출력(인쇄): #print-sheet 영역만 종이에 남기고 나머지(모달 헤더/푸터, 지도, 배경 등)는 모두 숨긴다.
+   textarea는 스크롤 영역만 인쇄되는 브라우저가 많아, 인쇄 시엔 .print-only 텍스트로 대체해 보여준다. */
+.print-only {
+  display: none;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #print-sheet,
+  #print-sheet * {
+    visibility: visible;
+  }
+  #print-sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 24px;
+  }
+  .print-edit-only,
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
