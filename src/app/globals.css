@@ -118,11 +118,16 @@ body {
 }
 
 /* 어르신 정보 출력(인쇄): #print-sheet 영역만 종이에 남기고 나머지(모달 헤더/푸터, 지도, 배경 등)는 모두 숨긴다.
-   textarea는 스크롤 영역만 인쇄되는 브라우저가 많아, 인쇄 시엔 .print-only 텍스트로 대체해 보여준다. */
+   textarea는 스크롤 영역만 인쇄되는 브라우저가 많아, 인쇄 시엔 .print-only 텍스트로 대체해 보여준다.
+   건강 상태/메모 두 칸(.print-grow)은 A4 한 장 높이를 꽉 채우도록 남는 공간을 나눠 가진다. */
 .print-only {
   display: none;
 }
 @media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
   body * {
     visibility: hidden;
   }
@@ -135,7 +140,11 @@ body {
     top: 0;
     left: 0;
     width: 100%;
-    padding: 24px;
+    min-height: calc(297mm - 28mm);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14mm;
   }
   .print-edit-only,
   .no-print {
@@ -143,5 +152,12 @@ body {
   }
   .print-only {
     display: block !important;
+    flex: 1;
+  }
+  #print-sheet .print-grow {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
 }

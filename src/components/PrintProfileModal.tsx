@@ -78,31 +78,31 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
           </div>
         </div>
 
-        {/* 2. 주요 건강 상태: 수기 입력란 */}
-        <div className="flex flex-col gap-1.5">
+        {/* 2. 주요 건강 상태: 수기 입력란. 인쇄 시 A4 한 장을 채우도록 늘어남 */}
+        <div className="print-grow flex flex-col gap-1.5">
           <span className="text-[13px] font-black text-primary tracking-tight pl-1">어르신 주요 건강 상태</span>
           <textarea
             value={healthStatus}
             onChange={(e) => setHealthStatus(e.target.value)}
             placeholder="예: 고혈압, 경증 치매로 복약 지도 필요"
-            className="print-edit-only w-full h-28 p-4 bg-surface border border-surface-border/60 rounded-[20px] text-[14px] font-bold leading-relaxed outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-foreground/30 text-foreground"
+            className="print-edit-only w-full h-48 p-4 bg-surface border border-surface-border/60 rounded-[20px] text-[14px] font-bold leading-relaxed outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-foreground/30 text-foreground"
           />
           {/* 인쇄 시에는 textarea 스크롤 영역 대신 전체 내용이 보이는 텍스트로 대체 */}
-          <div className="print-only p-4 border border-foreground/30 rounded-[20px] text-[14px] font-bold leading-relaxed whitespace-pre-wrap min-h-28">
+          <div className="print-only p-4 border border-foreground/30 rounded-[20px] text-[14px] font-bold leading-relaxed whitespace-pre-wrap">
             {healthStatus || ' '}
           </div>
         </div>
 
-        {/* 3. 참고 (메모용): 수기 입력란 */}
-        <div className="flex flex-col gap-1.5">
+        {/* 3. 참고 (메모용): 수기 입력란. 인쇄 시 A4 한 장을 채우도록 늘어남 */}
+        <div className="print-grow flex flex-col gap-1.5">
           <span className="text-[13px] font-black text-primary tracking-tight pl-1">참고 (메모용)</span>
           <textarea
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             placeholder="그 외 전달할 특이사항을 자유롭게 적어주세요"
-            className="print-edit-only w-full h-28 p-4 bg-surface border border-surface-border/60 rounded-[20px] text-[14px] font-bold leading-relaxed outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-foreground/30 text-foreground"
+            className="print-edit-only w-full h-48 p-4 bg-surface border border-surface-border/60 rounded-[20px] text-[14px] font-bold leading-relaxed outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-foreground/30 text-foreground"
           />
-          <div className="print-only p-4 border border-foreground/30 rounded-[20px] text-[14px] font-bold leading-relaxed whitespace-pre-wrap min-h-28">
+          <div className="print-only p-4 border border-foreground/30 rounded-[20px] text-[14px] font-bold leading-relaxed whitespace-pre-wrap">
             {memo || ' '}
           </div>
         </div>
