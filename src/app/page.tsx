@@ -11,6 +11,7 @@ import MonthCalendar from '@/components/MonthCalendar';
 import VoiceMemoModal from '@/components/VoiceMemoModal';
 import ShareReportModal from '@/components/ShareReportModal';
 import PrintProfileModal from '@/components/PrintProfileModal';
+import BatchPrintModal from '@/components/BatchPrintModal';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
 import WeatherWidget from '@/components/WeatherWidget';
@@ -192,6 +193,7 @@ function MainApp() {
   const [completingRecipient, setCompletingRecipient] = useState<Recipient | null>(null);
   const [sharingRecipient, setSharingRecipient] = useState<Recipient | null>(null);
   const [printingRecipient, setPrintingRecipient] = useState<Recipient | null>(null);
+  const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
@@ -2955,6 +2957,18 @@ function MainApp() {
               )}
             </div>
 
+            {/* 그날 방문 일정 전체를 한 번에 인쇄/PDF로 출력 (현장 나가기 전 서류 준비용) */}
+            {scheduleDate && scheduleRoute.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsBatchPrintOpen(true)}
+                className="self-start mb-3 -mt-0.5 flex items-center gap-1.5 px-3.5 py-2 rounded-[16px] text-[12px] font-black bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 transition-colors active:scale-95 border border-surface-border/40"
+              >
+                <IconPrinter size={14} />
+                오늘 일정 일괄 출력 ({scheduleRoute.length}명)
+              </button>
+            )}
+
             {/* Quick Date Switcher & Progress Insight */}
             <div className="bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[36px] rounded-[22px] p-3 mb-3 border border-white/30 dark:border-white/10 shadow-xs space-y-2">
               <div className="flex items-center justify-between">
@@ -4059,6 +4073,13 @@ function MainApp() {
         isOpen={Boolean(printingRecipient)}
         onClose={() => setPrintingRecipient(null)}
         recipient={printingRecipient}
+      />
+
+      <BatchPrintModal
+        isOpen={isBatchPrintOpen}
+        onClose={() => setIsBatchPrintOpen(false)}
+        recipients={scheduleRoute}
+        dateLabel={scheduleDate ? `${scheduleDate.getMonth() + 1}월 ${scheduleDate.getDate()}일` : undefined}
       />
 
             {isScheduleAddOpen && (

@@ -117,7 +117,9 @@ body {
   filter: invert(100%) hue-rotate(180deg) brightness(115%) contrast(110%);
 }
 
-/* 어르신 정보 출력(인쇄): #print-sheet 영역만 종이에 남기고 나머지(모달 헤더/푸터, 지도, 배경 등)는 모두 숨긴다.
+/* 어르신 정보 출력(인쇄): .print-area 영역만 종이에 남기고 나머지(모달 헤더/푸터, 지도, 배경 등)는 모두 숨긴다.
+   .print-area 자체를 화면 밖(position:absolute)으로 빼서 숨겨진 조상 요소들의 레이아웃 영향을 받지 않게 하고,
+   그 안의 .print-sheet는 정상적인 문서 흐름에 둬서 장이 여러 개일 때 break-after로 페이지가 깔끔하게 나뉘게 한다.
    textarea는 스크롤 영역만 인쇄되는 브라우저가 많아, 인쇄 시엔 .print-only 텍스트로 대체해 보여준다.
    건강 상태/메모 두 칸(.print-grow)은 A4 한 장 높이를 꽉 채우도록 남는 공간을 나눠 가진다. */
 .print-only {
@@ -131,20 +133,27 @@ body {
   body * {
     visibility: hidden;
   }
-  #print-sheet,
-  #print-sheet * {
+  .print-area,
+  .print-area * {
     visibility: visible;
   }
-  #print-sheet {
+  .print-area {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+  .print-sheet {
+    width: 100%;
     min-height: calc(297mm - 28mm);
-    padding: 0;
     display: flex;
     flex-direction: column;
     gap: 14mm;
+  }
+  .print-sheet:not(:last-of-type) {
+    break-after: page;
   }
   .print-edit-only,
   .no-print {
@@ -154,10 +163,45 @@ body {
     display: block !important;
     flex: 1;
   }
-  #print-sheet .print-grow {
+  .print-sheet .print-grow {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 0;
+  }
+}
+
+/* PDF 저장(html2canvas 캡처): 인쇄용 레이아웃과 동일한 모습을 화면 밖 클론에 적용해
+   한 장을 A4 크기(210x297mm) 이미지로 그대로 캡처할 수 있게 한다. */
+.pdf-export-capture {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 14mm;
+  box-sizing: border-box;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 14mm;
+}
+.pdf-export-capture .print-edit-only {
+  display: none !important;
+}
+.pdf-export-capture .print-only {
+  display: block !important;
+  flex: 1;
+}
+.pdf-export-capture .print-grow {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 일괄 출력 화면에서 화면상으로만 어르신 카드 사이에 구분선을 보여준다.
+   인쇄/PDF에는 영향 없음(페이지 경계에 테두리가 끼는 것을 방지). */
+@media screen {
+  .batch-sheet-card + .batch-sheet-card {
+    border-top: 1px solid var(--surface-border);
+    padding-top: 1.5rem;
   }
 }
