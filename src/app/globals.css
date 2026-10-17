@@ -163,6 +163,12 @@ body {
     display: block !important;
     flex: 1;
   }
+  /* 작성일/작성자처럼 값이 있을 때만 좌우로 나란히 보여줄 행. 기본 .print-only의
+     flex:1(수직 늘어남)은 취소하고, 가로 배치를 위해 display를 flex로 바꾼다. */
+  .print-only.print-row {
+    display: flex !important;
+    flex: 0 0 auto;
+  }
   .print-sheet .print-grow {
     flex: 1;
     display: flex;
@@ -189,6 +195,10 @@ body {
 .pdf-export-capture .print-only {
   display: block !important;
   flex: 1;
+}
+.pdf-export-capture .print-only.print-row {
+  display: flex !important;
+  flex: 0 0 auto;
 }
 .pdf-export-capture .print-grow {
   flex: 1;
