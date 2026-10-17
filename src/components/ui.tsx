@@ -248,7 +248,7 @@ export function Modal({
                 transition={{ duration: 0.2 }}
               />
             </Dialog.Overlay>
-            <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
+            <div className="modal-portal-layer fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
               <Dialog.Content
                 asChild
                 onOpenAutoFocus={(e) => {
@@ -274,7 +274,7 @@ export function Modal({
                   transition={{ type: 'spring', damping: 28, stiffness: 350 }}
                 >
                   {/* One UI Pull Handle Indicator for Mobile */}
-                  <div className="pt-3 pb-1 flex justify-center sm:hidden">
+                  <div className="no-print pt-3 pb-1 flex justify-center sm:hidden">
                     <div className="w-10 h-1.5 rounded-full bg-foreground/20" />
                   </div>
                   <Dialog.Title className="sr-only">대화 상자</Dialog.Title>

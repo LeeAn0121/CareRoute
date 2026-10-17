@@ -58,7 +58,7 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
           )}
         </div>
         <div className="flex flex-col gap-1.5 min-w-0">
-          <p className="text-[22px] font-black text-[#1c1c1e] tracking-tight truncate">{recipient.name} 어르신</p>
+          <p className="text-[22px] leading-[1.4] font-black text-[#1c1c1e] tracking-tight break-words">{recipient.name} 어르신</p>
           <p className="text-[14px] font-bold text-[#616165]">
             나이 <span className="text-[#1c1c1e]">{recipient.age != null ? `${recipient.age}세` : '미입력'}</span>
           </p>

@@ -118,8 +118,6 @@ body {
 }
 
 /* 어르신 정보 출력(인쇄): .print-area 영역만 종이에 남기고 나머지(모달 헤더/푸터, 지도, 배경 등)는 모두 숨긴다.
-   .print-area 자체를 화면 밖(position:absolute)으로 빼서 숨겨진 조상 요소들의 레이아웃 영향을 받지 않게 하고,
-   그 안의 .print-sheet는 정상적인 문서 흐름에 둬서 장이 여러 개일 때 break-after로 페이지가 깔끔하게 나뉘게 한다.
    textarea는 스크롤 영역만 인쇄되는 브라우저가 많아, 인쇄 시엔 .print-only 텍스트로 대체해 보여준다.
    건강 상태/메모 두 칸(.print-grow)은 A4 한 장 높이를 꽉 채우도록 남는 공간을 나눠 가진다. */
 .print-only {
@@ -137,24 +135,40 @@ body {
   .print-area * {
     visibility: visible;
   }
-  /* 모달 바텀시트는 화면에서 max-height + overflow-y-auto로 스크롤 영역을 제한한다.
-     인쇄 시에도 이 제한이 그대로 적용되면 .print-area가 그 영역 밖으로 넘치는 부분이
-     잘려서(특히 상단 사진/신상정보 카드) 찍히므로, 인쇄할 때는 모달 조상의 높이 제한을 푼다. */
-  .modal-scroll-area {
+  /* visibility:hidden은 레이아웃 공간을 그대로 차지하기 때문에, .print-area를 포함하지
+     않는 요소는 display:none으로 아예 걷어내 .print-area가 문서 흐름(normal flow) 맨
+     위에서부터 자연스럽게 시작하게 한다. 이렇게 해야 내용이 길어 한 장을 넘길 때
+     break-after:page로 다음 페이지에 이어서 찍힌다(이전엔 position:absolute로 찍어내리는
+     방식이라 넘치는 내용이 다음 페이지로 안 넘어가고 잘렸음). .print-area가 없는 다른
+     화면/모달에서 인쇄하면 전과 동일하게 전부 안 보이는 빈 페이지가 된다(동작 변화 없음). */
+  body :not(:has(.print-area)):not(.print-area):not(.print-area *) {
+    display: none !important;
+  }
+  /* 모달 바텀시트는 화면에서 position:fixed + max-height/overflow-y-auto로 떠 있는
+     스크롤 시트다. 이 조상들이 fixed/스크롤 제한 상태로 남아있으면 내용이 페이지를
+     넘어가도 다음 페이지로 흐르지 못하고 잘리므로, 인쇄 대상을 포함한 모달에 한해
+     일반 문서 흐름으로 풀어준다. .print-area가 없는 다른 모달에는 영향 없음. */
+  .modal-portal-layer:has(.print-area) {
+    position: static !important;
+    display: block !important;
+  }
+  .modal-scroll-area:has(.print-area) {
+    position: static !important;
     overflow: visible !important;
     max-height: none !important;
   }
   .print-area {
-    position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
     padding: 0 !important;
     gap: 0 !important;
   }
   .print-sheet {
     width: 100%;
-    min-height: calc(297mm - 28mm);
+    /* 한 페이지 전체 높이에서 인쇄 여백(28mm)과, 보통 기본값(오늘 날짜)으로 항상
+       같이 찍히는 작성일/작성자 행의 예상 높이(약 34mm)를 미리 빼둔다. 그렇지 않으면
+       건강상태/메모 칸이 페이지를 꽉 채우도록 늘어나면서 그 아래 작성일/작성자 행만
+       다음 페이지로 밀려나는 문제가 생긴다. */
+    min-height: calc(297mm - 28mm - 34mm);
     display: flex;
     flex-direction: column;
     gap: 14mm;
@@ -188,7 +202,9 @@ body {
    한 장을 A4 크기(210x297mm) 이미지로 그대로 캡처할 수 있게 한다. */
 .pdf-export-capture {
   width: 210mm;
-  min-height: 297mm;
+  /* 인쇄(@media print)와 같은 이유로, 작성일/작성자 행이 보통 기본값(오늘 날짜)으로
+     같이 찍히는 것을 감안해 건강상태/메모 칸이 꽉 채우는 목표 높이를 약간 줄여둔다. */
+  min-height: calc(297mm - 34mm);
   padding: 14mm;
   box-sizing: border-box;
   background: #ffffff;
