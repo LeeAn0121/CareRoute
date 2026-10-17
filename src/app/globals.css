@@ -202,9 +202,11 @@ body {
    한 장을 A4 크기(210x297mm) 이미지로 그대로 캡처할 수 있게 한다. */
 .pdf-export-capture {
   width: 210mm;
-  /* 인쇄(@media print)와 같은 이유로, 작성일/작성자 행이 보통 기본값(오늘 날짜)으로
-     같이 찍히는 것을 감안해 건강상태/메모 칸이 꽉 채우는 목표 높이를 약간 줄여둔다. */
-  min-height: calc(297mm - 38mm);
+  /* 인쇄(@media print)와 달리 PDF는 캡처한 이미지를 addCanvasAsA4Page()가 페이지
+     비율에 맞춰 자동으로 꽉 채워 넣기 때문에(세로가 넘치면 축소, 모자라면 그만큼
+     여백이 남음), 목표 높이를 줄이지 않고 항상 A4 한 장(297mm) 전체를 채우도록
+     잡아야 PDF 하단에 빈 공간이 남지 않는다. */
+  min-height: 297mm;
   padding: 14mm;
   box-sizing: border-box;
   background: #ffffff;
@@ -239,7 +241,15 @@ body {
 
 /* 인쇄 전 미리보기: 모달 안에서 실제 종이/PDF와 같은 모습(수기 입력란 대신 확정된 텍스트)을
    화면 그대로의 너비로 보여준다. @media print와 똑같이 .print-edit-only ↔ .print-only만
-   맞바꾸고, A4 크기·페이지 분할 같은 종이 전용 규칙은 적용하지 않는다(미리보기는 모달 폭에 맞춰 보임). */
+   맞바꾸고, A4 크기·페이지 분할 같은 종이 전용 규칙은 적용하지 않는다(미리보기는 모달 폭에 맞춰 보임).
+   출력 전용 텍스트 색상(#1c1c1e 등)은 항상 흰 종이를 가정한 고정 hex라서, 다크 모드에서는
+   모달의 어두운 배경과 거의 같은 색이 되어 글자가 안 보이는 것처럼 보인다. 미리보기 영역 자체를
+   흰 배경 카드로 고정해 테마와 무관하게 실제 인쇄물과 같은 대비로 보이게 한다. */
+.print-preview-mode {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
 .print-preview-mode .print-edit-only {
   display: none !important;
 }

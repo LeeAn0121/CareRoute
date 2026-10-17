@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { IconHistory, IconPrinter, IconFileDownload, IconShare2 } from '@tabler/icons-react';
-import { BottomSheet } from './ui';
+import { Modal } from './ui';
 import { fetchRecentPrintLogs, type PrintLogRow } from '@/lib/printLogs';
 
 const METHOD_LABEL: Record<PrintLogRow['method'], string> = {
@@ -34,7 +34,7 @@ export default function PrintHistorySheet({ open, onClose }: { open: boolean; on
   }, [open]);
 
   return (
-    <BottomSheet open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose}>
       <div className="px-5 sm:px-6 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] max-h-[70vh] flex flex-col">
         <div className="flex items-center gap-2 pb-3">
           <IconHistory size={18} className="text-foreground/60" />
@@ -71,6 +71,6 @@ export default function PrintHistorySheet({ open, onClose }: { open: boolean; on
           )}
         </div>
       </div>
-    </BottomSheet>
+    </Modal>
   );
 }
