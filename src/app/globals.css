@@ -137,6 +137,13 @@ body {
   .print-area * {
     visibility: visible;
   }
+  /* 모달 바텀시트는 화면에서 max-height + overflow-y-auto로 스크롤 영역을 제한한다.
+     인쇄 시에도 이 제한이 그대로 적용되면 .print-area가 그 영역 밖으로 넘치는 부분이
+     잘려서(특히 상단 사진/신상정보 카드) 찍히므로, 인쇄할 때는 모달 조상의 높이 제한을 푼다. */
+  .modal-scroll-area {
+    overflow: visible !important;
+    max-height: none !important;
+  }
   .print-area {
     position: absolute;
     top: 0;
@@ -205,6 +212,13 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+/* 모달 바텀시트의 max-height + overflow-y-auto 제한이 PDF 캡처(클론 문서) 안에서도
+   그대로 남아있으면, 캡처 대상(.pdf-export-capture)이 그 제한 영역보다 커질 때
+   상단(사진/신상정보 카드 쪽)이 잘려서 캡처된다. 캡처 시에는 조상의 높이 제한을 푼다. */
+.modal-scroll-area:has(.pdf-export-capture) {
+  overflow: visible !important;
+  max-height: none !important;
 }
 
 /* 일괄 출력 화면에서 화면상으로만 어르신 카드 사이에 구분선을 보여준다.

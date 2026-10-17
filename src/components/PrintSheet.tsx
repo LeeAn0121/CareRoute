@@ -70,7 +70,7 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
 
       {/* 2. 주요 건강 상태: 수기 입력란. 인쇄/PDF 시 A4 한 장을 채우도록 늘어남 */}
       <div className="print-grow flex flex-col gap-1.5">
-        <span className="text-[13px] font-black text-[#1c1c1e] tracking-tight pl-1">어르신 주요 건강 상태</span>
+        <span className="text-[17px] font-black text-[#1c1c1e] tracking-tight pl-1">어르신 주요 건강 상태</span>
         <textarea
           value={healthStatus}
           onChange={(e) => onHealthStatusChange(e.target.value)}
@@ -85,7 +85,7 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
 
       {/* 3. 참고 (메모용): 수기 입력란. 인쇄/PDF 시 A4 한 장을 채우도록 늘어남 */}
       <div className="print-grow flex flex-col gap-1.5">
-        <span className="text-[13px] font-black text-[#1c1c1e] tracking-tight pl-1">참고 (메모용)</span>
+        <span className="text-[17px] font-black text-[#1c1c1e] tracking-tight pl-1">참고 (메모용)</span>
         <textarea
           value={memo}
           onChange={(e) => onMemoChange(e.target.value)}
@@ -125,13 +125,13 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
         <div className="print-only print-row flex gap-3">
           {writtenDate && (
             <div className={`p-3 border border-[#c7c7cc] rounded-[16px] text-[13px] font-bold text-[#1c1c1e] ${authorName ? 'flex-1' : 'w-full'}`}>
-              <span className="block text-[11px] font-black text-[#8e8e93] mb-0.5">작성일</span>
+              <span className="block text-[13px] font-black text-[#8e8e93] mb-0.5">작성일</span>
               {formatWrittenDate(writtenDate)}
             </div>
           )}
           {authorName && (
             <div className={`p-3 border border-[#c7c7cc] rounded-[16px] text-[13px] font-bold text-[#1c1c1e] ${writtenDate ? 'flex-1' : 'w-full'}`}>
-              <span className="block text-[11px] font-black text-[#8e8e93] mb-0.5">작성자</span>
+              <span className="block text-[13px] font-black text-[#8e8e93] mb-0.5">작성자</span>
               {authorName}
             </div>
           )}
