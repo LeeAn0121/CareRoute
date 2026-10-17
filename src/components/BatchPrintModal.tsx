@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { IconX, IconPrinter, IconFileDownload } from '@tabler/icons-react';
+import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconCheck } from '@tabler/icons-react';
 import { Modal, IconButton, Button } from './ui';
 import PrintSheet from './PrintSheet';
+import PrintHistorySheet from './PrintHistorySheet';
 import { captureSheetCanvas, createA4Pdf, addCanvasAsA4Page } from '@/lib/pdfExport';
+import { logPrintEvent } from '@/lib/printLogs';
 
 interface Recipient {
   id: string;
@@ -12,6 +14,7 @@ interface Recipient {
   photo_url?: string | null;
   age?: number | null;
   care_grade?: string | null;
+  health_tags?: string | null;
 }
 
 interface BatchPrintModalProps {
@@ -45,15 +48,27 @@ function RecipientSheetCard({
   recipient,
   writtenDate,
   authorName,
+  confirmerName,
+  orgName,
+  orgContact,
   onWrittenDateChange,
   onAuthorNameChange,
+  onConfirmerNameChange,
+  onOrgNameChange,
+  onOrgContactChange,
   sheetRef,
 }: {
   recipient: Recipient;
   writtenDate: string;
   authorName: string;
+  confirmerName: string;
+  orgName: string;
+  orgContact: string;
   onWrittenDateChange: (v: string) => void;
   onAuthorNameChange: (v: string) => void;
+  onConfirmerNameChange: (v: string) => void;
+  onOrgNameChange: (v: string) => void;
+  onOrgContactChange: (v: string) => void;
   sheetRef: (el: HTMLDivElement | null) => void;
 }) {
   const [healthStatus, setHealthStatus] = useRecipientDraft(recipient, 'health');
@@ -71,6 +86,12 @@ function RecipientSheetCard({
       onWrittenDateChange={onWrittenDateChange}
       authorName={authorName}
       onAuthorNameChange={onAuthorNameChange}
+      confirmerName={confirmerName}
+      onConfirmerNameChange={onConfirmerNameChange}
+      orgName={orgName}
+      onOrgNameChange={onOrgNameChange}
+      orgContact={orgContact}
+      onOrgContactChange={onOrgContactChange}
     />
   );
 }
@@ -78,20 +99,43 @@ function RecipientSheetCard({
 export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel }: BatchPrintModalProps) {
   const [writtenDate, setWrittenDate] = useState('');
   const [authorName, setAuthorName] = useState('');
+  const [confirmerName, setConfirmerName] = useState('');
+  const [orgName, setOrgName] = useState('');
+  const [orgContact, setOrgContact] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isPreview, setIsPreview] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const sheetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     if (isOpen && typeof window !== 'undefined') {
       setWrittenDate(todayYMD());
       setAuthorName(localStorage.getItem('careroute_print_author_name') || '');
+      setConfirmerName('');
+      setOrgName(localStorage.getItem('careroute_print_org_name') || '');
+      setOrgContact(localStorage.getItem('careroute_print_org_contact') || '');
+      setIsPreview(false);
+      setSelectedIds(new Set(recipients.map((r) => r.id)));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (authorName) localStorage.setItem('careroute_print_author_name', authorName);
   }, [authorName]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (orgName) localStorage.setItem('careroute_print_org_name', orgName);
+  }, [orgName]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (orgContact) localStorage.setItem('careroute_print_org_contact', orgContact);
+  }, [orgContact]);
 
   const setSheetRef = useCallback(
     (id: string) => (el: HTMLDivElement | null) => {
@@ -101,24 +145,77 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
     []
   );
 
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedRecipients = recipients.filter((r) => selectedIds.has(r.id));
+
+  const buildPdf = async () => {
+    if (selectedRecipients.length === 0) return null;
+    const pdf = await createA4Pdf();
+    for (let i = 0; i < selectedRecipients.length; i++) {
+      const el = sheetRefs.current.get(selectedRecipients[i].id);
+      if (!el) continue;
+      const canvas = await captureSheetCanvas(el);
+      addCanvasAsA4Page(pdf, canvas, i === 0);
+    }
+    return pdf;
+  };
+
   const handleDownloadPdf = async () => {
-    if (recipients.length === 0) return;
+    if (selectedRecipients.length === 0) return;
     setIsExporting(true);
     try {
-      const pdf = await createA4Pdf();
-      for (let i = 0; i < recipients.length; i++) {
-        const el = sheetRefs.current.get(recipients[i].id);
-        if (!el) continue;
-        const canvas = await captureSheetCanvas(el);
-        addCanvasAsA4Page(pdf, canvas, i === 0);
-      }
+      const pdf = await buildPdf();
+      if (!pdf) return;
       pdf.save(`${dateLabel ? dateLabel + '_' : ''}방문일정_어르신정보.pdf`);
+      logPrintEvent({ recipientName: selectedRecipients[0].name, method: 'pdf', batchCount: selectedRecipients.length, authorName });
     } catch (e) {
       console.error(e);
       alert('PDF 생성에 실패했습니다. 인쇄 버튼으로 다시 시도해주세요.');
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleShare = async () => {
+    if (selectedRecipients.length === 0) return;
+    if (typeof navigator === 'undefined' || !navigator.share) {
+      alert('이 기기/브라우저에서는 공유를 지원하지 않습니다. "PDF로 저장" 후 직접 공유해주세요.');
+      return;
+    }
+    setIsSharing(true);
+    try {
+      const pdf = await buildPdf();
+      if (!pdf) return;
+      const blob = pdf.output('blob') as Blob;
+      const fileName = `${dateLabel ? dateLabel + '_' : ''}방문일정_어르신정보.pdf`;
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+        alert('이 기기/브라우저에서는 PDF 공유를 지원하지 않습니다. "PDF로 저장" 후 직접 공유해주세요.');
+        return;
+      }
+      await navigator.share({ files: [file], title: fileName });
+      logPrintEvent({ recipientName: selectedRecipients[0].name, method: 'share', batchCount: selectedRecipients.length, authorName });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      console.error(e);
+      alert('공유에 실패했습니다. "PDF로 저장" 후 직접 공유해주세요.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handlePrint = () => {
+    if (selectedRecipients.length === 0) return;
+    logPrintEvent({ recipientName: selectedRecipients[0].name, method: 'print', batchCount: selectedRecipients.length, authorName });
+    window.print();
   };
 
   return (
@@ -128,35 +225,92 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
           <h2 className="text-[20px] font-black text-foreground tracking-tight">
             {dateLabel ? `${dateLabel} 일정 일괄 출력` : '일정 일괄 출력'}
           </h2>
-          <p className="text-[12px] font-bold text-foreground/50">총 {recipients.length}명의 정보를 한 번에 인쇄/저장합니다</p>
+          <p className="text-[12px] font-bold text-foreground/50">{selectedRecipients.length}명 선택됨 (총 {recipients.length}명)</p>
         </div>
-        <IconButton onClick={onClose} className="shrink-0 w-9 h-9 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="닫기">
-          <IconX size={18} />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <IconButton onClick={() => setIsHistoryOpen(true)} className="w-9 h-9 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="출력 이력">
+            <IconHistory size={17} />
+          </IconButton>
+          <IconButton
+            onClick={() => setIsPreview((v) => !v)}
+            className={`w-9 h-9 rounded-full ${isPreview ? 'bg-primary/15 text-primary' : 'bg-foreground/[0.04] hover:bg-foreground/[0.08]'}`}
+            aria-label="인쇄 미리보기"
+          >
+            {isPreview ? <IconEyeOff size={17} /> : <IconEye size={17} />}
+          </IconButton>
+          <IconButton onClick={onClose} className="w-9 h-9 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="닫기">
+            <IconX size={18} />
+          </IconButton>
+        </div>
+      </div>
+
+      {/* 출력할 인원 선택: 화면에서만 보이고 인쇄/PDF에는 포함되지 않는다 */}
+      {recipients.length > 1 && (
+        <div className="no-print px-5 sm:px-6 pb-3 flex flex-wrap gap-1.5">
+          {recipients.map((r) => {
+            const checked = selectedIds.has(r.id);
+            return (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => toggleSelected(r.id)}
+                className={`flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full text-[12px] font-black border transition-all active:scale-95 ${
+                  checked
+                    ? 'bg-primary text-primary-foreground border-transparent'
+                    : 'bg-surface text-foreground/50 border-surface-border/60'
+                }`}
+              >
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${checked ? 'bg-primary-foreground/20' : 'border border-foreground/25'}`}>
+                  {checked && <IconCheck size={11} strokeWidth={3} />}
+                </span>
+                {r.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className={`px-5 sm:px-6 py-3 flex flex-col gap-6 print-area ${isPreview ? 'print-preview-mode' : ''}`}>
+        {selectedRecipients.length === 0 ? (
+          <p className="no-print text-[13px] font-bold text-foreground/40 text-center py-10">출력할 어르신을 선택해주세요</p>
+        ) : (
+          selectedRecipients.map((r) => (
+            <div key={r.id} className="batch-sheet-card flex flex-col gap-2">
+              <p className="no-print text-[12px] font-black text-foreground/40 pl-1">{r.name} 어르신</p>
+              <RecipientSheetCard
+                recipient={r}
+                writtenDate={writtenDate}
+                authorName={authorName}
+                confirmerName={confirmerName}
+                orgName={orgName}
+                orgContact={orgContact}
+                onWrittenDateChange={setWrittenDate}
+                onAuthorNameChange={setAuthorName}
+                onConfirmerNameChange={setConfirmerName}
+                onOrgNameChange={setOrgName}
+                onOrgContactChange={setOrgContact}
+                sheetRef={setSheetRef(r.id)}
+              />
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="no-print sticky bottom-0 z-10 px-5 sm:px-6 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-xl border-t border-surface-border/40 flex gap-2">
+        <IconButton
+          onClick={handleShare}
+          disabled={isSharing || selectedRecipients.length === 0}
+          className="shrink-0 w-[52px] h-[52px] rounded-[22px] bg-surface-muted/80 text-foreground/80 border border-surface-border/40"
+          aria-label="공유하기"
+        >
+          {isSharing ? <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" /> : <IconShare2 size={19} />}
         </IconButton>
-      </div>
-
-      <div className="px-5 sm:px-6 py-3 flex flex-col gap-6 print-area">
-        {recipients.map((r) => (
-          <div key={r.id} className="batch-sheet-card flex flex-col gap-2">
-            <p className="no-print text-[12px] font-black text-foreground/40 pl-1">{r.name} 어르신</p>
-            <RecipientSheetCard
-              recipient={r}
-              writtenDate={writtenDate}
-              authorName={authorName}
-              onWrittenDateChange={setWrittenDate}
-              onAuthorNameChange={setAuthorName}
-              sheetRef={setSheetRef(r.id)}
-            />
-          </div>
-        ))}
-      </div>
-
-      <div className="no-print sticky bottom-0 z-10 px-5 sm:px-6 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-xl border-t border-surface-border/40 flex gap-2.5">
         <Button
           type="button"
           variant="ghost"
           fullWidth
           loading={isExporting}
+          disabled={selectedRecipients.length === 0}
           startIcon={<IconFileDownload size={19} />}
           onClick={handleDownloadPdf}
           className="whitespace-nowrap py-3.5 text-[15px] font-black rounded-[22px]"
@@ -166,13 +320,16 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
         <Button
           type="button"
           fullWidth
+          disabled={selectedRecipients.length === 0}
           startIcon={<IconPrinter size={19} />}
-          onClick={() => window.print()}
+          onClick={handlePrint}
           className="whitespace-nowrap py-3.5 text-[15px] font-black rounded-[22px] shadow-lg shadow-primary/20"
         >
           인쇄하기
         </Button>
       </div>
+
+      <PrintHistorySheet open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
     </Modal>
   );
 }

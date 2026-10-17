@@ -9,6 +9,7 @@ interface SheetRecipient {
   photo_url?: string | null;
   age?: number | null;
   care_grade?: string | null;
+  health_tags?: string | null;
 }
 
 interface PrintSheetProps {
@@ -21,6 +22,12 @@ interface PrintSheetProps {
   onWrittenDateChange: (value: string) => void;
   authorName: string;
   onAuthorNameChange: (value: string) => void;
+  confirmerName: string;
+  onConfirmerNameChange: (value: string) => void;
+  orgName: string;
+  onOrgNameChange: (value: string) => void;
+  orgContact: string;
+  onOrgContactChange: (value: string) => void;
 }
 
 function formatWrittenDate(value: string): string {
@@ -30,8 +37,33 @@ function formatWrittenDate(value: string): string {
   return `${y}년 ${m}월 ${d}일`;
 }
 
+function appendPhrase(current: string, phrase: string): string {
+  return current.trim() ? `${current}\n${phrase}` : phrase;
+}
+
+const DEFAULT_HEALTH_PHRASES = ['정기 혈압 체크 필요', '복약 지도 필요', '식이 조절 필요', '욕창 예방 관찰'];
+const MEMO_PHRASES = ['가족 연락 완료', '병원 진료 예정', '추가 방문 예정', '응급 연락처 확인 필요'];
+
 const textFieldClass =
   'print-edit-only w-full p-3 bg-surface border border-[#d8d8dc] rounded-[16px] text-[13px] font-bold outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-foreground/30 text-foreground';
+
+function QuickPhraseChips({ phrases, onPick }: { phrases: string[]; onPick: (phrase: string) => void }) {
+  if (phrases.length === 0) return null;
+  return (
+    <div className="print-edit-only flex flex-wrap gap-1.5">
+      {phrases.map((phrase) => (
+        <button
+          key={phrase}
+          type="button"
+          onClick={() => onPick(phrase)}
+          className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/65 border border-surface-border/50 active:scale-95 transition-all"
+        >
+          + {phrase}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // 어르신 정보 출력/PDF 저장 한 장의 레이아웃. 화면에서는 수기 입력란(textarea/input)을 보여주고,
 // 인쇄·PDF 캡처 시에는 .print-edit-only를 숨기고 .print-only 텍스트로 대체해 내용이 잘리지 않게 한다.
@@ -42,11 +74,63 @@ const textFieldClass =
 // border-surface-border/60 처럼 요소 자신에게 직접 붙던 투명도 클래스는 전부 고정 hex로 대체했다.
 // (focus:/placeholder: 처럼 가상 클래스·요소에 걸리는 투명도는 기본 computed style에 안 잡혀 안전하다.)
 const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintSheet(
-  { recipient, healthStatus, onHealthStatusChange, memo, onMemoChange, writtenDate, onWrittenDateChange, authorName, onAuthorNameChange },
+  {
+    recipient,
+    healthStatus,
+    onHealthStatusChange,
+    memo,
+    onMemoChange,
+    writtenDate,
+    onWrittenDateChange,
+    authorName,
+    onAuthorNameChange,
+    confirmerName,
+    onConfirmerNameChange,
+    orgName,
+    onOrgNameChange,
+    orgContact,
+    onOrgContactChange,
+  },
   ref
 ) {
+  const healthPhrases = [
+    ...(recipient.health_tags ? recipient.health_tags.split(',').filter(Boolean) : []),
+    ...DEFAULT_HEALTH_PHRASES,
+  ];
+  const infoFieldCount = [writtenDate, authorName, confirmerName].filter(Boolean).length;
+  const infoCellClass = infoFieldCount > 1 ? 'flex-1' : 'w-full';
+
   return (
     <div ref={ref} className="print-sheet flex flex-col gap-4">
+      {/* 0. 기관 정보(선택): 기관명/연락처를 채워두면 모든 출력물 상단에 자동으로 함께 찍힌다 */}
+      <div className="print-edit-only flex gap-3">
+        <div className="flex-1 flex flex-col gap-1.5">
+          <span className="text-[12px] font-black text-foreground/50 pl-1">기관명 (선택)</span>
+          <input
+            type="text"
+            value={orgName}
+            onChange={(e) => onOrgNameChange(e.target.value)}
+            placeholder="예: 행복 재가복지센터"
+            className={textFieldClass}
+          />
+        </div>
+        <div className="flex-1 flex flex-col gap-1.5">
+          <span className="text-[12px] font-black text-foreground/50 pl-1">연락처 (선택)</span>
+          <input
+            type="text"
+            value={orgContact}
+            onChange={(e) => onOrgContactChange(e.target.value)}
+            placeholder="예: 02-1234-5678"
+            className={textFieldClass}
+          />
+        </div>
+      </div>
+      {(orgName || orgContact) && (
+        <div className="print-only text-[12px] font-bold text-[#8e8e93] -mb-2">
+          {[orgName, orgContact].filter(Boolean).join(' · ')}
+        </div>
+      )}
+
       {/* 1. 사진 + 이름/나이/등급: 등록된 정보를 그대로 보여준다 */}
       <div className="bg-[#f7f7f8] p-5 rounded-[26px] border border-[#e5e5ea] flex items-center gap-4">
         <div className="w-24 h-24 rounded-[22px] overflow-hidden bg-[#f4f4f5] border border-[#e5e5ea] flex items-center justify-center shrink-0">
@@ -71,6 +155,7 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
       {/* 2. 주요 건강 상태: 수기 입력란. 인쇄/PDF 시 A4 한 장을 채우도록 늘어남 */}
       <div className="print-grow flex flex-col gap-1.5">
         <span className="text-[17px] font-black text-[#1c1c1e] tracking-tight pl-1">어르신 주요 건강 상태</span>
+        <QuickPhraseChips phrases={healthPhrases} onPick={(p) => onHealthStatusChange(appendPhrase(healthStatus, p))} />
         <textarea
           value={healthStatus}
           onChange={(e) => onHealthStatusChange(e.target.value)}
@@ -86,6 +171,7 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
       {/* 3. 참고 (메모용): 수기 입력란. 인쇄/PDF 시 A4 한 장을 채우도록 늘어남 */}
       <div className="print-grow flex flex-col gap-1.5">
         <span className="text-[17px] font-black text-[#1c1c1e] tracking-tight pl-1">참고 (메모용)</span>
+        <QuickPhraseChips phrases={MEMO_PHRASES} onPick={(p) => onMemoChange(appendPhrase(memo, p))} />
         <textarea
           value={memo}
           onChange={(e) => onMemoChange(e.target.value)}
@@ -97,7 +183,7 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
         </div>
       </div>
 
-      {/* 4. 작성일 / 작성자: 완전히 선택 입력. 화면에서는 항상 입력할 수 있게 보여주지만,
+      {/* 4. 작성일 / 작성자 / 확인자(서명): 전부 선택 입력. 화면에서는 항상 입력할 수 있게 보여주지만,
           인쇄/PDF에는 실제로 값을 채운 항목만 나가고 비워둔 항목은 아예 나타나지 않는다. */}
       <div className="print-edit-only flex gap-3">
         <div className="flex-1 flex flex-col gap-1.5">
@@ -119,20 +205,36 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
             className={textFieldClass}
           />
         </div>
+        <div className="flex-1 flex flex-col gap-1.5">
+          <span className="text-[12px] font-black text-foreground/50 pl-1">확인자 (선택)</span>
+          <input
+            type="text"
+            value={confirmerName}
+            onChange={(e) => onConfirmerNameChange(e.target.value)}
+            placeholder="인수인계 확인자"
+            className={textFieldClass}
+          />
+        </div>
       </div>
 
-      {(writtenDate || authorName) && (
+      {(writtenDate || authorName || confirmerName) && (
         <div className="print-only print-row flex gap-3">
           {writtenDate && (
-            <div className={`p-3 border border-[#c7c7cc] rounded-[16px] text-[13px] font-bold text-[#1c1c1e] ${authorName ? 'flex-1' : 'w-full'}`}>
+            <div className={`p-3 border border-[#c7c7cc] rounded-[16px] text-[13px] font-bold text-[#1c1c1e] ${infoCellClass}`}>
               <span className="block text-[13px] font-black text-[#8e8e93] mb-0.5">작성일</span>
               {formatWrittenDate(writtenDate)}
             </div>
           )}
           {authorName && (
-            <div className={`p-3 border border-[#c7c7cc] rounded-[16px] text-[13px] font-bold text-[#1c1c1e] ${writtenDate ? 'flex-1' : 'w-full'}`}>
+            <div className={`p-3 border border-[#c7c7cc] rounded-[16px] text-[13px] font-bold text-[#1c1c1e] ${infoCellClass}`}>
               <span className="block text-[13px] font-black text-[#8e8e93] mb-0.5">작성자</span>
               {authorName}
+            </div>
+          )}
+          {confirmerName && (
+            <div className={`p-3 border border-[#c7c7cc] rounded-[16px] text-[13px] font-bold text-[#1c1c1e] ${infoCellClass}`}>
+              <span className="block text-[13px] font-black text-[#8e8e93] mb-0.5">확인자</span>
+              {confirmerName}
             </div>
           )}
         </div>

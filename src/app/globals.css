@@ -165,10 +165,10 @@ body {
   .print-sheet {
     width: 100%;
     /* 한 페이지 전체 높이에서 인쇄 여백(28mm)과, 보통 기본값(오늘 날짜)으로 항상
-       같이 찍히는 작성일/작성자 행의 예상 높이(약 34mm)를 미리 빼둔다. 그렇지 않으면
+       같이 찍히는 작성일/작성자/확인자 행과 기관 정보 줄의 예상 높이(약 38mm)를 미리 빼둔다. 그렇지 않으면
        건강상태/메모 칸이 페이지를 꽉 채우도록 늘어나면서 그 아래 작성일/작성자 행만
        다음 페이지로 밀려나는 문제가 생긴다. */
-    min-height: calc(297mm - 28mm - 34mm);
+    min-height: calc(297mm - 28mm - 38mm);
     display: flex;
     flex-direction: column;
     gap: 14mm;
@@ -204,7 +204,7 @@ body {
   width: 210mm;
   /* 인쇄(@media print)와 같은 이유로, 작성일/작성자 행이 보통 기본값(오늘 날짜)으로
      같이 찍히는 것을 감안해 건강상태/메모 칸이 꽉 채우는 목표 높이를 약간 줄여둔다. */
-  min-height: calc(297mm - 34mm);
+  min-height: calc(297mm - 38mm);
   padding: 14mm;
   box-sizing: border-box;
   background: #ffffff;
@@ -235,6 +235,19 @@ body {
 .modal-scroll-area:has(.pdf-export-capture) {
   overflow: visible !important;
   max-height: none !important;
+}
+
+/* 인쇄 전 미리보기: 모달 안에서 실제 종이/PDF와 같은 모습(수기 입력란 대신 확정된 텍스트)을
+   화면 그대로의 너비로 보여준다. @media print와 똑같이 .print-edit-only ↔ .print-only만
+   맞바꾸고, A4 크기·페이지 분할 같은 종이 전용 규칙은 적용하지 않는다(미리보기는 모달 폭에 맞춰 보임). */
+.print-preview-mode .print-edit-only {
+  display: none !important;
+}
+.print-preview-mode .print-only {
+  display: block !important;
+}
+.print-preview-mode .print-only.print-row {
+  display: flex !important;
 }
 
 /* 일괄 출력 화면에서 화면상으로만 어르신 카드 사이에 구분선을 보여준다.
