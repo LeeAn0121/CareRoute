@@ -7,7 +7,7 @@ import {
   IconAlertTriangle, IconInfoCircle, IconDeviceMobile,
   IconClock, IconBrandGoogle, IconCalendarEvent,
   IconMapPin, IconSparkles,
-  IconHelp, IconDownload, IconUpload, IconDatabase,
+  IconHelp, IconDownload, IconUpload, IconDatabase, IconFileSpreadsheet,
   IconExternalLink, IconAlertCircle,
   IconSearch, IconX, IconTypography, IconShieldCheck
 } from '@tabler/icons-react';
@@ -41,6 +41,52 @@ function pickRecipientColumns(row: Record<string, unknown>): Record<string, unkn
     if (row[col] !== undefined) picked[col] = row[col];
   }
   return picked;
+}
+
+const WEEKDAY_LABELS_KO = ['일', '월', '화', '수', '목', '금', '토'];
+
+function formatRecurringWeekdaysCsv(value: unknown): string {
+  if (typeof value !== 'string' || !value) return '';
+  return value
+    .split(',')
+    .map((v) => Number(v))
+    .filter((n) => !Number.isNaN(n) && n >= 0 && n <= 6)
+    .sort((a, b) => a - b)
+    .map((n) => WEEKDAY_LABELS_KO[n])
+    .join('/');
+}
+
+// 엑셀에서 바로 열어볼 수 있는 CSV. 내부용 컬럼(id/좌표/사진 URL 등)은 빼고
+// 기관 제출·현장 확인용으로 바로 쓸 수 있는 사람이 읽기 좋은 값만 담는다.
+const CSV_COLUMNS: { header: string; value: (r: Record<string, any>) => string }[] = [
+  { header: '이름', value: (r) => r.name || '' },
+  { header: '주소', value: (r) => [r.address, r.detail_address].filter(Boolean).join(' ') },
+  { header: '나이', value: (r) => (r.age != null ? String(r.age) : '') },
+  { header: '요양등급', value: (r) => r.care_grade || '' },
+  { header: '방문시간', value: (r) => (r.visit_time ? String(r.visit_time).slice(0, 5) : '') },
+  { header: '정기방문요일', value: (r) => formatRecurringWeekdaysCsv(r.recurring_weekdays) },
+  { header: '담당요양보호사', value: (r) => r.assigned_caregiver_name || '' },
+  { header: '보호자성함', value: (r) => r.guardian_name || '' },
+  { header: '보호자관계', value: (r) => r.guardian_relation || '' },
+  { header: '보호자연락처', value: (r) => r.guardian_phone || '' },
+  { header: '건강태그', value: (r) => (r.health_tags || '').split(',').filter(Boolean).join('/') },
+  { header: '공동현관비밀번호', value: (r) => r.door_passcode || '' },
+  { header: '주차메모', value: (r) => r.parking_memo || '' },
+  { header: '최근방문완료일', value: (r) => r.last_completed_key || '' },
+];
+
+function toCsvCell(value: string): string {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function buildRecipientsCsv(rows: Record<string, any>[]): string {
+  const header = CSV_COLUMNS.map((c) => toCsvCell(c.header)).join(',');
+  const lines = rows.map((row) => CSV_COLUMNS.map((c) => toCsvCell(c.value(row))).join(','));
+  // Excel에서 한글이 깨지지 않도록 UTF-8 BOM을 앞에 붙인다.
+  return '﻿' + [header, ...lines].join('\r\n');
 }
 
 export interface SettingsViewProps {
@@ -87,6 +133,7 @@ export default function SettingsView({
   const [isTestingNotif, setIsTestingNotif] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [isExportingBackup, setIsExportingBackup] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
   const restoreInputRef = React.useRef<HTMLInputElement>(null);
   
@@ -206,6 +253,35 @@ export default function SettingsView({
       setFeedbackMessage({ type: 'error', text: '백업 생성에 실패했습니다.' });
     } finally {
       setIsExportingBackup(false);
+    }
+  };
+
+  // 엑셀에서 바로 열어볼 수 있는 CSV 내보내기(기관 제출/보고서용). JSON 백업과 달리
+  // 복원용이 아니라 사람이 읽기 좋은 값만 담는다.
+  const handleExportCsv = async () => {
+    setIsExportingCsv(true);
+    try {
+      const { data, error } = await supabase.from('recipients').select('*');
+      if (error) throw error;
+
+      const csv = buildRecipientsCsv((data || []).map(pickRecipientColumns));
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      a.href = url;
+      a.download = `careroute_수급자명단_${dateStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setFeedbackMessage({ type: 'success', text: '수급자 명단 CSV 파일이 다운로드되었습니다.' });
+    } catch (e) {
+      console.error('CSV 내보내기 실패', e);
+      setFeedbackMessage({ type: 'error', text: 'CSV 생성에 실패했습니다.' });
+    } finally {
+      setIsExportingCsv(false);
     }
   };
 
@@ -909,6 +985,31 @@ export default function SettingsView({
                   </div>
                   <span className="text-[12px] font-black text-[#34C759] bg-[#34C759]/10 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
                     {isExportingBackup ? '내보내는 중...' : '내보내기'}
+                  </span>
+                </button>
+
+                {/* 엑셀에서 바로 열어볼 수 있는 CSV 내보내기(기관 제출/보고서용) */}
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  disabled={isExportingCsv}
+                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors gap-3 disabled:opacity-60"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-[32px] h-[32px] rounded-[10px] bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                      <IconFileSpreadsheet size={18} strokeWidth={2.5} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
+                        수급자 명단 CSV 내보내기 (엑셀용)
+                      </span>
+                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
+                        기관 제출·보고서용으로 엑셀에서 바로 여는 표 형식
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[12px] font-black text-emerald-600 bg-emerald-600/10 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
+                    {isExportingCsv ? '내보내는 중...' : '내보내기'}
                   </span>
                 </button>
 
