@@ -25,6 +25,7 @@ interface Recipient {
   notes?: string | null;
   last_completed_memo?: string | null;
   health_tags?: string | null;
+  guardian_phone?: string | null;
 }
 
 interface ShareReportModalProps {
@@ -131,7 +132,8 @@ export default function ShareReportModal({
   const handleSmsShare = () => {
     if (!recipient) return;
     const encText = encodeURIComponent(shareText);
-    window.location.href = `sms:?body=${encText}`;
+    // 보호자 연락처가 등록돼 있으면 수신자를 미리 채워 매번 직접 찾지 않아도 되게 한다.
+    window.location.href = `sms:${recipient.guardian_phone || ''}?body=${encText}`;
     logShareEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'sms', messageText: shareText });
   };
 

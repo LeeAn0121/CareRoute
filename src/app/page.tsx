@@ -55,6 +55,9 @@ interface Recipient {
   care_grade?: string | null;
   last_visit_started_at?: string | null;
   assigned_caregiver_name?: string | null;
+  guardian_name?: string | null;
+  guardian_relation?: string | null;
+  guardian_phone?: string | null;
 }
 
 const SIDO_CENTERS: Record<string, { lat: number, lng: number }> = {
@@ -3709,13 +3712,22 @@ function MainApp() {
                 {(() => {
                   const activeTags = selectedRecipient.health_tags || 
                     (typeof window !== 'undefined' ? localStorage.getItem(`careroute_health_tags_${selectedRecipient.id}`) : null);
-                  return (selectedRecipient.door_passcode || selectedRecipient.parking_memo || activeTags) ? (
+                  return (selectedRecipient.door_passcode || selectedRecipient.parking_memo || selectedRecipient.guardian_phone || activeTags) ? (
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       {activeTags && activeTags.split(',').filter(Boolean).slice(0, 2).map((tag, idx) => (
                         <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 font-black text-[10px] border border-red-500/20 shadow-2xs">
                           #{tag.trim()}
                         </span>
                       ))}
+                      {selectedRecipient.guardian_phone && (
+                        <a
+                          href={`tel:${selectedRecipient.guardian_phone}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-black text-[10px] border border-emerald-500/20 shadow-2xs"
+                        >
+                          <IconPhone size={11} strokeWidth={2.5} />
+                          <span>보호자{selectedRecipient.guardian_relation ? `(${selectedRecipient.guardian_relation})` : ''} {selectedRecipient.guardian_phone}</span>
+                        </a>
+                      )}
                       {selectedRecipient.door_passcode && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-black text-[10px] border border-amber-500/20 shadow-2xs">
                           <IconKey size={11} strokeWidth={2.5} />

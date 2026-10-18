@@ -27,6 +27,9 @@ interface Recipient {
   age?: number | null;
   care_grade?: string | null;
   assigned_caregiver_name?: string | null;
+  guardian_name?: string | null;
+  guardian_relation?: string | null;
+  guardian_phone?: string | null;
 }
 
 const CARE_GRADE_OPTIONS = ['1등급', '2등급', '3등급', '4등급', '5등급', '인지지원등급', '등급외'];
@@ -53,6 +56,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   const [doorPasscode, setDoorPasscode] = useState('');
   const [parkingMemo, setParkingMemo] = useState('');
   const [assignedCaregiverName, setAssignedCaregiverName] = useState('');
+  const [guardianName, setGuardianName] = useState('');
+  const [guardianRelation, setGuardianRelation] = useState('');
+  const [guardianPhone, setGuardianPhone] = useState('');
   const [healthTags, setHealthTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -91,6 +97,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       // @ts-ignore
       setParkingMemo(recipientToEdit.parking_memo || '');
       setAssignedCaregiverName(recipientToEdit.assigned_caregiver_name || '');
+      setGuardianName(recipientToEdit.guardian_name || '');
+      setGuardianRelation(recipientToEdit.guardian_relation || '');
+      setGuardianPhone(recipientToEdit.guardian_phone || '');
       const savedHealthTags = recipientToEdit.health_tags || 
         (typeof window !== 'undefined' ? localStorage.getItem(`careroute_health_tags_${recipientToEdit.id}`) : null);
       setHealthTags(savedHealthTags ? savedHealthTags.split(',').filter(Boolean) : []);
@@ -108,6 +117,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       setDoorPasscode('');
       setParkingMemo('');
       setAssignedCaregiverName('');
+      setGuardianName('');
+      setGuardianRelation('');
+      setGuardianPhone('');
       setHealthTags([]);
       setCustomTag('');
         setExistingPhotoUrl(null);
@@ -244,13 +256,16 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         age: age.trim() ? parseInt(age.trim(), 10) : null,
         care_grade: careGrade.trim() || null,
         assigned_caregiver_name: assignedCaregiverName.trim() || null,
+        guardian_name: guardianName.trim() || null,
+        guardian_relation: guardianRelation.trim() || null,
+        guardian_phone: guardianPhone.trim() || null,
       };
 
       const tagsStr = healthTags.length > 0 ? healthTags.join(',') : null;
 
       // 일부 환경에서는 아직 마이그레이션이 적용되지 않아 age/care_grade/health_tags 컬럼이 없을 수 있다.
       // 해당 컬럼을 참조하는 오류가 나면 그 컬럼만 제거하고 재시도한다.
-      const OPTIONAL_COLUMNS = ['health_tags', 'age', 'care_grade', 'assigned_caregiver_name'];
+      const OPTIONAL_COLUMNS = ['health_tags', 'age', 'care_grade', 'assigned_caregiver_name', 'guardian_name', 'guardian_relation', 'guardian_phone'];
       const stripMissingColumn = (error: any): boolean => {
         const col = OPTIONAL_COLUMNS.find(
           (c) => recipientData[c] !== undefined && (error?.message?.includes(c) || error?.details?.includes(c))
@@ -507,6 +522,38 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                 ))}
               </div>
             )}
+          </div>
+
+          {/* 보호자 비상연락처: 응급 상황 시 바로 연락할 수 있도록 */}
+          <div className="bg-foreground/[0.03] dark:bg-white/[0.04] p-4 rounded-[26px] border border-surface-border/40 flex flex-col gap-3">
+            <p className="text-[13px] font-black text-primary tracking-tight pl-1">보호자 비상연락처</p>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <TextField
+                  label="보호자 성함 (선택)"
+                  placeholder="예: 홍길동"
+                  value={guardianName}
+                  onChange={(e) => setGuardianName(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="flex-1">
+                <TextField
+                  label="관계 (선택)"
+                  placeholder="예: 자녀"
+                  value={guardianRelation}
+                  onChange={(e) => setGuardianRelation(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+            <TextField
+              label="연락처 (선택)"
+              placeholder="예: 010-1234-5678"
+              value={guardianPhone}
+              onChange={(e) => setGuardianPhone(e.target.value)}
+              disabled={isSubmitting}
+            />
           </div>
 
           {/* 담당 요양보호사: 여러 명이 함께 쓸 때 이 어르신을 누가 맡고 있는지 기록 */}
