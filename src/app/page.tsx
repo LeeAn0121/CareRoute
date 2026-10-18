@@ -24,7 +24,7 @@ import WeatherWidget from '@/components/WeatherWidget';
 import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/components/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import { parseVisitTime } from '@/lib/visitTime';
-import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey } from '@/lib/weather';
+import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey, getHeatColdWarning, type WeatherData } from '@/lib/weather';
 import { fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode, RouteStep, WalkSearchOption, WALK_SEARCH_OPTION_LABEL, buildRouteArrows } from '@/lib/directions';
 
 interface RegCode {
@@ -207,6 +207,8 @@ function MainApp() {
   const [printSuggestionRecipient, setPrintSuggestionRecipient] = useState<Recipient | null>(null);
   const [printHistoryDateKey, setPrintHistoryDateKey] = useState<string | null>(null);
   const [isVitalsHistoryOpen, setIsVitalsHistoryOpen] = useState(false);
+  const [routeTabWeather, setRouteTabWeather] = useState<WeatherData | null>(null);
+  const [isWeatherBannerDismissed, setIsWeatherBannerDismissed] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
@@ -1670,6 +1672,31 @@ function MainApp() {
     return false;
   };
 
+  // 폭염/한파 주의 수준일 때, 오늘 방문 예정이 없는 어르신 안부를 챙기도록 일정 탭에
+  // 배너로 안내한다. 하루에 한 번 닫으면 그날은 다시 안 뜨게 로컬에 기억해둔다.
+  const isViewingToday = Boolean(scheduleDate) && scheduleDate!.toDateString() === new Date().toDateString();
+  useEffect(() => {
+    if (activeTab !== 'route' || !isViewingToday) return;
+    if (typeof window !== 'undefined' && localStorage.getItem(`careroute_weather_banner_dismissed_${todayYMD()}`)) {
+      setIsWeatherBannerDismissed(true);
+      return;
+    }
+    fetchWeatherForCoord(mapCenter.lat, mapCenter.lng, 0.02, true).then((data) => {
+      if (data) setRouteTabWeather(data);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, isViewingToday, mapCenter.lat, mapCenter.lng]);
+
+  const dismissWeatherBanner = () => {
+    setIsWeatherBannerDismissed(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`careroute_weather_banner_dismissed_${todayYMD()}`, '1');
+    }
+  };
+
+  const heatColdWarning = routeTabWeather ? getHeatColdWarning(routeTabWeather) : { level: null, label: '' };
+  const noScheduleTodayRecipients = markers.filter((m) => !getScheduledForDate(m, new Date()));
+
   // 오늘의 경로: 시간이 정해진 일정을 뼈대로 두고, 시간 미정인 곳은 이동
   // 거리가 가장 적게 늘어나는 위치에 끼워넣는 방식(최근접 삽입 휴리스틱)으로
   // 순서를 정한다. 실제 도로 거리가 아닌 직선 거리 기준의 근사치.
@@ -3112,6 +3139,31 @@ function MainApp() {
                 </div>
               )}
             </div>
+
+            {/* 폭염/한파 주의 수준 안내: 오늘 방문 예정 없는 어르신 안부를 챙기도록 유도 */}
+            {isViewingToday && heatColdWarning.level && !isWeatherBannerDismissed && noScheduleTodayRecipients.length > 0 && (
+              <div className={`mb-3 p-3.5 rounded-[20px] border flex items-start gap-2.5 ${
+                heatColdWarning.level === 'heat'
+                  ? 'bg-orange-500/10 border-orange-500/25 text-orange-700 dark:text-orange-400'
+                  : 'bg-sky-500/10 border-sky-500/25 text-sky-700 dark:text-sky-400'
+              }`}>
+                <span className="text-lg leading-none shrink-0">{heatColdWarning.level === 'heat' ? '🥵' : '🥶'}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-black leading-snug">오늘 {heatColdWarning.label}입니다</p>
+                  <p className="text-[12px] font-bold opacity-80 leading-snug mt-0.5">
+                    방문 예정이 없는 어르신 {noScheduleTodayRecipients.length}명의 안부를 한 번 확인해보세요.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={dismissWeatherBanner}
+                  className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+                  aria-label="닫기"
+                >
+                  <IconX size={16} />
+                </button>
+              </div>
+            )}
 
             {/* 그날/이번 주 방문 일정을 한 번에 인쇄/PDF로 출력 (현장 나가기 전 서류 준비용) */}
             {scheduleDate && (

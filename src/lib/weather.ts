@@ -37,6 +37,17 @@ export function getLatestKnownWeather(): WeatherData | null {
   return latestKnownWeather;
 }
 
+// 기상청 공식 특보 API 연동 전 단계의 간이 추정치. 체감온도/최저기온 기준으로
+// 폭염·한파 수준을 가볍게 판정해, 방문 예정 없는 어르신 안부 확인을 유도하는 데 쓴다.
+// (공식 특보와 발표 시점/범위가 다를 수 있어 "주의 수준 추정"으로만 안내한다.)
+export type HeatColdLevel = 'heat' | 'cold' | null;
+
+export function getHeatColdWarning(data: WeatherData): { level: HeatColdLevel; label: string } {
+  if (data.tempApparent >= 33) return { level: 'heat', label: '폭염 주의 수준(체감 33℃ 이상)' };
+  if (data.tempMin <= -12) return { level: 'cold', label: '한파 주의 수준(아침 최저 -12℃ 이하)' };
+  return { level: null, label: '' };
+}
+
 export function getWeatherEmojiAndDesc(pty: string): { emoji: string; desc: string } {
   if (pty === '1') return { emoji: '🌧️', desc: '비' };
   if (pty === '3') return { emoji: '❄️', desc: '눈' };
