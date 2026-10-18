@@ -12,6 +12,7 @@ import VoiceMemoModal from '@/components/VoiceMemoModal';
 import ShareReportModal from '@/components/ShareReportModal';
 import PrintProfileModal from '@/components/PrintProfileModal';
 import BatchPrintModal from '@/components/BatchPrintModal';
+import WeeklyPrintModal from '@/components/WeeklyPrintModal';
 import { fetchPrintedRecipientIdsForDate } from '@/lib/printLogs';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
@@ -195,6 +196,7 @@ function MainApp() {
   const [sharingRecipient, setSharingRecipient] = useState<Recipient | null>(null);
   const [printingRecipient, setPrintingRecipient] = useState<Recipient | null>(null);
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false);
+  const [isWeeklyPrintOpen, setIsWeeklyPrintOpen] = useState(false);
   const [printedRecipientIds, setPrintedRecipientIds] = useState<Set<string>>(new Set());
   const [printSuggestionRecipient, setPrintSuggestionRecipient] = useState<Recipient | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
@@ -1767,6 +1769,38 @@ function MainApp() {
     return computedRoute;
   }, [markers, mapCenter, scheduleDate, scheduleDateKey, customOrderMap]);
 
+  // 이번 주 전체 출력용: 선택한 날짜가 포함된 일(일요일)~토요일 묶음을 날짜별로 미리 묶어둔다.
+  // 경로 최적화까진 필요 없어(서류 준비용) 시간 있는 일정 먼저, 그 외는 이름순으로 가볍게 정렬.
+  const weekDays = useMemo(() => {
+    if (!scheduleDate) return [];
+    const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+    const start = new Date(scheduleDate);
+    start.setDate(start.getDate() - start.getDay());
+    const days: { dateKey: string; dateLabel: string; recipients: Recipient[] }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const dateLabel = `${d.getMonth() + 1}월 ${d.getDate()}일 (${weekdayLabels[d.getDay()]})`;
+      const recipients = markers
+        .filter((r) => getScheduledForDate(r, d))
+        .sort((a, b) => {
+          const ta = parseVisitTime(a.visit_time, a.notes);
+          const tb = parseVisitTime(b.visit_time, b.notes);
+          if (ta.hasTime && tb.hasTime) return ta.startTime.localeCompare(tb.startTime);
+          if (ta.hasTime) return -1;
+          if (tb.hasTime) return 1;
+          return a.name.localeCompare(b.name);
+        });
+      days.push({ dateKey, dateLabel, recipients });
+    }
+    return days;
+  }, [markers, scheduleDate]);
+
+  const weekLabel = weekDays.length === 7
+    ? `${weekDays[0].dateKey.slice(5).replace('-', '.')}~${weekDays[6].dateKey.slice(5).replace('-', '.')}`
+    : undefined;
+
   // Google 캘린더 동기화: Google Identity Services(GIS)로 액세스 토큰만 받아서
   // Calendar REST API를 직접 호출한다 (무거운 gapi 클라이언트 라이브러리 불필요).
   const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
@@ -2994,16 +3028,28 @@ function MainApp() {
               )}
             </div>
 
-            {/* 그날 방문 일정 전체를 한 번에 인쇄/PDF로 출력 (현장 나가기 전 서류 준비용) */}
-            {scheduleDate && scheduleRoute.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setIsBatchPrintOpen(true)}
-                className="self-start mb-3 -mt-0.5 flex items-center gap-1.5 px-3.5 py-2 rounded-[16px] text-[12px] font-black bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 transition-colors active:scale-95 border border-surface-border/40"
-              >
-                <IconPrinter size={14} />
-                오늘 일정 일괄 출력 ({scheduleRoute.length}명)
-              </button>
+            {/* 그날/이번 주 방문 일정을 한 번에 인쇄/PDF로 출력 (현장 나가기 전 서류 준비용) */}
+            {scheduleDate && (
+              <div className="flex items-center gap-1.5 mb-3 -mt-0.5">
+                {scheduleRoute.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsBatchPrintOpen(true)}
+                    className="self-start flex items-center gap-1.5 px-3.5 py-2 rounded-[16px] text-[12px] font-black bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 transition-colors active:scale-95 border border-surface-border/40"
+                  >
+                    <IconPrinter size={14} />
+                    오늘 일정 일괄 출력 ({scheduleRoute.length}명)
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsWeeklyPrintOpen(true)}
+                  className="self-start flex items-center gap-1.5 px-3.5 py-2 rounded-[16px] text-[12px] font-black bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 transition-colors active:scale-95 border border-surface-border/40"
+                >
+                  <IconCalendarEvent size={14} />
+                  이번 주 전체 출력
+                </button>
+              </div>
             )}
 
             {/* Quick Date Switcher & Progress Insight */}
@@ -4173,6 +4219,13 @@ function MainApp() {
         onClose={() => { setIsBatchPrintOpen(false); refetchPrintedRecipientIds(); }}
         recipients={scheduleDate ? scheduleRoute.map((r) => ({ ...r, completed: isCompletedForDate(r, scheduleDate) })) : scheduleRoute}
         dateLabel={scheduleDate ? `${scheduleDate.getMonth() + 1}월 ${scheduleDate.getDate()}일` : undefined}
+      />
+
+      <WeeklyPrintModal
+        isOpen={isWeeklyPrintOpen}
+        onClose={() => { setIsWeeklyPrintOpen(false); refetchPrintedRecipientIds(); }}
+        days={weekDays}
+        weekLabel={weekLabel}
       />
 
             {isScheduleAddOpen && (

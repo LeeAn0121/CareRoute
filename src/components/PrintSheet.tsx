@@ -19,6 +19,7 @@ interface SheetRecipient {
 
 interface PrintSheetProps {
   recipient: SheetRecipient;
+  scheduleLabel?: string;
   healthStatus: string;
   onHealthStatusChange: (value: string) => void;
   memo: string;
@@ -81,6 +82,7 @@ function QuickPhraseChips({ phrases, onPick }: { phrases: string[]; onPick: (phr
 const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintSheet(
   {
     recipient,
+    scheduleLabel,
     healthStatus,
     onHealthStatusChange,
     memo,
@@ -111,6 +113,13 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
 
   return (
     <div ref={ref} className="print-sheet flex flex-col gap-4">
+      {/* -1. 주간 일괄 출력 시 어느 날짜 방문인지 구분하는 배너(단일/일별 출력에는 없음) */}
+      {scheduleLabel && (
+        <div className="print-only text-[15px] font-black text-[#1c1c1e] -mb-2">
+          {scheduleLabel}
+        </div>
+      )}
+
       {/* 0. 기관 정보(선택): 기관명/연락처를 채워두면 모든 출력물 상단에 자동으로 함께 찍힌다 */}
       <div className="print-edit-only flex gap-3">
         <div className="flex-1 flex flex-col gap-1.5">
