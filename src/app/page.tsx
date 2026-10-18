@@ -3104,10 +3104,11 @@ function MainApp() {
             </div>
 
             {/* Month Grid Calendar */}
-            <MonthCalendar 
-              selectedDate={scheduleDate} 
-              onSelectDate={setScheduleDate} 
+            <MonthCalendar
+              selectedDate={scheduleDate}
+              onSelectDate={setScheduleDate}
               hasSchedule={(d) => markers.some(r => getScheduledForDate(r, d))}
+              showPrintHistory
             />
 
             {scheduleDate && (

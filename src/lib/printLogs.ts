@@ -75,3 +75,27 @@ export async function fetchPrintedRecipientIdsForDate(dateKey: string): Promise<
   }
   return result;
 }
+
+// 달력에 출력 이력 표시용: [startKey, endKeyExclusive) 범위(로컬 날짜, YYYY-MM-DD) 안에
+// 출력/공유 기록이 하나라도 있는 날짜들을 모아 반환한다.
+export async function fetchPrintedDateKeysInRange(startKey: string, endKeyExclusive: string): Promise<Set<string>> {
+  const result = new Set<string>();
+  try {
+    const start = new Date(`${startKey}T00:00:00`);
+    const end = new Date(`${endKeyExclusive}T00:00:00`);
+    const { data, error } = await supabase
+      .from('print_logs')
+      .select('created_at')
+      .gte('created_at', start.toISOString())
+      .lt('created_at', end.toISOString());
+    if (error) throw error;
+    (data || []).forEach((row) => {
+      const d = new Date(row.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      result.add(key);
+    });
+  } catch (e) {
+    console.error('printed date keys fetch failed', e);
+  }
+  return result;
+}

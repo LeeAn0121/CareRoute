@@ -1,19 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { IconChevronLeft, IconChevronRight, IconCalendarEvent, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { LoadingOverlay } from './ui';
+import { fetchPrintedDateKeysInRange } from '@/lib/printLogs';
 
 interface MonthCalendarProps {
   selectedDate: Date | null;
   onSelectDate: (date: Date) => void;
   hasSchedule?: (date: Date) => boolean;
+  // true면 달력이 보여주는 달에 한해 출력 기록이 있는 날짜에 점을 표시한다(자체적으로 조회).
+  showPrintHistory?: boolean;
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule }: MonthCalendarProps) {
+export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule, showPrintHistory }: MonthCalendarProps) {
   const initialDate = selectedDate || new Date();
   const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [printedDateKeys, setPrintedDateKeys] = useState<Set<string>>(new Set());
+  const [loadingPrintHistory, setLoadingPrintHistory] = useState(false);
+
+  // 화면에 보이는 달이 바뀔 때마다 그 달의 출력 기록 날짜만 다시 불러온다.
+  useEffect(() => {
+    if (!showPrintHistory) return;
+    const y = currentMonth.getFullYear();
+    const m = currentMonth.getMonth();
+    const startKey = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    const nextMonth = new Date(y, m + 1, 1);
+    const endKey = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
+    let cancelled = false;
+    setLoadingPrintHistory(true);
+    fetchPrintedDateKeysInRange(startKey, endKey).then((keys) => {
+      if (!cancelled) {
+        setPrintedDateKeys(keys);
+        setLoadingPrintHistory(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showPrintHistory, currentMonth]);
 
   const prevMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
@@ -146,14 +173,17 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
             </div>
 
             {/* One UI Days Grid with Squircle Pebbles */}
-            <div className="grid grid-cols-7 gap-1">
+            <div className="relative grid grid-cols-7 gap-1">
+              {showPrintHistory && loadingPrintHistory && <LoadingOverlay label="" />}
               {days.map((d, i) => {
                 if (d === null) return <div key={`empty-${i}`} className="aspect-square max-h-[42px]" />;
-                
+
                 const selected = isSelected(d);
                 const today = isToday(d);
                 const dateObj = new Date(year, month, d);
                 const scheduled = hasSchedule ? hasSchedule(dateObj) : false;
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const printed = Boolean(showPrintHistory) && printedDateKeys.has(dateKey);
                 const isSunday = new Date(year, month, d).getDay() === 0;
                 const isSaturday = new Date(year, month, d).getDay() === 6;
 
@@ -164,10 +194,10 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
                     transition={{ type: 'spring', damping: 25, stiffness: 450 }}
                     onClick={() => handleSelect(d)}
                     className={`relative aspect-square max-h-[42px] w-full flex flex-col items-center justify-center rounded-[16px] transition-all
-                      ${selected 
-                        ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.35)] font-black scale-[1.05] z-10' 
-                        : today 
-                          ? 'bg-primary/10 text-primary font-black border border-primary/30 shadow-xs' 
+                      ${selected
+                        ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.35)] font-black scale-[1.05] z-10'
+                        : today
+                          ? 'bg-primary/10 text-primary font-black border border-primary/30 shadow-xs'
                           : `hover:bg-foreground/[0.04] font-bold ${
                               isSunday ? 'text-red-500/90' : isSaturday ? 'text-blue-500/90' : 'text-foreground/80'
                             }`
@@ -178,6 +208,14 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule 
                     {/* Glowing Indicator Dot for Scheduled Visits */}
                     {scheduled && !selected && (
                       <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(var(--accent),0.8)]" />
+                    )}
+                    {/* 해당 날짜에 출력/공유 기록이 있음을 표시하는 작은 점.
+                        선택된(primary 배경) 칸에서도 묻히지 않게 색을 바꿔 항상 보이게 한다. */}
+                    {printed && (
+                      <div
+                        className={`absolute top-1 right-1.5 w-[5px] h-[5px] rounded-full ${selected ? 'bg-primary-foreground' : 'bg-primary'}`}
+                        title="이 날짜에 출력 기록이 있습니다"
+                      />
                     )}
                   </motion.button>
                 );
