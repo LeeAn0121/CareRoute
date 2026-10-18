@@ -15,6 +15,7 @@ import BatchPrintModal from '@/components/BatchPrintModal';
 import WeeklyPrintModal from '@/components/WeeklyPrintModal';
 import PrintHistorySheet from '@/components/PrintHistorySheet';
 import { fetchPrintedRecipientIdsForDate } from '@/lib/printLogs';
+import { logVisitDuration } from '@/lib/visitLogs';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
 import WeatherWidget from '@/components/WeatherWidget';
@@ -50,6 +51,7 @@ interface Recipient {
   last_completed_memo?: string | null;
   age?: number | null;
   care_grade?: string | null;
+  last_visit_started_at?: string | null;
 }
 
 const SIDO_CENTERS: Record<string, { lat: number, lng: number }> = {
@@ -1521,6 +1523,33 @@ function MainApp() {
     return r.last_completed_key === ymd;
   };
   const isCompletedToday = (r: Recipient) => r.last_completed_key === todayYMD();
+
+  // 방문 시작 여부: "오늘" 시작한 기록만 유효하게 본다(어제 깜빡 안 끈 시작 기록이
+  // 다음 날까지 "진행 중"으로 남아있지 않도록).
+  const isVisitStartedToday = (r: Recipient) => {
+    if (!r.last_visit_started_at) return false;
+    const d = new Date(r.last_visit_started_at);
+    const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return ymd === todayYMD();
+  };
+
+  const handleStartVisit = async (r: Recipient) => {
+    const startedAt = new Date().toISOString();
+    setMarkers((prev) => prev.map((m) => (m.id === r.id ? { ...m, last_visit_started_at: startedAt } : m)));
+    if (selectedRecipient && selectedRecipient.id === r.id) {
+      setSelectedRecipient((prev) => prev ? { ...prev, last_visit_started_at: startedAt } : null);
+    }
+    const { error } = await supabase.from('recipients').update({ last_visit_started_at: startedAt }).eq('id', r.id);
+    if (error) {
+      console.error('방문 시작 저장 실패', error);
+      setMarkers((prev) => prev.map((m) => (m.id === r.id ? { ...m, last_visit_started_at: r.last_visit_started_at } : m)));
+      if (selectedRecipient && selectedRecipient.id === r.id) {
+        setSelectedRecipient((prev) => prev ? { ...prev, last_visit_started_at: r.last_visit_started_at } : null);
+      }
+      alert('방문 시작 기록에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
+
   const toggleCompleted = async (r: Recipient) => {
     if (isCompletedToday(r)) {
       // 이미 완료된 상태면 완료 취소
@@ -1554,23 +1583,30 @@ function MainApp() {
     const key = todayYMD();
     const rId = completingRecipient.id;
     const target = completingRecipient;
+    const hadStarted = isVisitStartedToday(target);
+    const endedAt = new Date().toISOString();
     setCompletingRecipient(null); // 모달 닫기
 
-    // 낙관적 업데이트
-    setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: key, last_completed_memo: memo || null } : m)));
+    // 낙관적 업데이트. "방문 시작"을 눌러뒀다면 완료 처리와 함께 진행 중 표시를 지운다.
+    setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: key, last_completed_memo: memo || null, last_visit_started_at: null } : m)));
     if (selectedRecipient && selectedRecipient.id === rId) {
-      setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: key, last_completed_memo: memo || null } : null);
+      setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: key, last_completed_memo: memo || null, last_visit_started_at: null } : null);
     }
-    const { error } = await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null }).eq('id', rId);
+    const { error } = await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null, last_visit_started_at: null }).eq('id', rId);
     if (error) {
       console.error('방문완료 저장 실패', error);
       // 저장 실패 시 화면 상태를 되돌려 실제 DB 상태와 어긋나지 않게 한다.
-      setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo } : m)));
+      setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo, last_visit_started_at: target.last_visit_started_at } : m)));
       if (selectedRecipient && selectedRecipient.id === rId) {
-        setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo } : null);
+        setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo, last_visit_started_at: target.last_visit_started_at } : null);
       }
       alert('방문완료 저장에 실패했습니다. 다시 시도해주세요.');
       return;
+    }
+
+    // "방문 시작"을 눌러뒀던 경우에만 실제 머문 시간을 기록(안 눌렀으면 시작 시각을 몰라 기록하지 않음).
+    if (hadStarted && target.last_visit_started_at) {
+      logVisitDuration({ recipientId: rId, recipientName: target.name, startedAt: target.last_visit_started_at, endedAt });
     }
 
     // 방문완료 처리 직후 확인서 출력을 가볍게 제안(공유까지 바로 이어가는 경우는 이미
@@ -1583,23 +1619,29 @@ function MainApp() {
     const target = completingRecipient;
     const key = todayYMD();
     const rId = target.id;
+    const hadStarted = isVisitStartedToday(target);
+    const endedAt = new Date().toISOString();
     setCompletingRecipient(null);
 
-    const updated = { ...target, last_completed_key: key, last_completed_memo: memo || null };
+    const updated = { ...target, last_completed_key: key, last_completed_memo: memo || null, last_visit_started_at: null };
     setMarkers((prev) => prev.map((m) => (m.id === rId ? updated : m)));
     if (selectedRecipient && selectedRecipient.id === rId) {
       setSelectedRecipient(updated);
     }
-    const { error } = await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null }).eq('id', rId);
+    const { error } = await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null, last_visit_started_at: null }).eq('id', rId);
     if (error) {
       console.error('방문완료 저장 실패', error);
       // 저장 실패 시 화면 상태를 되돌려 실제 DB 상태와 어긋나지 않게 한다.
-      setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo } : m)));
+      setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo, last_visit_started_at: target.last_visit_started_at } : m)));
       if (selectedRecipient && selectedRecipient.id === rId) {
-        setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo } : null);
+        setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo, last_visit_started_at: target.last_visit_started_at } : null);
       }
       alert('방문완료 저장에 실패했습니다. 다시 시도해주세요.');
       return;
+    }
+
+    if (hadStarted && target.last_visit_started_at) {
+      logVisitDuration({ recipientId: rId, recipientName: target.name, startedAt: target.last_visit_started_at, endedAt });
     }
 
     // 바로 안심 공유 모달 열기
@@ -3560,10 +3602,23 @@ function MainApp() {
                     <span className="px-2 py-0.5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-black text-[10px] rounded-full">
                       방문완료
                     </span>
+                  ) : isVisitStartedToday(selectedRecipient) ? (
+                    <span className="px-2 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 font-black text-[10px] rounded-full">
+                      진행 중 · {Math.max(0, Math.floor((Date.now() - new Date(selectedRecipient.last_visit_started_at as string).getTime()) / 60000))}분
+                    </span>
                   ) : (
                     <span className="px-2 py-0.5 bg-primary/10 text-primary font-black text-[10px] rounded-full">
                       {parseVisitTime(selectedRecipient.visit_time, selectedRecipient.notes).formattedText}
                     </span>
+                  )}
+                  {!isCompletedToday(selectedRecipient) && !isVisitStartedToday(selectedRecipient) && (
+                    <button
+                      type="button"
+                      onClick={() => handleStartVisit(selectedRecipient)}
+                      className="px-2 py-0.5 bg-foreground/[0.06] hover:bg-foreground/[0.1] text-foreground/60 font-black text-[10px] rounded-full active:scale-95 transition-all shrink-0"
+                    >
+                      방문 시작
+                    </button>
                   )}
                 </div>
 
