@@ -1,18 +1,20 @@
 'use client';
-import { useState, useMemo } from 'react';
-import { Modal, IconButton, Button } from '@/components/ui';
-import { 
-  IconX, 
-  IconShare, 
-  IconCopy, 
-  IconCheck, 
-  IconMessageCircle, 
-  IconHeart, 
-  IconClock, 
-  IconMapPin, 
+import { useState, useMemo, useEffect } from 'react';
+import { Modal, IconButton, Button, LoadingOverlay } from '@/components/ui';
+import {
+  IconX,
+  IconShare,
+  IconCopy,
+  IconCheck,
+  IconMessageCircle,
+  IconHeart,
+  IconClock,
+  IconMapPin,
   IconUser,
-  IconShieldCheck
+  IconShieldCheck,
+  IconHistory,
 } from '@tabler/icons-react';
+import { logShareEvent, fetchRecentShareLogsForRecipient, type ShareLogRow } from '@/lib/shareLogs';
 
 interface Recipient {
   id: string;
@@ -51,6 +53,9 @@ export default function ShareReportModal({
   const [selectedTags, setSelectedTags] = useState<string[]>(['식사 지원 완료', '투약 확인 완료']);
   const [customMemo, setCustomMemo] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historyLogs, setHistoryLogs] = useState<ShareLogRow[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   // 날짜 및 시간 계산
   const targetDate = selectedDate || new Date();
@@ -93,6 +98,7 @@ export default function ShareReportModal({
       await navigator.clipboard.writeText(shareText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      if (recipient) logShareEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'copy', messageText: shareText });
     } catch (e) {
       console.error(e);
       alert('복사에 실패했습니다. 권한을 확인해주세요.');
@@ -108,6 +114,7 @@ export default function ShareReportModal({
           title: `${recipient.name} 어르신 방문 안심 리포트`,
           text: shareText
         });
+        logShareEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'share', messageText: shareText });
       } catch (err: any) {
         if (err.name !== 'AbortError') {
           console.error(err);
@@ -122,9 +129,23 @@ export default function ShareReportModal({
 
   // SMS 문자 발송
   const handleSmsShare = () => {
+    if (!recipient) return;
     const encText = encodeURIComponent(shareText);
     window.location.href = `sms:?body=${encText}`;
+    logShareEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'sms', messageText: shareText });
   };
+
+  useEffect(() => {
+    if (!isOpen) setIsHistoryOpen(false);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isHistoryOpen || !recipient) return;
+    setIsHistoryLoading(true);
+    fetchRecentShareLogsForRecipient(recipient.id, 20)
+      .then(setHistoryLogs)
+      .finally(() => setIsHistoryLoading(false));
+  }, [isHistoryOpen, recipient]);
 
   if (!recipient) return null;
 
@@ -140,10 +161,45 @@ export default function ShareReportModal({
             <p className="text-xs font-semibold text-foreground/50">{recipient.name} 어르신 보호자 전달용</p>
           </div>
         </div>
-        <IconButton onClick={onClose} className="rounded-[18px] bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="닫기">
-          <IconX size={20} />
-        </IconButton>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <IconButton
+            onClick={() => setIsHistoryOpen((v) => !v)}
+            className={`rounded-[18px] ${isHistoryOpen ? 'bg-primary/15 text-primary' : 'bg-foreground/[0.04] hover:bg-foreground/[0.08]'}`}
+            aria-label="공유 이력"
+          >
+            <IconHistory size={19} />
+          </IconButton>
+          <IconButton onClick={onClose} className="rounded-[18px] bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="닫기">
+            <IconX size={20} />
+          </IconButton>
+        </div>
       </div>
+
+      {isHistoryOpen && (
+        <div className="relative px-6 py-4 border-b border-surface-border/60 min-h-[100px] max-h-[220px] overflow-y-auto">
+          {isHistoryLoading && <LoadingOverlay />}
+          {!isHistoryLoading && historyLogs.length === 0 && (
+            <p className="text-[13px] font-bold text-foreground/40 text-center py-4">이 어르신에게 보낸 공유 이력이 없습니다</p>
+          )}
+          {!isHistoryLoading && historyLogs.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {historyLogs.map((log) => (
+                <div key={log.id} className="p-3 rounded-[14px] bg-surface-muted/60">
+                  <p className="text-[11px] font-black text-foreground/50 mb-1">
+                    {new Date(log.created_at).getMonth() + 1}월 {new Date(log.created_at).getDate()}일{' '}
+                    {String(new Date(log.created_at).getHours()).padStart(2, '0')}:{String(new Date(log.created_at).getMinutes()).padStart(2, '0')}
+                    {' · '}
+                    {log.method === 'sms' ? '문자' : log.method === 'share' ? '카카오톡/공유' : '복사'}
+                  </p>
+                  {log.message_text && (
+                    <p className="text-[12px] font-semibold text-foreground/70 whitespace-pre-wrap line-clamp-3">{log.message_text}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="p-6 flex flex-col gap-4 max-h-[75vh] overflow-y-auto">
         {/* 케어 항목 원터치 체크 태그 */}
