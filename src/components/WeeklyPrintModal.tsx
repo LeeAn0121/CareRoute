@@ -22,6 +22,8 @@ interface Recipient {
   address?: string | null;
   detail_address?: string | null;
   recurring_weekdays?: string | null;
+  last_completed_memo?: string | null;
+  last_completed_key?: string | null;
 }
 
 interface WeekDayGroup {
@@ -47,12 +49,18 @@ function entryKey(dateKey: string, recipientId: string): string {
 }
 
 // 같은 어르신이 여러 날 방문 예정이어도 수기 입력 초안은 사람 기준으로 하나만 기억한다
-// (개별/일괄 출력과 동일한 저장 방식).
-function useRecipientDraft(recipientId: string, storageKey: 'health' | 'memo') {
+// (개별/일괄 출력과 동일한 저장 방식). 메모는 로컬 초안이 없으면 방문완료 시 남긴
+// 돌봄 일지(last_completed_memo)를 기본값으로 채운다.
+function useRecipientDraft(recipientId: string, storageKey: 'health' | 'memo', fallbackMemo?: string | null) {
   const key = `careroute_print_${storageKey}_${recipientId}`;
   const [value, setValue] = useState('');
   useEffect(() => {
-    if (typeof window !== 'undefined') setValue(localStorage.getItem(key) || '');
+    if (typeof window === 'undefined') return;
+    const draft = localStorage.getItem(key);
+    if (draft) setValue(draft);
+    else if (storageKey === 'memo') setValue(fallbackMemo || '');
+    else setValue('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -92,7 +100,8 @@ function RecipientSheetCard({
   sheetRef: (el: HTMLDivElement | null) => void;
 }) {
   const [healthStatus, setHealthStatus] = useRecipientDraft(recipient.id, 'health');
-  const [memo, setMemo] = useRecipientDraft(recipient.id, 'memo');
+  const todaysMemo = recipient.last_completed_key === todayYMD() ? recipient.last_completed_memo : null;
+  const [memo, setMemo] = useRecipientDraft(recipient.id, 'memo', todaysMemo);
 
   return (
     <PrintSheet

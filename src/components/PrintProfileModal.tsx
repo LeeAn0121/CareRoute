@@ -22,6 +22,8 @@ interface Recipient {
   address?: string | null;
   detail_address?: string | null;
   recurring_weekdays?: string | null;
+  last_completed_memo?: string | null;
+  last_completed_key?: string | null;
 }
 
 interface PrintProfileModalProps {
@@ -53,10 +55,14 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
   // 어르신별로 작성 중이던 내용을 기억해뒀다가 다음에 출력할 때 이어서 쓸 수 있게 한다.
   // 작성자명/기관 정보는 기기 공용으로 기억해 매번 다시 입력하지 않게 하고,
   // 작성일/확인자는 열 때마다 초기화한다(확인자는 방문마다 달라질 수 있어 비워 둠).
+  // 메모 칸은 로컬에 남은 작성 중 초안을 우선하고, 초안이 없으면서 "오늘" 방문완료 처리를
+  // 했다면 그때 남긴 돌봄 일지(last_completed_memo)를 기본값으로 채워 다시 타이핑하지 않게 한다.
+  // (완료가 오늘이 아니면 며칠 지난 옛 메모가 엉뚱하게 섞여 들어가지 않도록 제외한다.)
   useEffect(() => {
     if (isOpen && recipient && typeof window !== 'undefined') {
       setHealthStatus(localStorage.getItem(`careroute_print_health_${recipient.id}`) || '');
-      setMemo(localStorage.getItem(`careroute_print_memo_${recipient.id}`) || '');
+      const todaysMemo = recipient.last_completed_key === todayYMD() ? recipient.last_completed_memo : null;
+      setMemo(localStorage.getItem(`careroute_print_memo_${recipient.id}`) || todaysMemo || '');
       setWrittenDate(todayYMD());
       setAuthorName(localStorage.getItem('careroute_print_author_name') || '');
       setConfirmerName('');

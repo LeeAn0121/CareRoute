@@ -22,6 +22,8 @@ interface Recipient {
   address?: string | null;
   detail_address?: string | null;
   recurring_weekdays?: string | null;
+  last_completed_memo?: string | null;
+  last_completed_key?: string | null;
   completed?: boolean;
 }
 
@@ -38,11 +40,18 @@ function todayYMD(): string {
 }
 
 // 어르신별 건강 상태/메모는 각자 로컬 저장소에 보관해, 개별 출력 화면에서 작성한 내용을 그대로 이어서 쓴다.
+// 메모는 로컬 초안이 없으면서 "오늘" 방문완료 처리를 했다면 그때 남긴 돌봄 일지
+// (last_completed_memo)를 기본값으로 채운다(옛 메모가 섞여 들어가지 않도록 오늘 것만 사용).
 function useRecipientDraft(recipient: Recipient, storageKey: 'health' | 'memo') {
   const key = `careroute_print_${storageKey}_${recipient.id}`;
   const [value, setValue] = useState('');
   useEffect(() => {
-    if (typeof window !== 'undefined') setValue(localStorage.getItem(key) || '');
+    if (typeof window === 'undefined') return;
+    const draft = localStorage.getItem(key);
+    if (draft) setValue(draft);
+    else if (storageKey === 'memo') setValue((recipient.last_completed_key === todayYMD() ? recipient.last_completed_memo : null) || '');
+    else setValue('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
