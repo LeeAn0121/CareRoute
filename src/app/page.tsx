@@ -1529,7 +1529,16 @@ function MainApp() {
       if (selectedRecipient && selectedRecipient.id === r.id) {
         setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: key, last_completed_memo: null } : null);
       }
-      await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: null }).eq('id', r.id);
+      const { error } = await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: null }).eq('id', r.id);
+      if (error) {
+        console.error('완료 취소 저장 실패', error);
+        // 저장 실패 시 화면 상태를 되돌려 실제 DB 상태와 어긋나지 않게 한다.
+        setMarkers((prev) => prev.map((m) => (m.id === r.id ? { ...m, last_completed_key: r.last_completed_key, last_completed_memo: r.last_completed_memo } : m)));
+        if (selectedRecipient && selectedRecipient.id === r.id) {
+          setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: r.last_completed_key, last_completed_memo: r.last_completed_memo } : null);
+        }
+        alert('완료 취소 저장에 실패했습니다. 다시 시도해주세요.');
+      }
     } else {
       // 미완료 상태면 일지 작성 모달 띄우기
       setCompletingRecipient(r);
@@ -1552,7 +1561,17 @@ function MainApp() {
     if (selectedRecipient && selectedRecipient.id === rId) {
       setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: key, last_completed_memo: memo || null } : null);
     }
-    await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null }).eq('id', rId);
+    const { error } = await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null }).eq('id', rId);
+    if (error) {
+      console.error('방문완료 저장 실패', error);
+      // 저장 실패 시 화면 상태를 되돌려 실제 DB 상태와 어긋나지 않게 한다.
+      setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo } : m)));
+      if (selectedRecipient && selectedRecipient.id === rId) {
+        setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo } : null);
+      }
+      alert('방문완료 저장에 실패했습니다. 다시 시도해주세요.');
+      return;
+    }
 
     // 방문완료 처리 직후 확인서 출력을 가볍게 제안(공유까지 바로 이어가는 경우는 이미
     // 다른 마무리 동작을 한 것이므로 여기선 제안하지 않음).
@@ -1571,7 +1590,17 @@ function MainApp() {
     if (selectedRecipient && selectedRecipient.id === rId) {
       setSelectedRecipient(updated);
     }
-    await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null }).eq('id', rId);
+    const { error } = await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null }).eq('id', rId);
+    if (error) {
+      console.error('방문완료 저장 실패', error);
+      // 저장 실패 시 화면 상태를 되돌려 실제 DB 상태와 어긋나지 않게 한다.
+      setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo } : m)));
+      if (selectedRecipient && selectedRecipient.id === rId) {
+        setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo } : null);
+      }
+      alert('방문완료 저장에 실패했습니다. 다시 시도해주세요.');
+      return;
+    }
 
     // 바로 안심 공유 모달 열기
     setSharingRecipient(updated);
