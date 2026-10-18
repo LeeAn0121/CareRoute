@@ -3406,6 +3406,7 @@ function MainApp() {
             setEditingRecipient(null);
             setIsModalOpen(true);
           }}
+          onDataRestored={fetchMarkers}
         />
       )}
 

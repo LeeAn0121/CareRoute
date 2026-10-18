@@ -7,7 +7,7 @@ import {
   IconAlertTriangle, IconInfoCircle, IconDeviceMobile,
   IconClock, IconBrandGoogle, IconCalendarEvent,
   IconMapPin, IconSparkles,
-  IconHelp, IconDownload, IconDatabase,
+  IconHelp, IconDownload, IconUpload, IconDatabase,
   IconExternalLink, IconAlertCircle,
   IconSearch, IconX, IconTypography, IconShieldCheck
 } from '@tabler/icons-react';
@@ -20,8 +20,27 @@ import {
   NotificationStatus
 } from '@/lib/notifications';
 import packageJson from '../../package.json';
+import { supabase } from '@/lib/supabase';
 
 const APP_VERSION = packageJson.version;
+
+// 백업 파일에 들어갈 수 있는(=recipients 테이블에 실제 존재하는) 컬럼만 화이트리스트로 관리한다.
+// 지도 화면에서 근접 마커를 서로 떨어뜨려 보여주기 위해 lat/lng를 화면용으로 틀어두는 로직이
+// 있어서, 화면 상태(markers)를 그대로 내보내면 좌표가 조금씩 틀어진 채 백업/복원될 수 있다.
+// 그래서 내보내기/복원 모두 이 화이트리스트로 걸러, 화면 전용 파생 필드가 섞여 들어가지 않게 한다.
+const RECIPIENT_BACKUP_COLUMNS = [
+  'id', 'name', 'address', 'detail_address', 'sido', 'sigungu', 'dong', 'lat', 'lng',
+  'visit_time', 'notes', 'recurring_weekdays', 'photo_url', 'door_passcode', 'parking_memo',
+  'health_tags', 'age', 'care_grade', 'last_completed_key', 'last_completed_memo', 'created_at',
+] as const;
+
+function pickRecipientColumns(row: Record<string, unknown>): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const col of RECIPIENT_BACKUP_COLUMNS) {
+    if (row[col] !== undefined) picked[col] = row[col];
+  }
+  return picked;
+}
 
 export interface SettingsViewProps {
   onReplayTutorial: () => void;
@@ -34,6 +53,7 @@ export interface SettingsViewProps {
   onNavigateTab?: (tab: 'map' | 'list' | 'route') => void;
   onOpenAddRecipient?: () => void;
   recipients?: any[];
+  onDataRestored?: () => void;
 }
 
 const colorThemes = [
@@ -55,6 +75,7 @@ export default function SettingsView({
   todayCompletedCount = 0,
   onNavigateTab,
   recipients = [],
+  onDataRestored,
 }: SettingsViewProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -64,6 +85,9 @@ export default function SettingsView({
   const [isRequestingNotif, setIsRequestingNotif] = useState(false);
   const [isTestingNotif, setIsTestingNotif] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [isExportingBackup, setIsExportingBackup] = useState(false);
+  const [isRestoringBackup, setIsRestoringBackup] = useState(false);
+  const restoreInputRef = React.useRef<HTMLInputElement>(null);
   
   // 설정 검색어
   const [searchQuery, setSearchQuery] = useState('');
@@ -147,15 +171,20 @@ export default function SettingsView({
     }
   };
 
-  // 백업 파일 JSON 다운로드
-  const handleExportBackup = () => {
+  // 백업 파일 JSON 다운로드. 화면에 떠 있는 markers 상태(근접 마커를 서로 떨어뜨리려고
+  // lat/lng를 화면용으로 틀어둔 상태)가 아니라, DB에서 원본 좌표를 새로 조회해서 내보낸다.
+  const handleExportBackup = async () => {
+    setIsExportingBackup(true);
     try {
+      const { data, error } = await supabase.from('recipients').select('*');
+      if (error) throw error;
+
       const dataToExport = {
         app: 'CareRoute',
         version: APP_VERSION,
         exportedAt: new Date().toISOString(),
-        totalCount: recipients.length || totalRecipientsCount,
-        recipients: recipients,
+        totalCount: data?.length ?? 0,
+        recipients: (data || []).map(pickRecipientColumns),
       };
 
       const jsonStr = JSON.stringify(dataToExport, null, 2);
@@ -171,8 +200,52 @@ export default function SettingsView({
       URL.revokeObjectURL(url);
 
       setFeedbackMessage({ type: 'success', text: `수급자 데이터 백업 파일(JSON)이 다운로드되었습니다.` });
-    } catch {
+    } catch (e) {
+      console.error('백업 내보내기 실패', e);
       setFeedbackMessage({ type: 'error', text: '백업 생성에 실패했습니다.' });
+    } finally {
+      setIsExportingBackup(false);
+    }
+  };
+
+  // 백업 JSON 파일을 다시 업로드해 recipients 테이블에 복원(id 기준 upsert)한다.
+  // 기존 어르신은 백업 시점 내용으로 덮어써지므로, 적용 전 반드시 확인을 받는다.
+  const handleRestoreFile = async (file: File) => {
+    setIsRestoringBackup(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const rows: unknown[] = Array.isArray(parsed?.recipients) ? parsed.recipients : [];
+      if (rows.length === 0) {
+        setFeedbackMessage({ type: 'error', text: '백업 파일에서 수급자 데이터를 찾을 수 없습니다.' });
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `백업 파일에 담긴 ${rows.length}명의 수급자 데이터를 복원하시겠습니까?\n` +
+        `이미 등록된 어르신은 백업 시점 내용으로 덮어써집니다(같은 ID 기준). 삭제되지는 않습니다.`
+      );
+      if (!confirmed) return;
+
+      const payload = rows
+        .filter((r): r is Record<string, unknown> => Boolean(r) && typeof r === 'object' && typeof (r as Record<string, unknown>).id === 'string')
+        .map((r) => pickRecipientColumns(r as Record<string, unknown>));
+
+      if (payload.length === 0) {
+        setFeedbackMessage({ type: 'error', text: '백업 파일 형식이 올바르지 않습니다(id 누락).' });
+        return;
+      }
+
+      const { error } = await supabase.from('recipients').upsert(payload, { onConflict: 'id' });
+      if (error) throw error;
+
+      setFeedbackMessage({ type: 'success', text: `${payload.length}명의 수급자 데이터를 복원했습니다.` });
+      onDataRestored?.();
+    } catch (e) {
+      console.error('백업 복원 실패', e);
+      setFeedbackMessage({ type: 'error', text: '백업 파일을 읽거나 복원하는 데 실패했습니다. 올바른 백업 파일인지 확인해주세요.' });
+    } finally {
+      setIsRestoringBackup(false);
     }
   };
 
@@ -817,7 +890,8 @@ export default function SettingsView({
                 <button
                   type="button"
                   onClick={handleExportBackup}
-                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors gap-3"
+                  disabled={isExportingBackup}
+                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors gap-3 disabled:opacity-60"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-[32px] h-[32px] rounded-[10px] bg-[#34C759] text-white flex items-center justify-center shrink-0 shadow-2xs">
@@ -833,9 +907,45 @@ export default function SettingsView({
                     </div>
                   </div>
                   <span className="text-[12px] font-black text-[#34C759] bg-[#34C759]/10 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
-                    내보내기
+                    {isExportingBackup ? '내보내는 중...' : '내보내기'}
                   </span>
                 </button>
+
+                {/* 백업 JSON 파일로 복원(id 기준 upsert) */}
+                <button
+                  type="button"
+                  onClick={() => restoreInputRef.current?.click()}
+                  disabled={isRestoringBackup}
+                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors gap-3 disabled:opacity-60"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-[32px] h-[32px] rounded-[10px] bg-[#007AFF] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                      <IconUpload size={18} strokeWidth={2.5} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
+                        백업 파일로 데이터 복원 (JSON)
+                      </span>
+                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
+                        내보낸 백업 파일을 불러와 수급자 명단을 복원
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[12px] font-black text-[#007AFF] bg-[#007AFF]/10 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
+                    {isRestoringBackup ? '복원 중...' : '복원'}
+                  </span>
+                </button>
+                <input
+                  ref={restoreInputRef}
+                  type="file"
+                  accept="application/json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) handleRestoreFile(file);
+                  }}
+                />
 
                 {/* 전체 캐시 초기화 및 강력 새로고침 */}
                 <button
