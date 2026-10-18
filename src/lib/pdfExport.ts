@@ -17,19 +17,33 @@ export async function captureSheetCanvas(el: HTMLElement): Promise<HTMLCanvasEle
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
 
-// 캔버스를 가로세로 비율을 유지한 채 A4 한 페이지에 맞춰 추가한다(찌그러짐 방지).
+// 캔버스를 A4 폭(210mm) 가득 채워 넣는다. 예전에는 비율을 유지한 채 한 페이지 안에
+// 전부 욱여넣다 보니, 내용이 한 장보다 길어지면(방문 정보/주소 등이 늘어난 경우) 세로를
+// 기준으로 축소되면서 좌우에 여백이 남아 "A4를 꽉 채우지 못하는" 문제가 있었다.
+// 이제는 항상 폭을 꽉 채우고, 한 페이지(297mm) 높이를 넘는 내용은 인쇄(@media print)의
+// 여러 장 분할과 똑같이 페이지 높이만큼씩 잘라 다음 장에 이어 찍는다.
 export function addCanvasAsA4Page(pdf: jsPDF, canvas: HTMLCanvasElement, isFirstPage: boolean) {
-  if (!isFirstPage) pdf.addPage();
+  const pxPerMm = canvas.width / A4_WIDTH_MM;
+  const pageHeightPx = Math.round(A4_HEIGHT_MM * pxPerMm);
 
-  const ratio = canvas.width / canvas.height;
-  let width = A4_WIDTH_MM;
-  let height = width / ratio;
-  if (height > A4_HEIGHT_MM) {
-    height = A4_HEIGHT_MM;
-    width = height * ratio;
+  let offsetPx = 0;
+  let isFirstSlice = true;
+  while (offsetPx < canvas.height) {
+    if (!isFirstPage || !isFirstSlice) pdf.addPage();
+    isFirstSlice = false;
+
+    const sliceHeightPx = Math.min(pageHeightPx, canvas.height - offsetPx);
+    const sliceCanvas = document.createElement('canvas');
+    sliceCanvas.width = canvas.width;
+    sliceCanvas.height = sliceHeightPx;
+    const ctx = sliceCanvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(canvas, 0, offsetPx, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+      const sliceHeightMm = sliceHeightPx / pxPerMm;
+      pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', 0, 0, A4_WIDTH_MM, sliceHeightMm);
+    }
+    offsetPx += sliceHeightPx;
   }
-  const x = (A4_WIDTH_MM - width) / 2;
-  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, 0, width, height);
 }
 
 export async function createA4Pdf(): Promise<jsPDF> {
