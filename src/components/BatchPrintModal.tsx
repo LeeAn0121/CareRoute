@@ -19,6 +19,7 @@ interface Recipient {
   notes?: string | null;
   door_passcode?: string | null;
   parking_memo?: string | null;
+  completed?: boolean;
 }
 
 interface BatchPrintModalProps {
@@ -158,6 +159,12 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
     });
   };
 
+  // 완료 여부 정보가 있을 때만(일정 탭에서 넘겨줄 때만) 미완료/완료 필터 칩을 보여준다.
+  const hasCompletionInfo = recipients.some((r) => r.completed !== undefined);
+  const selectByFilter = (predicate: (r: Recipient) => boolean) => {
+    setSelectedIds(new Set(recipients.filter(predicate).map((r) => r.id)));
+  };
+
   const selectedRecipients = recipients.filter((r) => selectedIds.has(r.id));
 
   const buildPdf = async () => {
@@ -247,6 +254,33 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
           </IconButton>
         </div>
       </div>
+
+      {/* 완료/미완료만 빠르게 선택: 방문 전 남은 인원만 출력할 때 유용 */}
+      {recipients.length > 1 && hasCompletionInfo && (
+        <div className="no-print px-5 sm:px-6 pb-2 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => selectByFilter(() => true)}
+            className="px-3 py-1.5 rounded-full text-[11px] font-black bg-foreground/[0.04] text-foreground/60 hover:bg-foreground/[0.08] transition-colors active:scale-95"
+          >
+            전체 선택
+          </button>
+          <button
+            type="button"
+            onClick={() => selectByFilter((r) => !r.completed)}
+            className="px-3 py-1.5 rounded-full text-[11px] font-black bg-foreground/[0.04] text-foreground/60 hover:bg-foreground/[0.08] transition-colors active:scale-95"
+          >
+            미완료만
+          </button>
+          <button
+            type="button"
+            onClick={() => selectByFilter((r) => Boolean(r.completed))}
+            className="px-3 py-1.5 rounded-full text-[11px] font-black bg-foreground/[0.04] text-foreground/60 hover:bg-foreground/[0.08] transition-colors active:scale-95"
+          >
+            완료만
+          </button>
+        </div>
+      )}
 
       {/* 출력할 인원 선택: 화면에서만 보이고 인쇄/PDF에는 포함되지 않는다 */}
       {recipients.length > 1 && (

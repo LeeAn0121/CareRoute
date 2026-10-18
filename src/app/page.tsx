@@ -4171,7 +4171,7 @@ function MainApp() {
       <BatchPrintModal
         isOpen={isBatchPrintOpen}
         onClose={() => { setIsBatchPrintOpen(false); refetchPrintedRecipientIds(); }}
-        recipients={scheduleRoute}
+        recipients={scheduleDate ? scheduleRoute.map((r) => ({ ...r, completed: isCompletedForDate(r, scheduleDate) })) : scheduleRoute}
         dateLabel={scheduleDate ? `${scheduleDate.getMonth() + 1}월 ${scheduleDate.getDate()}일` : undefined}
       />
 
