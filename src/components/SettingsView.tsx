@@ -21,6 +21,7 @@ import {
 } from '@/lib/notifications';
 import packageJson from '../../package.json';
 import { supabase } from '@/lib/supabase';
+import { buildCalendarFeedUrl } from '@/lib/calendarFeed';
 
 const APP_VERSION = packageJson.version;
 
@@ -134,6 +135,7 @@ export default function SettingsView({
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [isExportingBackup, setIsExportingBackup] = useState(false);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [feedUrlCopied, setFeedUrlCopied] = useState(false);
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
   const restoreInputRef = React.useRef<HTMLInputElement>(null);
   
@@ -648,6 +650,38 @@ export default function SettingsView({
                         <span className="whitespace-nowrap">지금 동기화</span>
                       </>
                     )}
+                  </button>
+                </div>
+
+                {/* iCal 구독 링크: "밀어넣기"와 달리 캘린더 앱이 주기적으로 알아서 다시 불러온다 */}
+                <div className="px-4 py-3.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-[32px] h-[32px] rounded-[10px] bg-violet-500 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                      <IconCalendarEvent size={18} strokeWidth={2.5} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
+                        일정 구독 링크 (iCal)
+                      </span>
+                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
+                        캘린더 앱에 "URL로 캘린더 구독"으로 등록하면 자동 갱신
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(buildCalendarFeedUrl());
+                        setFeedUrlCopied(true);
+                        setTimeout(() => setFeedUrlCopied(false), 2000);
+                      } catch {
+                        setFeedbackMessage({ type: 'error', text: '복사에 실패했습니다. 권한을 확인해주세요.' });
+                      }
+                    }}
+                    className="px-3.5 py-1.5 rounded-full bg-violet-500/10 hover:bg-violet-500/20 text-violet-600 dark:text-violet-400 font-black text-[13px] active:scale-95 transition-all shrink-0 whitespace-nowrap"
+                  >
+                    {feedUrlCopied ? '복사됨!' : '링크 복사'}
                   </button>
                 </div>
 
