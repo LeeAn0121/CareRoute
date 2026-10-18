@@ -1,19 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { IconHistory, IconPrinter, IconFileDownload, IconShare2 } from '@tabler/icons-react';
-import { Modal, LoadingOverlay } from './ui';
-import { fetchRecentPrintLogs, fetchRecentPrintLogsForRecipient, type PrintLogRow } from '@/lib/printLogs';
+import { IconHistory, IconPrinter, IconFileDownload, IconShare2, IconCloudCheck, IconExternalLink } from '@tabler/icons-react';
+import { Modal, LoadingOverlay, IconButton } from './ui';
+import { fetchRecentPrintLogs, fetchRecentPrintLogsForRecipient, getPrintPdfPublicUrl, type PrintLogRow } from '@/lib/printLogs';
 
 const METHOD_LABEL: Record<PrintLogRow['method'], string> = {
   print: '인쇄',
   pdf: 'PDF 저장',
   share: '공유',
+  save: '저장(서버 보관)',
 };
 const METHOD_ICON: Record<PrintLogRow['method'], typeof IconPrinter> = {
   print: IconPrinter,
   pdf: IconFileDownload,
   share: IconShare2,
+  save: IconCloudCheck,
 };
 
 function formatDateTime(iso: string): string {
@@ -78,6 +80,15 @@ export default function PrintHistorySheet({
                         {log.author_name ? ` · ${log.author_name}` : ''}
                       </p>
                     </div>
+                    {log.pdf_path && (
+                      <IconButton
+                        onClick={() => window.open(getPrintPdfPublicUrl(log.pdf_path as string), '_blank')}
+                        className="w-8 h-8 rounded-full bg-surface text-foreground/60 hover:bg-surface-border/60 border border-surface-border/50 shrink-0"
+                        aria-label="저장된 PDF 다시 열기"
+                      >
+                        <IconExternalLink size={14} />
+                      </IconButton>
+                    )}
                   </div>
                 );
               })}

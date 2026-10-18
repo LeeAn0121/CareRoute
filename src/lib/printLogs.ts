@@ -3,7 +3,7 @@
 // 끊기지 않도록, 기록 실패는 콘솔에만 남기고 조용히 무시한다.
 import { supabase } from './supabase';
 
-export type PrintMethod = 'print' | 'pdf' | 'share';
+export type PrintMethod = 'print' | 'pdf' | 'share' | 'save';
 
 export async function logPrintEvent(params: {
   recipientId?: string | null;
@@ -12,6 +12,7 @@ export async function logPrintEvent(params: {
   method: PrintMethod;
   batchCount?: number;
   authorName?: string | null;
+  pdfPath?: string | null;
 }) {
   try {
     const { error } = await supabase.from('print_logs').insert({
@@ -21,6 +22,7 @@ export async function logPrintEvent(params: {
       method: params.method,
       batch_count: params.batchCount ?? null,
       author_name: params.authorName || null,
+      pdf_path: params.pdfPath || null,
     });
     if (error) throw error;
   } catch (e) {
@@ -35,13 +37,16 @@ export interface PrintLogRow {
   batch_count: number | null;
   author_name: string | null;
   created_at: string;
+  pdf_path: string | null;
 }
+
+const PRINT_LOG_COLUMNS = 'id, recipient_name, method, batch_count, author_name, created_at, pdf_path';
 
 export async function fetchRecentPrintLogs(limit = 20): Promise<PrintLogRow[]> {
   try {
     const { data, error } = await supabase
       .from('print_logs')
-      .select('id, recipient_name, method, batch_count, author_name, created_at')
+      .select(PRINT_LOG_COLUMNS)
       .order('created_at', { ascending: false })
       .limit(limit);
     if (error) throw error;
@@ -58,7 +63,7 @@ export async function fetchRecentPrintLogsForRecipient(recipientId: string, limi
   try {
     const { data, error } = await supabase
       .from('print_logs')
-      .select('id, recipient_name, method, batch_count, author_name, created_at')
+      .select(PRINT_LOG_COLUMNS)
       .or(`recipient_id.eq.${recipientId},recipient_ids.cs.{${recipientId}}`)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -68,6 +73,27 @@ export async function fetchRecentPrintLogsForRecipient(recipientId: string, limi
     console.error('print log fetch (by recipient) failed', e);
     return [];
   }
+}
+
+// "저장" 버튼(기기 저장 + 서버 보관)으로 생성한 PDF를 print-pdfs 버킷에 올리고 저장 경로를 반환한다.
+// 실패해도 로컬 PDF 저장 자체는 이미 끝난 뒤라 null을 반환해 호출부가 조용히 넘어갈 수 있게 한다.
+export async function uploadPrintPdf(blob: Blob, primaryRecipientId: string, fileNameBase: string): Promise<string | null> {
+  try {
+    // Storage 키는 한글 등 비-ASCII 문자를 거부하므로(Invalid key) 경로에는 영문/숫자만 남긴다.
+    // 실제로 사람이 보는 파일명(pdf.save)과는 별개로, 이 경로는 내부 저장 키로만 쓰인다.
+    const safeName = fileNameBase.replace(/[^\w.-]/g, '_');
+    const path = `${primaryRecipientId}/${Date.now()}_${safeName}.pdf`;
+    const { error } = await supabase.storage.from('print-pdfs').upload(path, blob, { contentType: 'application/pdf' });
+    if (error) throw error;
+    return path;
+  } catch (e) {
+    console.error('print pdf upload failed', e);
+    return null;
+  }
+}
+
+export function getPrintPdfPublicUrl(path: string): string {
+  return supabase.storage.from('print-pdfs').getPublicUrl(path).data.publicUrl;
 }
 
 // 일정 탭의 "출력됨" 배지용: 특정 날짜(로컬 기준)에 출력/공유된 수급자 id 전체를 모아 반환.

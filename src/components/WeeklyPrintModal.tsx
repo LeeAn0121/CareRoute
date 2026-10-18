@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconCheck } from '@tabler/icons-react';
+import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconCheck, IconDeviceFloppy } from '@tabler/icons-react';
 import { Modal, IconButton, Button } from './ui';
 import PrintSheet from './PrintSheet';
 import PrintHistorySheet from './PrintHistorySheet';
 import { captureSheetCanvas, createA4Pdf, addCanvasAsA4Page } from '@/lib/pdfExport';
-import { logPrintEvent } from '@/lib/printLogs';
+import { logPrintEvent, uploadPrintPdf } from '@/lib/printLogs';
 
 interface Recipient {
   id: string;
@@ -121,6 +121,7 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
   const [orgName, setOrgName] = useState('');
   const [orgContact, setOrgContact] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const [isSavingBackup, setIsSavingBackup] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -193,7 +194,7 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
     return pdf;
   };
 
-  const logWeekly = (method: 'pdf' | 'share' | 'print') => {
+  const logWeekly = (method: 'pdf' | 'share' | 'print' | 'save', pdfPath?: string | null) => {
     const recipientIds = Array.from(new Set(selectedEntries.map((e) => e.recipient.id)));
     logPrintEvent({
       recipientName: selectedEntries[0].recipient.name,
@@ -201,10 +202,12 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
       method,
       batchCount: selectedEntries.length,
       authorName,
+      pdfPath,
     });
   };
 
-  const fileName = `${weekLabel ? weekLabel + '_' : ''}주간_방문일정_어르신정보.pdf`;
+  const fileNameBase = `${weekLabel ? weekLabel + '_' : ''}주간_방문일정_어르신정보`;
+  const fileName = `${fileNameBase}.pdf`;
 
   const handleDownloadPdf = async () => {
     if (selectedEntries.length === 0) return;
@@ -219,6 +222,26 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
       alert('PDF 생성에 실패했습니다. 인쇄 버튼으로 다시 시도해주세요.');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  // PDF를 기기에 저장하면서 동시에 서버(print-pdfs 버킷)에도 올려, 나중에 출력 이력에서
+  // 다시 열어볼 수 있게 보관한다.
+  const handleSaveWithBackup = async () => {
+    if (selectedEntries.length === 0) return;
+    setIsSavingBackup(true);
+    try {
+      const pdf = await buildPdf();
+      if (!pdf) return;
+      pdf.save(fileName);
+      const blob = pdf.output('blob') as Blob;
+      const pdfPath = await uploadPrintPdf(blob, selectedEntries[0].recipient.id, fileNameBase);
+      logWeekly('save', pdfPath);
+    } catch (e) {
+      console.error(e);
+      alert('저장에 실패했습니다. PDF 아이콘으로 다시 시도해주세요.');
+    } finally {
+      setIsSavingBackup(false);
     }
   };
 
@@ -370,17 +393,25 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
         >
           {isSharing ? <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" /> : <IconShare2 size={19} />}
         </IconButton>
+        <IconButton
+          onClick={handleDownloadPdf}
+          disabled={isExporting || selectedEntries.length === 0}
+          className="shrink-0 w-[52px] h-[52px] rounded-[22px] bg-surface-muted/80 text-foreground/80 border border-surface-border/40"
+          aria-label="PDF로 저장"
+        >
+          {isExporting ? <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" /> : <IconFileDownload size={19} />}
+        </IconButton>
         <Button
           type="button"
           variant="ghost"
           fullWidth
-          loading={isExporting}
+          loading={isSavingBackup}
           disabled={selectedEntries.length === 0}
-          startIcon={<IconFileDownload size={19} />}
-          onClick={handleDownloadPdf}
+          startIcon={<IconDeviceFloppy size={19} />}
+          onClick={handleSaveWithBackup}
           className="whitespace-nowrap py-3.5 text-[15px] font-black rounded-[22px]"
         >
-          {isExporting ? '생성 중...' : 'PDF로 저장'}
+          {isSavingBackup ? '저장 중...' : '저장'}
         </Button>
         <Button
           type="button"

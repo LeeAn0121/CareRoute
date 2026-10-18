@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory } from '@tabler/icons-react';
+import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconDeviceFloppy } from '@tabler/icons-react';
 import { Modal, IconButton, Button } from './ui';
 import PrintSheet from './PrintSheet';
 import PrintHistorySheet from './PrintHistorySheet';
 import { captureSheetCanvas, createA4Pdf, addCanvasAsA4Page } from '@/lib/pdfExport';
-import { logPrintEvent } from '@/lib/printLogs';
+import { logPrintEvent, uploadPrintPdf } from '@/lib/printLogs';
 
 interface Recipient {
   id: string;
@@ -41,6 +41,7 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
   const [orgName, setOrgName] = useState('');
   const [orgContact, setOrgContact] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const [isSavingBackup, setIsSavingBackup] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -110,6 +111,27 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
       alert('PDF 생성에 실패했습니다. 인쇄 버튼으로 다시 시도해주세요.');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  // PDF를 기기에 저장하면서 동시에 서버(print-pdfs 버킷)에도 올려, 나중에 출력 이력에서
+  // 다시 열어볼 수 있게 보관한다. 서버 업로드가 실패해도 기기 저장은 이미 끝난 뒤라 무시한다.
+  const handleSaveWithBackup = async () => {
+    if (!recipient) return;
+    setIsSavingBackup(true);
+    try {
+      const pdf = await buildPdf();
+      if (!pdf) return;
+      const fileNameBase = `${recipient.name}_어르신_정보`;
+      pdf.save(`${fileNameBase}.pdf`);
+      const blob = pdf.output('blob') as Blob;
+      const pdfPath = await uploadPrintPdf(blob, recipient.id, fileNameBase);
+      logPrintEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'save', authorName, pdfPath });
+    } catch (e) {
+      console.error(e);
+      alert('저장에 실패했습니다. PDF 아이콘으로 다시 시도해주세요.');
+    } finally {
+      setIsSavingBackup(false);
     }
   };
 
@@ -202,16 +224,24 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
         >
           {isSharing ? <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" /> : <IconShare2 size={19} />}
         </IconButton>
+        <IconButton
+          onClick={handleDownloadPdf}
+          disabled={isExporting}
+          className="shrink-0 w-[52px] h-[52px] rounded-[22px] bg-surface-muted/80 text-foreground/80 border border-surface-border/40"
+          aria-label="PDF로 저장"
+        >
+          {isExporting ? <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" /> : <IconFileDownload size={19} />}
+        </IconButton>
         <Button
           type="button"
           variant="ghost"
           fullWidth
-          loading={isExporting}
-          startIcon={<IconFileDownload size={19} />}
-          onClick={handleDownloadPdf}
+          loading={isSavingBackup}
+          startIcon={<IconDeviceFloppy size={19} />}
+          onClick={handleSaveWithBackup}
           className="whitespace-nowrap py-3.5 text-[15px] font-black rounded-[22px]"
         >
-          {isExporting ? '생성 중...' : 'PDF로 저장'}
+          {isSavingBackup ? '저장 중...' : '저장'}
         </Button>
         <Button
           type="button"
