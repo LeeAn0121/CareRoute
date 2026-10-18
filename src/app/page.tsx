@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker, Polyline } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus, IconPrinter, IconFileCheck, IconActivity } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus, IconPrinter, IconFileCheck, IconActivity, IconPill } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
@@ -15,6 +15,7 @@ import BatchPrintModal from '@/components/BatchPrintModal';
 import WeeklyPrintModal from '@/components/WeeklyPrintModal';
 import PrintHistorySheet from '@/components/PrintHistorySheet';
 import VitalsHistorySheet from '@/components/VitalsHistorySheet';
+import MedicationModal from '@/components/MedicationModal';
 import { fetchPrintedRecipientIdsForDate } from '@/lib/printLogs';
 import { logVisitDuration } from '@/lib/visitLogs';
 import { logVitals, type VitalsInput } from '@/lib/vitalsLogs';
@@ -210,6 +211,7 @@ function MainApp() {
   const [printSuggestionRecipient, setPrintSuggestionRecipient] = useState<Recipient | null>(null);
   const [printHistoryDateKey, setPrintHistoryDateKey] = useState<string | null>(null);
   const [isVitalsHistoryOpen, setIsVitalsHistoryOpen] = useState(false);
+  const [isMedicationModalOpen, setIsMedicationModalOpen] = useState(false);
   const [routeTabWeather, setRouteTabWeather] = useState<WeatherData | null>(null);
   const [isWeatherBannerDismissed, setIsWeatherBannerDismissed] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
@@ -3706,6 +3708,14 @@ function MainApp() {
                     <IconActivity size={12} strokeWidth={2.5} />
                     활력징후
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsMedicationModalOpen(true)}
+                    className="flex items-center gap-1 text-[11px] font-black text-primary active:opacity-60 transition-opacity shrink-0"
+                  >
+                    <IconPill size={12} strokeWidth={2.5} />
+                    복약
+                  </button>
                 </div>
 
                 {/* Badges: Health Tags & Passcode & Parking */}
@@ -4378,6 +4388,7 @@ function MainApp() {
         onSave={handleSaveMemo}
         onSaveAndShare={handleSaveAndShareMemo}
         recipientName={completingRecipient?.name || ''}
+        recipientId={completingRecipient?.id}
         initialMemo={completingRecipient?.last_completed_memo}
       />
 
@@ -4422,6 +4433,15 @@ function MainApp() {
         <VitalsHistorySheet
           open={isVitalsHistoryOpen}
           onClose={() => setIsVitalsHistoryOpen(false)}
+          recipientId={selectedRecipient.id}
+          recipientName={selectedRecipient.name}
+        />
+      )}
+
+      {selectedRecipient && (
+        <MedicationModal
+          open={isMedicationModalOpen}
+          onClose={() => setIsMedicationModalOpen(false)}
           recipientId={selectedRecipient.id}
           recipientName={selectedRecipient.name}
         />

@@ -4,6 +4,7 @@ import { Modal, IconButton, Button } from '@/components/ui';
 import { IconX, IconMicrophone, IconPlayerStop, IconSend } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import type { VitalsInput } from '@/lib/vitalsLogs';
+import { fetchMedicationsForRecipient, type MedicationRow } from '@/lib/medications';
 
 interface VoiceMemoModalProps {
   isOpen: boolean;
@@ -11,10 +12,11 @@ interface VoiceMemoModalProps {
   onSave: (memo: string, vitals: VitalsInput) => void;
   onSaveAndShare?: (memo: string, vitals: VitalsInput) => void;
   recipientName: string;
+  recipientId?: string;
   initialMemo?: string | null;
 }
 
-export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare, recipientName, initialMemo }: VoiceMemoModalProps) {
+export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare, recipientName, recipientId, initialMemo }: VoiceMemoModalProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimText, setInterimText] = useState('');
@@ -23,6 +25,16 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
   const [diastolicBp, setDiastolicBp] = useState('');
   const [bloodSugar, setBloodSugar] = useState('');
   const [temperature, setTemperature] = useState('');
+
+  const [medications, setMedications] = useState<MedicationRow[]>([]);
+
+  useEffect(() => {
+    if (!isOpen || !recipientId) {
+      setMedications([]);
+      return;
+    }
+    fetchMedicationsForRecipient(recipientId).then(setMedications);
+  }, [isOpen, recipientId]);
 
   const collectVitals = (): VitalsInput => ({
     systolicBp: systolicBp.trim() ? parseInt(systolicBp.trim(), 10) : null,
@@ -215,6 +227,34 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
             </button>
           ))}
         </div>
+
+        {/* 등록된 복약 시간표를 체크리스트처럼 눌러서 "복약 확인"을 일지에 바로 남긴다 */}
+        {medications.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <span className="block text-xs font-black text-foreground/70 uppercase tracking-wider pl-0.5">
+              복약 확인 (눌러서 기록)
+            </span>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              {medications.map((med) => {
+                const phrase = `${med.drug_name} 복약 확인${med.times_of_day ? `(${med.times_of_day.split(',').join('/')})` : ''}`;
+                return (
+                  <button
+                    key={med.id}
+                    type="button"
+                    onClick={() => {
+                      const updated = transcript ? `${transcript.trim()} ${phrase}` : phrase;
+                      setTranscript(updated);
+                      finalTranscriptRef.current = updated;
+                    }}
+                    className="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/25 whitespace-nowrap active:scale-95 transition-all shrink-0"
+                  >
+                    💊 {med.drug_name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* 활력징후(선택): 혈압/혈당/체온을 숫자로 남겨 추이를 볼 수 있게 한다 */}
         <div>
