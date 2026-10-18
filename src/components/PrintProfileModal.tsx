@@ -224,7 +224,12 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
         </Button>
       </div>
 
-      <PrintHistorySheet open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
+      <PrintHistorySheet
+        open={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        recipientId={recipient.id}
+        recipientName={recipient.name}
+      />
     </Modal>
   );
 }

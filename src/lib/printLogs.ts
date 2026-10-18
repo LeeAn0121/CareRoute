@@ -52,6 +52,24 @@ export async function fetchRecentPrintLogs(limit = 20): Promise<PrintLogRow[]> {
   }
 }
 
+// 특정 어르신의 출력 이력만 조회(개별 출력 모달에서 사용). 단일 출력은 recipient_id,
+// 일괄 출력은 recipient_ids 배열에 그 어르신이 포함되어 있으면 함께 보여준다.
+export async function fetchRecentPrintLogsForRecipient(recipientId: string, limit = 20): Promise<PrintLogRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from('print_logs')
+      .select('id, recipient_name, method, batch_count, author_name, created_at')
+      .or(`recipient_id.eq.${recipientId},recipient_ids.cs.{${recipientId}}`)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.error('print log fetch (by recipient) failed', e);
+    return [];
+  }
+}
+
 // 일정 탭의 "출력됨" 배지용: 특정 날짜(로컬 기준)에 출력/공유된 수급자 id 전체를 모아 반환.
 // 단일 출력은 recipient_id, 일괄 출력은 recipient_ids 배열에 담겨 있어 둘 다 합친다.
 export async function fetchPrintedRecipientIdsForDate(dateKey: string): Promise<Set<string>> {
