@@ -52,6 +52,7 @@ interface Recipient {
   age?: number | null;
   care_grade?: string | null;
   last_visit_started_at?: string | null;
+  assigned_caregiver_name?: string | null;
 }
 
 const SIDO_CENTERS: Record<string, { lat: number, lng: number }> = {
@@ -2267,10 +2268,11 @@ function MainApp() {
                       e.preventDefault();
                       const q = mapSearchQuery.trim().toLowerCase();
                       if (!q) return;
-                      const matched = markers.find(m => 
-                        (m.name && m.name.toLowerCase().includes(q)) || 
-                        (m.address && m.address.toLowerCase().includes(q)) || 
-                        (m.detail_address && m.detail_address.toLowerCase().includes(q))
+                      const matched = markers.find(m =>
+                        (m.name && m.name.toLowerCase().includes(q)) ||
+                        (m.address && m.address.toLowerCase().includes(q)) ||
+                        (m.detail_address && m.detail_address.toLowerCase().includes(q)) ||
+                        (m.assigned_caregiver_name && m.assigned_caregiver_name.toLowerCase().includes(q))
                       );
                       if (matched) {
                         focusRecipientOnMap(matched);
@@ -2333,10 +2335,11 @@ function MainApp() {
               ) : (() => {
                 const q = mapSearchQuery.trim().toLowerCase();
                 const matchedList = markers
-                  .filter(m => 
-                    (m.name && m.name.toLowerCase().includes(q)) || 
-                    (m.address && m.address.toLowerCase().includes(q)) || 
-                    (m.detail_address && m.detail_address.toLowerCase().includes(q))
+                  .filter(m =>
+                    (m.name && m.name.toLowerCase().includes(q)) ||
+                    (m.address && m.address.toLowerCase().includes(q)) ||
+                    (m.detail_address && m.detail_address.toLowerCase().includes(q)) ||
+                    (m.assigned_caregiver_name && m.assigned_caregiver_name.toLowerCase().includes(q))
                   )
                   .slice(0, 8);
 
@@ -2781,7 +2784,7 @@ function MainApp() {
                   const filteredMarkers = markers
                     .filter((marker) => {
                       const q = searchQuery.trim();
-                      if (q && !marker.name.includes(q) && !marker.address.includes(q)) return false;
+                      if (q && !marker.name.includes(q) && !marker.address.includes(q) && !(marker.assigned_caregiver_name && marker.assigned_caregiver_name.includes(q))) return false;
                       if (listFilter === 'today' && !getScheduledForDate(marker, new Date())) return false;
                       if (listFilter === 'incomplete' && isCompletedToday(marker)) return false;
                       if (listFilter === 'completed' && !isCompletedToday(marker)) return false;
@@ -3625,6 +3628,11 @@ function MainApp() {
                 <p className="text-xs text-foreground/60 font-semibold truncate leading-relaxed">
                   {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
                 </p>
+                {selectedRecipient.assigned_caregiver_name && (
+                  <p className="text-xs text-foreground/50 font-semibold truncate leading-relaxed mt-0.5">
+                    담당 {selectedRecipient.assigned_caregiver_name}
+                  </p>
+                )}
 
                 {/* Badges: Health Tags & Passcode & Parking */}
                 {(() => {

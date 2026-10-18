@@ -26,6 +26,7 @@ interface Recipient {
   health_tags?: string | null;
   age?: number | null;
   care_grade?: string | null;
+  assigned_caregiver_name?: string | null;
 }
 
 const CARE_GRADE_OPTIONS = ['1등급', '2등급', '3등급', '4등급', '5등급', '인지지원등급', '등급외'];
@@ -51,6 +52,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
   const [careGrade, setCareGrade] = useState('');
   const [doorPasscode, setDoorPasscode] = useState('');
   const [parkingMemo, setParkingMemo] = useState('');
+  const [assignedCaregiverName, setAssignedCaregiverName] = useState('');
   const [healthTags, setHealthTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -88,6 +90,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       setDoorPasscode(recipientToEdit.door_passcode || '');
       // @ts-ignore
       setParkingMemo(recipientToEdit.parking_memo || '');
+      setAssignedCaregiverName(recipientToEdit.assigned_caregiver_name || '');
       const savedHealthTags = recipientToEdit.health_tags || 
         (typeof window !== 'undefined' ? localStorage.getItem(`careroute_health_tags_${recipientToEdit.id}`) : null);
       setHealthTags(savedHealthTags ? savedHealthTags.split(',').filter(Boolean) : []);
@@ -104,6 +107,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
 
       setDoorPasscode('');
       setParkingMemo('');
+      setAssignedCaregiverName('');
       setHealthTags([]);
       setCustomTag('');
         setExistingPhotoUrl(null);
@@ -239,13 +243,14 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         health_tags: healthTags.length > 0 ? healthTags.join(',') : null,
         age: age.trim() ? parseInt(age.trim(), 10) : null,
         care_grade: careGrade.trim() || null,
+        assigned_caregiver_name: assignedCaregiverName.trim() || null,
       };
 
       const tagsStr = healthTags.length > 0 ? healthTags.join(',') : null;
 
       // 일부 환경에서는 아직 마이그레이션이 적용되지 않아 age/care_grade/health_tags 컬럼이 없을 수 있다.
       // 해당 컬럼을 참조하는 오류가 나면 그 컬럼만 제거하고 재시도한다.
-      const OPTIONAL_COLUMNS = ['health_tags', 'age', 'care_grade'];
+      const OPTIONAL_COLUMNS = ['health_tags', 'age', 'care_grade', 'assigned_caregiver_name'];
       const stripMissingColumn = (error: any): boolean => {
         const col = OPTIONAL_COLUMNS.find(
           (c) => recipientData[c] !== undefined && (error?.message?.includes(c) || error?.details?.includes(c))
@@ -502,6 +507,18 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                 ))}
               </div>
             )}
+          </div>
+
+          {/* 담당 요양보호사: 여러 명이 함께 쓸 때 이 어르신을 누가 맡고 있는지 기록 */}
+          <div className="bg-foreground/[0.03] dark:bg-white/[0.04] p-4 rounded-[26px] border border-surface-border/40 flex flex-col gap-3">
+            <p className="text-[13px] font-black text-primary tracking-tight pl-1">담당자</p>
+            <TextField
+              label="담당 요양보호사 (선택)"
+              placeholder="예: 홍길동"
+              value={assignedCaregiverName}
+              onChange={(e) => setAssignedCaregiverName(e.target.value)}
+              disabled={isSubmitting}
+            />
           </div>
 
           {/* Grouped Inset: Door & Parking Info */}

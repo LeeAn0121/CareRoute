@@ -32,6 +32,7 @@ const RECIPIENT_BACKUP_COLUMNS = [
   'id', 'name', 'address', 'detail_address', 'sido', 'sigungu', 'dong', 'lat', 'lng',
   'visit_time', 'notes', 'recurring_weekdays', 'photo_url', 'door_passcode', 'parking_memo',
   'health_tags', 'age', 'care_grade', 'last_completed_key', 'last_completed_memo', 'created_at',
+  'assigned_caregiver_name',
 ] as const;
 
 function pickRecipientColumns(row: Record<string, unknown>): Record<string, unknown> {
