@@ -13,13 +13,14 @@ export async function logPrintEvent(params: {
   authorName?: string | null;
 }) {
   try {
-    await supabase.from('print_logs').insert({
+    const { error } = await supabase.from('print_logs').insert({
       recipient_id: params.recipientId || null,
       recipient_name: params.recipientName,
       method: params.method,
       batch_count: params.batchCount ?? null,
       author_name: params.authorName || null,
     });
+    if (error) throw error;
   } catch (e) {
     console.error('print log insert failed', e);
   }

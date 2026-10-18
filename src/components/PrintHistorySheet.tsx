@@ -57,7 +57,7 @@ export default function PrintHistorySheet({ open, onClose }: { open: boolean; on
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-black text-foreground truncate">
                         {log.recipient_name}
-                        {log.batch_count ? ` 외 ${Math.max(log.batch_count - 1, 0)}명` : ''}
+                        {log.batch_count && log.batch_count > 1 ? ` 외 ${log.batch_count - 1}명` : ''}
                       </p>
                       <p className="text-[11px] font-bold text-foreground/45">
                         {METHOD_LABEL[log.method]} · {formatDateTime(log.created_at)}
