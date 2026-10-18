@@ -3259,13 +3259,23 @@ function MainApp() {
                           <div className="flex items-center gap-1.5 ml-auto">
                             <button
                               type="button"
+                              onClick={(e) => { e.stopPropagation(); setPrintingRecipient(marker); }}
+                              className="w-9 h-9 flex items-center justify-center rounded-[16px] bg-surface-muted text-foreground/75 hover:bg-surface-border transition-colors active:scale-95 border border-surface-border/40 shrink-0"
+                              aria-label="출력"
+                              title="이 어르신만 바로 출력"
+                            >
+                              <IconPrinter size={15} />
+                            </button>
+
+                            <button
+                              type="button"
                               onClick={(e) => { e.stopPropagation(); setManagingScheduleRecipient(marker); }}
                               className="px-3 py-2.5 rounded-[16px] text-[12px] font-black bg-surface-muted text-foreground/75 hover:bg-surface-border transition-colors whitespace-nowrap active:scale-95 border border-surface-border/40"
                               title="일정 상세 관리"
                             >
                               관리
                             </button>
-                            
+
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); handleRemoveFromSchedule(marker, scheduleDate); }}
