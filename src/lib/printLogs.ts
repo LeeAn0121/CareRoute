@@ -96,6 +96,27 @@ export function getPrintPdfPublicUrl(path: string): string {
   return supabase.storage.from('print-pdfs').getPublicUrl(path).data.publicUrl;
 }
 
+// 캘린더의 출력 기록 점을 눌렀을 때: 특정 날짜(로컬 기준)에 있었던 출력 이력만 모아 반환.
+export async function fetchRecentPrintLogsForDate(dateKey: string, limit = 20): Promise<PrintLogRow[]> {
+  try {
+    const start = new Date(`${dateKey}T00:00:00`);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const { data, error } = await supabase
+      .from('print_logs')
+      .select(PRINT_LOG_COLUMNS)
+      .gte('created_at', start.toISOString())
+      .lt('created_at', end.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.error('print log fetch (by date) failed', e);
+    return [];
+  }
+}
+
 // 일정 탭의 "출력됨" 배지용: 특정 날짜(로컬 기준)에 출력/공유된 수급자 id 전체를 모아 반환.
 // 단일 출력은 recipient_id, 일괄 출력은 recipient_ids 배열에 담겨 있어 둘 다 합친다.
 export async function fetchPrintedRecipientIdsForDate(dateKey: string): Promise<Set<string>> {

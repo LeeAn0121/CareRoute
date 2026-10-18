@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { IconHistory, IconPrinter, IconFileDownload, IconShare2, IconCloudCheck, IconExternalLink } from '@tabler/icons-react';
 import { Modal, LoadingOverlay, IconButton } from './ui';
-import { fetchRecentPrintLogs, fetchRecentPrintLogsForRecipient, getPrintPdfPublicUrl, type PrintLogRow } from '@/lib/printLogs';
+import { fetchRecentPrintLogs, fetchRecentPrintLogsForRecipient, fetchRecentPrintLogsForDate, getPrintPdfPublicUrl, type PrintLogRow } from '@/lib/printLogs';
 
 const METHOD_LABEL: Record<PrintLogRow['method'], string> = {
   print: '인쇄',
@@ -28,11 +28,16 @@ export default function PrintHistorySheet({
   onClose,
   recipientId,
   recipientName,
+  dateKey,
+  dateLabel,
 }: {
   open: boolean;
   onClose: () => void;
   recipientId?: string;
   recipientName?: string;
+  // 캘린더에서 특정 날짜의 출력 기록 점을 눌렀을 때: 그 날짜(YYYY-MM-DD)만 필터링해서 보여준다.
+  dateKey?: string;
+  dateLabel?: string;
 }) {
   const [logs, setLogs] = useState<PrintLogRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,11 +45,15 @@ export default function PrintHistorySheet({
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    const fetchLogs = recipientId ? fetchRecentPrintLogsForRecipient(recipientId, 20) : fetchRecentPrintLogs(20);
+    const fetchLogs = recipientId
+      ? fetchRecentPrintLogsForRecipient(recipientId, 20)
+      : dateKey
+        ? fetchRecentPrintLogsForDate(dateKey, 20)
+        : fetchRecentPrintLogs(20);
     fetchLogs
       .then(setLogs)
       .finally(() => setLoading(false));
-  }, [open, recipientId]);
+  }, [open, recipientId, dateKey]);
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -52,14 +61,14 @@ export default function PrintHistorySheet({
         <div className="flex items-center gap-2 pb-3">
           <IconHistory size={18} className="text-foreground/60" />
           <h3 className="text-[16px] font-black text-foreground tracking-tight">
-            {recipientName ? `${recipientName} 어르신 출력 이력` : '최근 출력 이력'}
+            {recipientName ? `${recipientName} 어르신 출력 이력` : dateLabel ? `${dateLabel} 출력 이력` : '최근 출력 이력'}
           </h3>
         </div>
         <div className="relative flex-1 overflow-y-auto -mx-1 px-1 min-h-[160px]">
           {loading && <LoadingOverlay />}
           {logs.length === 0 && !loading ? (
             <p className="text-[13px] font-bold text-foreground/40 py-6 text-center">
-              {recipientId ? '이 어르신의 출력 이력이 없습니다' : '출력 이력이 없습니다'}
+              {recipientId ? '이 어르신의 출력 이력이 없습니다' : dateKey ? '이 날짜에는 출력 이력이 없습니다' : '출력 이력이 없습니다'}
             </p>
           ) : (
             <div className="flex flex-col gap-1.5">

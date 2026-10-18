@@ -10,11 +10,13 @@ interface MonthCalendarProps {
   hasSchedule?: (date: Date) => boolean;
   // true면 달력이 보여주는 달에 한해 출력 기록이 있는 날짜에 점을 표시한다(자체적으로 조회).
   showPrintHistory?: boolean;
+  // 출력 기록 점을 눌렀을 때: 날짜 선택(onSelectDate)과 별개로 그 날짜의 출력 이력을 바로 열람하게 한다.
+  onPrintedDateClick?: (dateKey: string) => void;
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule, showPrintHistory }: MonthCalendarProps) {
+export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule, showPrintHistory, onPrintedDateClick }: MonthCalendarProps) {
   const initialDate = selectedDate || new Date();
   const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -209,13 +211,30 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
                     {scheduled && !selected && (
                       <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(var(--accent),0.8)]" />
                     )}
-                    {/* 해당 날짜에 출력/공유 기록이 있음을 표시하는 작은 점.
-                        선택된(primary 배경) 칸에서도 묻히지 않게 색을 바꿔 항상 보이게 한다. */}
+                    {/* 해당 날짜에 출력/공유 기록이 있음을 표시하는 작은 점. 날짜 선택(상위 버튼)과는
+                        별개로 누르면 그 날짜의 출력 이력을 바로 열어볼 수 있다. 선택된(primary 배경)
+                        칸에서도 묻히지 않게 색을 바꿔 항상 보이게 한다. */}
                     {printed && (
-                      <div
-                        className={`absolute top-1 right-1.5 w-[5px] h-[5px] rounded-full ${selected ? 'bg-primary-foreground' : 'bg-primary'}`}
-                        title="이 날짜에 출력 기록이 있습니다"
-                      />
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label="이 날짜 출력 이력 보기"
+                        title="이 날짜에 출력 기록이 있습니다 · 눌러서 보기"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onPrintedDateClick?.(dateKey);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            onPrintedDateClick?.(dateKey);
+                          }
+                        }}
+                        className="absolute top-0 right-0 w-5 h-5 flex items-center justify-center cursor-pointer"
+                      >
+                        <span className={`w-[5px] h-[5px] rounded-full ${selected ? 'bg-primary-foreground' : 'bg-primary'}`} />
+                      </span>
                     )}
                   </motion.button>
                 );

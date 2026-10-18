@@ -13,6 +13,7 @@ import ShareReportModal from '@/components/ShareReportModal';
 import PrintProfileModal from '@/components/PrintProfileModal';
 import BatchPrintModal from '@/components/BatchPrintModal';
 import WeeklyPrintModal from '@/components/WeeklyPrintModal';
+import PrintHistorySheet from '@/components/PrintHistorySheet';
 import { fetchPrintedRecipientIdsForDate } from '@/lib/printLogs';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
@@ -199,6 +200,7 @@ function MainApp() {
   const [isWeeklyPrintOpen, setIsWeeklyPrintOpen] = useState(false);
   const [printedRecipientIds, setPrintedRecipientIds] = useState<Set<string>>(new Set());
   const [printSuggestionRecipient, setPrintSuggestionRecipient] = useState<Recipient | null>(null);
+  const [printHistoryDateKey, setPrintHistoryDateKey] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
@@ -3109,6 +3111,7 @@ function MainApp() {
               onSelectDate={setScheduleDate}
               hasSchedule={(d) => markers.some(r => getScheduledForDate(r, d))}
               showPrintHistory
+              onPrintedDateClick={setPrintHistoryDateKey}
             />
 
             {scheduleDate && (
@@ -4227,6 +4230,16 @@ function MainApp() {
         onClose={() => { setIsWeeklyPrintOpen(false); refetchPrintedRecipientIds(); }}
         days={weekDays}
         weekLabel={weekLabel}
+      />
+
+      <PrintHistorySheet
+        open={Boolean(printHistoryDateKey)}
+        onClose={() => setPrintHistoryDateKey(null)}
+        dateKey={printHistoryDateKey || undefined}
+        dateLabel={printHistoryDateKey ? (() => {
+          const [, m, d] = printHistoryDateKey.split('-').map(Number);
+          return `${m}월 ${d}일`;
+        })() : undefined}
       />
 
             {isScheduleAddOpen && (
