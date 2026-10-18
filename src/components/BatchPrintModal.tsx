@@ -15,6 +15,10 @@ interface Recipient {
   age?: number | null;
   care_grade?: string | null;
   health_tags?: string | null;
+  visit_time?: string | null;
+  notes?: string | null;
+  door_passcode?: string | null;
+  parking_memo?: string | null;
 }
 
 interface BatchPrintModalProps {

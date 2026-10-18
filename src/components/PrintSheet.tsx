@@ -1,7 +1,8 @@
 'use client';
 
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { IconUser } from '@tabler/icons-react';
+import { parseVisitTime } from '@/lib/visitTime';
 
 interface SheetRecipient {
   id: string;
@@ -10,6 +11,10 @@ interface SheetRecipient {
   age?: number | null;
   care_grade?: string | null;
   health_tags?: string | null;
+  visit_time?: string | null;
+  notes?: string | null;
+  door_passcode?: string | null;
+  parking_memo?: string | null;
 }
 
 interface PrintSheetProps {
@@ -99,6 +104,10 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
   ];
   const infoFieldCount = [writtenDate, authorName, confirmerName].filter(Boolean).length;
   const infoCellClass = infoFieldCount > 1 ? 'flex-1' : 'w-full';
+  const visitTimeInfo = parseVisitTime(recipient.visit_time, recipient.notes);
+  const hasVisitInfo = visitTimeInfo.hasTime || Boolean(recipient.door_passcode) || Boolean(recipient.parking_memo);
+  // 공동현관 비번 등 민감 정보가 섞여 있어 기본값은 미포함으로 둔다(명시적으로 체크해야 출력물에 실린다).
+  const [includeVisitInfo, setIncludeVisitInfo] = useState(false);
 
   return (
     <div ref={ref} className="print-sheet flex flex-col gap-4">
@@ -151,6 +160,33 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
           </p>
         </div>
       </div>
+
+      {/* 1.5 방문 정보(선택): 그날 방문 시간/공동현관 비번/주차 메모. 비번처럼 민감한 정보가
+          섞여 있어 기본은 미포함이며, 체크해야 출력물에 함께 실린다. */}
+      {hasVisitInfo && (
+        <label className="print-edit-only -mt-2 flex items-center gap-2 pl-1 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={includeVisitInfo}
+            onChange={(e) => setIncludeVisitInfo(e.target.checked)}
+            className="w-4 h-4 rounded accent-primary"
+          />
+          <span className="text-[12px] font-bold text-foreground/60">방문 시간·공동현관 비번·주차 메모 포함</span>
+        </label>
+      )}
+      {includeVisitInfo && hasVisitInfo && (
+        <div className="print-only text-[13px] font-bold text-[#1c1c1e] flex flex-wrap gap-x-4 gap-y-1 -mb-2">
+          {visitTimeInfo.hasTime && (
+            <span>방문 시간 <span className="text-[#616165]">{visitTimeInfo.formattedText}</span></span>
+          )}
+          {recipient.door_passcode && (
+            <span>공동현관 비번 <span className="text-[#616165]">{recipient.door_passcode}</span></span>
+          )}
+          {recipient.parking_memo && (
+            <span>주차 <span className="text-[#616165]">{recipient.parking_memo}</span></span>
+          )}
+        </div>
+      )}
 
       {/* 2. 주요 건강 상태: 수기 입력란. 인쇄/PDF 시 A4 한 장을 채우도록 늘어남 */}
       <div className="print-grow flex flex-col gap-1.5">
