@@ -196,6 +196,7 @@ function MainApp() {
   const [printingRecipient, setPrintingRecipient] = useState<Recipient | null>(null);
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false);
   const [printedRecipientIds, setPrintedRecipientIds] = useState<Set<string>>(new Set());
+  const [printSuggestionRecipient, setPrintSuggestionRecipient] = useState<Recipient | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
@@ -1539,14 +1540,19 @@ function MainApp() {
     if (!completingRecipient) return;
     const key = todayYMD();
     const rId = completingRecipient.id;
+    const target = completingRecipient;
     setCompletingRecipient(null); // 모달 닫기
-    
+
     // 낙관적 업데이트
     setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: key, last_completed_memo: memo || null } : m)));
     if (selectedRecipient && selectedRecipient.id === rId) {
       setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: key, last_completed_memo: memo || null } : null);
     }
     await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null }).eq('id', rId);
+
+    // 방문완료 처리 직후 확인서 출력을 가볍게 제안(공유까지 바로 이어가는 경우는 이미
+    // 다른 마무리 동작을 한 것이므로 여기선 제안하지 않음).
+    setPrintSuggestionRecipient(target);
   };
 
   const handleSaveAndShareMemo = async (memo: string) => {
@@ -1626,6 +1632,13 @@ function MainApp() {
     if (!scheduleDateKey) return;
     fetchPrintedRecipientIdsForDate(scheduleDateKey).then(setPrintedRecipientIds);
   };
+
+  // 방문완료 확인서 출력 제안 토스트: 일정 시간 뒤 자동으로 사라진다.
+  useEffect(() => {
+    if (!printSuggestionRecipient) return;
+    const t = setTimeout(() => setPrintSuggestionRecipient(null), 6000);
+    return () => clearTimeout(t);
+  }, [printSuggestionRecipient]);
 
   // 커스텀 순서 저장 헬퍼
   const updateCustomOrder = (newOrderIds: string[]) => {
@@ -4023,8 +4036,45 @@ function MainApp() {
         )}
       </Modal>
 
+      {/* 방문완료 처리 직후 확인서 출력을 가볍게 제안하는 토스트. 일정 시간 후 자동으로 사라진다. */}
+      <AnimatePresence>
+        {printSuggestionRecipient && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+            className="fixed left-4 right-4 bottom-24 z-[70] max-w-md mx-auto flex items-center justify-between gap-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-[22px] pl-4 pr-2 py-2.5 shadow-2xl"
+          >
+            <p className="text-[13px] font-bold">
+              {printSuggestionRecipient.name} 어르신 방문완료 처리했어요
+            </p>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setPrintingRecipient(printSuggestionRecipient);
+                  setPrintSuggestionRecipient(null);
+                }}
+                className="px-3 py-2 rounded-full bg-white/15 dark:bg-zinc-900/10 text-[12px] font-black whitespace-nowrap active:scale-95 transition-transform"
+              >
+                확인서 출력
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrintSuggestionRecipient(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 dark:bg-zinc-900/10 active:scale-95 transition-transform"
+                aria-label="닫기"
+              >
+                <IconX size={14} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* iOS Cupertino Native Tab Bar (Ultra-thin Frosted Glass Material) */}
-      <nav 
+      <nav
         id="tour-bottom-nav" 
         className="fixed bottom-0 left-0 right-0 z-50 bg-white/85 dark:bg-[#121214]/85 backdrop-blur-2xl saturate-150 border-t border-black/[0.08] dark:border-white/[0.1] pb-[max(env(safe-area-inset-bottom),8px)] pt-2 px-3 shadow-[0_-4px_24px_rgba(0,0,0,0.03)] select-none pointer-events-auto"
       >
