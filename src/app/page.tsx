@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker, Polyline } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus, IconPrinter, IconFileCheck } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus, IconPrinter, IconFileCheck, IconActivity } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
@@ -14,8 +14,10 @@ import PrintProfileModal from '@/components/PrintProfileModal';
 import BatchPrintModal from '@/components/BatchPrintModal';
 import WeeklyPrintModal from '@/components/WeeklyPrintModal';
 import PrintHistorySheet from '@/components/PrintHistorySheet';
+import VitalsHistorySheet from '@/components/VitalsHistorySheet';
 import { fetchPrintedRecipientIdsForDate } from '@/lib/printLogs';
 import { logVisitDuration } from '@/lib/visitLogs';
+import { logVitals, type VitalsInput } from '@/lib/vitalsLogs';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
 import WeatherWidget from '@/components/WeatherWidget';
@@ -204,6 +206,7 @@ function MainApp() {
   const [printedRecipientIds, setPrintedRecipientIds] = useState<Set<string>>(new Set());
   const [printSuggestionRecipient, setPrintSuggestionRecipient] = useState<Recipient | null>(null);
   const [printHistoryDateKey, setPrintHistoryDateKey] = useState<string | null>(null);
+  const [isVitalsHistoryOpen, setIsVitalsHistoryOpen] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
@@ -1579,7 +1582,7 @@ function MainApp() {
     setSharingRecipient(r);
   };
 
-  const handleSaveMemo = async (memo: string) => {
+  const handleSaveMemo = async (memo: string, vitals?: VitalsInput) => {
     if (!completingRecipient) return;
     const key = todayYMD();
     const rId = completingRecipient.id;
@@ -1609,13 +1612,16 @@ function MainApp() {
     if (hadStarted && target.last_visit_started_at) {
       logVisitDuration({ recipientId: rId, recipientName: target.name, startedAt: target.last_visit_started_at, endedAt });
     }
+    if (vitals) {
+      logVitals({ recipientId: rId, recipientName: target.name, vitals, memo });
+    }
 
     // 방문완료 처리 직후 확인서 출력을 가볍게 제안(공유까지 바로 이어가는 경우는 이미
     // 다른 마무리 동작을 한 것이므로 여기선 제안하지 않음).
     setPrintSuggestionRecipient(target);
   };
 
-  const handleSaveAndShareMemo = async (memo: string) => {
+  const handleSaveAndShareMemo = async (memo: string, vitals?: VitalsInput) => {
     if (!completingRecipient) return;
     const target = completingRecipient;
     const key = todayYMD();
@@ -1643,6 +1649,9 @@ function MainApp() {
 
     if (hadStarted && target.last_visit_started_at) {
       logVisitDuration({ recipientId: rId, recipientName: target.name, startedAt: target.last_visit_started_at, endedAt });
+    }
+    if (vitals) {
+      logVitals({ recipientId: rId, recipientName: target.name, vitals, memo });
     }
 
     // 바로 안심 공유 모달 열기
@@ -3628,11 +3637,21 @@ function MainApp() {
                 <p className="text-xs text-foreground/60 font-semibold truncate leading-relaxed">
                   {selectedRecipient.address}{selectedRecipient.detail_address ? ` ${selectedRecipient.detail_address}` : ''}
                 </p>
-                {selectedRecipient.assigned_caregiver_name && (
-                  <p className="text-xs text-foreground/50 font-semibold truncate leading-relaxed mt-0.5">
-                    담당 {selectedRecipient.assigned_caregiver_name}
-                  </p>
-                )}
+                <div className="flex items-center gap-2 mt-0.5">
+                  {selectedRecipient.assigned_caregiver_name && (
+                    <p className="text-xs text-foreground/50 font-semibold truncate leading-relaxed">
+                      담당 {selectedRecipient.assigned_caregiver_name}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsVitalsHistoryOpen(true)}
+                    className="flex items-center gap-1 text-[11px] font-black text-primary active:opacity-60 transition-opacity shrink-0"
+                  >
+                    <IconActivity size={12} strokeWidth={2.5} />
+                    활력징후
+                  </button>
+                </div>
 
                 {/* Badges: Health Tags & Passcode & Parking */}
                 {(() => {
@@ -4334,6 +4353,15 @@ function MainApp() {
           return `${m}월 ${d}일`;
         })() : undefined}
       />
+
+      {selectedRecipient && (
+        <VitalsHistorySheet
+          open={isVitalsHistoryOpen}
+          onClose={() => setIsVitalsHistoryOpen(false)}
+          recipientId={selectedRecipient.id}
+          recipientName={selectedRecipient.name}
+        />
+      )}
 
             {isScheduleAddOpen && (
         <ScheduleAddModal 

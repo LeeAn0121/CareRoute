@@ -3,12 +3,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Modal, IconButton, Button } from '@/components/ui';
 import { IconX, IconMicrophone, IconPlayerStop, IconSend } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
+import type { VitalsInput } from '@/lib/vitalsLogs';
 
 interface VoiceMemoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (memo: string) => void;
-  onSaveAndShare?: (memo: string) => void;
+  onSave: (memo: string, vitals: VitalsInput) => void;
+  onSaveAndShare?: (memo: string, vitals: VitalsInput) => void;
   recipientName: string;
   initialMemo?: string | null;
 }
@@ -18,6 +19,17 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
   const [transcript, setTranscript] = useState('');
   const [interimText, setInterimText] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [systolicBp, setSystolicBp] = useState('');
+  const [diastolicBp, setDiastolicBp] = useState('');
+  const [bloodSugar, setBloodSugar] = useState('');
+  const [temperature, setTemperature] = useState('');
+
+  const collectVitals = (): VitalsInput => ({
+    systolicBp: systolicBp.trim() ? parseInt(systolicBp.trim(), 10) : null,
+    diastolicBp: diastolicBp.trim() ? parseInt(diastolicBp.trim(), 10) : null,
+    bloodSugar: bloodSugar.trim() ? parseInt(bloodSugar.trim(), 10) : null,
+    temperature: temperature.trim() ? parseFloat(temperature.trim()) : null,
+  });
   const recognitionRef = useRef<any>(null);
   const isRecordingRef = useRef<boolean>(false);
   const finalTranscriptRef = useRef<string>('');
@@ -204,6 +216,60 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
           ))}
         </div>
 
+        {/* 활력징후(선택): 혈압/혈당/체온을 숫자로 남겨 추이를 볼 수 있게 한다 */}
+        <div>
+          <span className="block text-xs font-black text-foreground/70 uppercase tracking-wider mb-1.5 pl-0.5">
+            활력징후 (선택)
+          </span>
+          <div className="grid grid-cols-4 gap-1.5">
+            <div className="flex flex-col gap-1">
+              <input
+                type="number"
+                inputMode="numeric"
+                value={systolicBp}
+                onChange={(e) => setSystolicBp(e.target.value)}
+                placeholder="수축기"
+                className="w-full p-2.5 bg-foreground/[0.03] dark:bg-white/[0.04] rounded-[14px] border border-surface-border/60 text-[13px] font-bold outline-none focus:border-primary text-center text-foreground placeholder:text-foreground/30"
+              />
+              <span className="text-[10px] font-bold text-foreground/40 text-center">수축기(mmHg)</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <input
+                type="number"
+                inputMode="numeric"
+                value={diastolicBp}
+                onChange={(e) => setDiastolicBp(e.target.value)}
+                placeholder="이완기"
+                className="w-full p-2.5 bg-foreground/[0.03] dark:bg-white/[0.04] rounded-[14px] border border-surface-border/60 text-[13px] font-bold outline-none focus:border-primary text-center text-foreground placeholder:text-foreground/30"
+              />
+              <span className="text-[10px] font-bold text-foreground/40 text-center">이완기(mmHg)</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <input
+                type="number"
+                inputMode="numeric"
+                value={bloodSugar}
+                onChange={(e) => setBloodSugar(e.target.value)}
+                placeholder="혈당"
+                className="w-full p-2.5 bg-foreground/[0.03] dark:bg-white/[0.04] rounded-[14px] border border-surface-border/60 text-[13px] font-bold outline-none focus:border-primary text-center text-foreground placeholder:text-foreground/30"
+              />
+              <span className="text-[10px] font-bold text-foreground/40 text-center">혈당(mg/dL)</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                value={temperature}
+                onChange={(e) => setTemperature(e.target.value)}
+                placeholder="체온"
+                className="w-full p-2.5 bg-foreground/[0.03] dark:bg-white/[0.04] rounded-[14px] border border-surface-border/60 text-[13px] font-bold outline-none focus:border-primary text-center text-foreground placeholder:text-foreground/30"
+              />
+              <span className="text-[10px] font-bold text-foreground/40 text-center">체온(℃)</span>
+            </div>
+          </div>
+        </div>
+
         {/* Error / Guide Message */}
         {errorMessage && (
           <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-[18px] text-xs font-bold text-red-600 dark:text-red-400">
@@ -253,16 +319,16 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
               type="button" 
               variant="ghost" 
               fullWidth 
-              onClick={() => { stopRecognition(); onSave(''); }} 
+              onClick={() => { stopRecognition(); onSave('', collectVitals()); }}
               className="py-3 rounded-[18px] font-bold text-foreground/60 text-xs sm:text-sm"
             >
               메모 없이 완료
             </Button>
-            <Button 
-              type="button" 
-              fullWidth 
-              onClick={() => { stopRecognition(); onSave(transcript); }} 
-              className="py-3 rounded-[18px] font-black shadow-sm text-xs sm:text-sm" 
+            <Button
+              type="button"
+              fullWidth
+              onClick={() => { stopRecognition(); onSave(transcript, collectVitals()); }}
+              className="py-3 rounded-[18px] font-black shadow-sm text-xs sm:text-sm"
               startIcon={<IconSend size={16} />}
             >
               기록 저장
@@ -273,7 +339,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
             <Button
               type="button"
               fullWidth
-              onClick={() => { stopRecognition(); onSaveAndShare(transcript); }}
+              onClick={() => { stopRecognition(); onSaveAndShare(transcript, collectVitals()); }}
               className="py-3.5 rounded-[18px] font-black bg-amber-400 hover:bg-amber-500 text-stone-900 border-none shadow-md text-sm"
               startIcon={<span className="text-base">💙</span>}
             >
