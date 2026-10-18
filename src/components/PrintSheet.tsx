@@ -15,6 +15,23 @@ interface SheetRecipient {
   notes?: string | null;
   door_passcode?: string | null;
   parking_memo?: string | null;
+  address?: string | null;
+  detail_address?: string | null;
+  recurring_weekdays?: string | null;
+}
+
+const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+
+function formatRecurringWeekdays(value?: string | null): string {
+  if (!value) return '';
+  const days = value
+    .split(',')
+    .map((v) => Number(v))
+    .filter((n) => !Number.isNaN(n) && n >= 0 && n <= 6)
+    .sort((a, b) => a - b)
+    .map((n) => WEEKDAY_LABELS[n]);
+  if (days.length === 0) return '';
+  return `매주 ${days.join('·')}요일 정기 방문`;
 }
 
 interface PrintSheetProps {
@@ -106,6 +123,8 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
   ];
   const infoFieldCount = [writtenDate, authorName, confirmerName].filter(Boolean).length;
   const infoCellClass = infoFieldCount > 1 ? 'flex-1' : 'w-full';
+  const recurringLabel = formatRecurringWeekdays(recipient.recurring_weekdays);
+  const hasAddress = Boolean(recipient.address || recipient.detail_address);
   const visitTimeInfo = parseVisitTime(recipient.visit_time, recipient.notes);
   const hasVisitInfo = visitTimeInfo.hasTime || Boolean(recipient.door_passcode) || Boolean(recipient.parking_memo);
   // 공동현관 비번 등 민감 정보가 섞여 있어 기본값은 미포함으로 둔다(명시적으로 체크해야 출력물에 실린다).
@@ -167,6 +186,15 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
           <p className="text-[14px] font-bold text-[#616165]">
             등급 <span className="text-[#1c1c1e]">{recipient.care_grade || '미입력'}</span>
           </p>
+          {/* 주소 / 정기 방문요일: 인수인계 확인서에 필요한 정보라 항상(화면·인쇄·PDF 공통) 보여준다.
+              이 카드 밖은 앱 테마(다크 모드 포함)를 그대로 타기 때문에, 종이를 가정한 고정 색상
+              텍스트는 반드시 이 카드처럼 자체 밝은 배경을 가진 영역 안에서만 써야 한다. */}
+          {hasAddress && (
+            <p className="text-[13px] font-bold text-[#616165]">
+              주소 <span className="text-[#1c1c1e]">{recipient.address}{recipient.detail_address ? ` ${recipient.detail_address}` : ''}</span>
+            </p>
+          )}
+          {recurringLabel && <p className="text-[13px] font-bold text-[#616165]">{recurringLabel}</p>}
         </div>
       </div>
 

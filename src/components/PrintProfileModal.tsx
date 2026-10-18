@@ -19,6 +19,9 @@ interface Recipient {
   notes?: string | null;
   door_passcode?: string | null;
   parking_memo?: string | null;
+  address?: string | null;
+  detail_address?: string | null;
+  recurring_weekdays?: string | null;
 }
 
 interface PrintProfileModalProps {
