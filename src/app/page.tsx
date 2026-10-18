@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Container, NaverMap, Marker, Polyline } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus, IconPrinter } from '@tabler/icons-react';
+import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus, IconPrinter, IconFileCheck } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
@@ -12,6 +12,7 @@ import VoiceMemoModal from '@/components/VoiceMemoModal';
 import ShareReportModal from '@/components/ShareReportModal';
 import PrintProfileModal from '@/components/PrintProfileModal';
 import BatchPrintModal from '@/components/BatchPrintModal';
+import { fetchPrintedRecipientIdsForDate } from '@/lib/printLogs';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
 import WeatherWidget from '@/components/WeatherWidget';
@@ -194,6 +195,7 @@ function MainApp() {
   const [sharingRecipient, setSharingRecipient] = useState<Recipient | null>(null);
   const [printingRecipient, setPrintingRecipient] = useState<Recipient | null>(null);
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false);
+  const [printedRecipientIds, setPrintedRecipientIds] = useState<Set<string>>(new Set());
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
@@ -1602,6 +1604,28 @@ function MainApp() {
       console.error('Failed to load custom route order:', e);
     }
   }, [scheduleDateKey]);
+
+  // 선택한 날짜에 이미 출력/공유한 수급자 id 모음("출력됨" 배지용). 일정 리스트는 이미
+  // 로드된 markers로 즉시 그려지므로, 이 보조 정보는 화면을 막지 않고 조용히 채워진다.
+  useEffect(() => {
+    if (!scheduleDateKey) {
+      setPrintedRecipientIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    fetchPrintedRecipientIdsForDate(scheduleDateKey).then((ids) => {
+      if (!cancelled) setPrintedRecipientIds(ids);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [scheduleDateKey]);
+
+  // 출력 모달을 닫을 때도 "출력됨" 배지를 즉시 갱신(막 출력/공유했을 수 있으므로).
+  const refetchPrintedRecipientIds = () => {
+    if (!scheduleDateKey) return;
+    fetchPrintedRecipientIdsForDate(scheduleDateKey).then(setPrintedRecipientIds);
+  };
 
   // 커스텀 순서 저장 헬퍼
   const updateCustomOrder = (newOrderIds: string[]) => {
@@ -3094,6 +3118,15 @@ function MainApp() {
                                   NEXT
                                 </span>
                               )}
+                              {printedRecipientIds.has(marker.id) && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-black border border-primary/20 shrink-0"
+                                  title="오늘 날짜로 이미 출력/공유한 기록이 있습니다"
+                                >
+                                  <IconFileCheck size={11} strokeWidth={2.5} />
+                                  출력됨
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-1.5 mb-1.5 text-xs font-black text-foreground/60">
                               <IconClock size={14} className={isNext ? 'text-accent' : 'text-foreground/40'} />
@@ -4071,13 +4104,13 @@ function MainApp() {
 
       <PrintProfileModal
         isOpen={Boolean(printingRecipient)}
-        onClose={() => setPrintingRecipient(null)}
+        onClose={() => { setPrintingRecipient(null); refetchPrintedRecipientIds(); }}
         recipient={printingRecipient}
       />
 
       <BatchPrintModal
         isOpen={isBatchPrintOpen}
-        onClose={() => setIsBatchPrintOpen(false)}
+        onClose={() => { setIsBatchPrintOpen(false); refetchPrintedRecipientIds(); }}
         recipients={scheduleRoute}
         dateLabel={scheduleDate ? `${scheduleDate.getMonth() + 1}월 ${scheduleDate.getDate()}일` : undefined}
       />

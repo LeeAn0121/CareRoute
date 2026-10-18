@@ -179,7 +179,7 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
       const pdf = await buildPdf();
       if (!pdf) return;
       pdf.save(`${dateLabel ? dateLabel + '_' : ''}방문일정_어르신정보.pdf`);
-      logPrintEvent({ recipientName: selectedRecipients[0].name, method: 'pdf', batchCount: selectedRecipients.length, authorName });
+      logPrintEvent({ recipientName: selectedRecipients[0].name, recipientIds: selectedRecipients.map((r) => r.id), method: 'pdf', batchCount: selectedRecipients.length, authorName });
     } catch (e) {
       console.error(e);
       alert('PDF 생성에 실패했습니다. 인쇄 버튼으로 다시 시도해주세요.');
@@ -206,7 +206,7 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
         return;
       }
       await navigator.share({ files: [file], title: fileName });
-      logPrintEvent({ recipientName: selectedRecipients[0].name, method: 'share', batchCount: selectedRecipients.length, authorName });
+      logPrintEvent({ recipientName: selectedRecipients[0].name, recipientIds: selectedRecipients.map((r) => r.id), method: 'share', batchCount: selectedRecipients.length, authorName });
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error(e);
@@ -218,7 +218,7 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
 
   const handlePrint = () => {
     if (selectedRecipients.length === 0) return;
-    logPrintEvent({ recipientName: selectedRecipients[0].name, method: 'print', batchCount: selectedRecipients.length, authorName });
+    logPrintEvent({ recipientName: selectedRecipients[0].name, recipientIds: selectedRecipients.map((r) => r.id), method: 'print', batchCount: selectedRecipients.length, authorName });
     window.print();
   };
 
