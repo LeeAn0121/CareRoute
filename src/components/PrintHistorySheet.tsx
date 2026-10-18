@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { IconHistory, IconPrinter, IconFileDownload, IconShare2 } from '@tabler/icons-react';
-import { Modal } from './ui';
+import { Modal, LoadingOverlay } from './ui';
 import { fetchRecentPrintLogs, type PrintLogRow } from '@/lib/printLogs';
 
 const METHOD_LABEL: Record<PrintLogRow['method'], string> = {
@@ -40,10 +40,9 @@ export default function PrintHistorySheet({ open, onClose }: { open: boolean; on
           <IconHistory size={18} className="text-foreground/60" />
           <h3 className="text-[16px] font-black text-foreground tracking-tight">최근 출력 이력</h3>
         </div>
-        <div className="flex-1 overflow-y-auto -mx-1 px-1">
-          {loading ? (
-            <p className="text-[13px] font-bold text-foreground/40 py-6 text-center">불러오는 중...</p>
-          ) : logs.length === 0 ? (
+        <div className="relative flex-1 overflow-y-auto -mx-1 px-1 min-h-[160px]">
+          {loading && <LoadingOverlay />}
+          {logs.length === 0 && !loading ? (
             <p className="text-[13px] font-bold text-foreground/40 py-6 text-center">출력 이력이 없습니다</p>
           ) : (
             <div className="flex flex-col gap-1.5">

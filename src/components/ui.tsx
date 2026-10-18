@@ -13,6 +13,17 @@ export function Spinner({ size = 20, className = '' }: { size?: number; classNam
   );
 }
 
+// 화면/모달이 데이터를 불러오는 동안 그 영역 위에 덮어씌우는 공용 로딩 오버레이.
+// 부모 요소에 position: relative를 줘야 해당 영역에만 덮인다(전체 화면이 아님).
+export function LoadingOverlay({ label = '불러오는 중...' }: { label?: string }) {
+  return (
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-surface/80 backdrop-blur-sm rounded-[inherit]">
+      <Spinner size={22} className="text-primary" />
+      {label && <span className="text-[12px] font-bold text-foreground/50">{label}</span>}
+    </div>
+  );
+}
+
 type ButtonVariant = 'primary' | 'dark' | 'ghost' | 'danger-ghost' | 'plain';
 
 const buttonVariants: Record<ButtonVariant, string> = {
