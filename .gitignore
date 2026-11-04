@@ -17,6 +17,7 @@
 /.next/
 /out/
 /mobile-www/
+*.aab
 *.jks
 *.keystore
 *.p12
