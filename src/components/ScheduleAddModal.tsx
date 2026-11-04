@@ -76,7 +76,7 @@ export default function ScheduleAddModal({ isOpen, onClose, date, allRecipients,
         </div>
       </div>
 
-      <div className="overflow-y-auto max-h-[55vh] px-4 pb-5 space-y-2.5">
+      <div className="px-4 pb-5 space-y-2.5">
         {filtered.length === 0 ? (
           <div className="py-12 text-center text-foreground/45 text-sm font-bold flex flex-col items-center justify-center">
             <div className="w-12 h-12 rounded-[18px] bg-foreground/[0.03] flex items-center justify-center mb-2 text-foreground/30">

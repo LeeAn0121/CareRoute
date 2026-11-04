@@ -16,6 +16,12 @@
 # next.js
 /.next/
 /out/
+/mobile-www/
+*.jks
+*.keystore
+*.p12
+*.pfx
+android/keystore.properties
 
 # production
 /build

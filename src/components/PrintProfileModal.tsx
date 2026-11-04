@@ -7,6 +7,7 @@ import PrintSheet from './PrintSheet';
 import PrintHistorySheet from './PrintHistorySheet';
 import { captureSheetCanvas, createA4Pdf, addCanvasAsA4Page } from '@/lib/pdfExport';
 import { logPrintEvent, uploadPrintPdf } from '@/lib/printLogs';
+import { savePdf } from '@/lib/native';
 
 interface Recipient {
   id: string;
@@ -113,7 +114,7 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
     try {
       const pdf = await buildPdf();
       if (!pdf) return;
-      pdf.save(`${recipient.name}_어르신_정보.pdf`);
+      await savePdf(pdf, `${recipient.name}_어르신_정보.pdf`);
       logPrintEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'pdf', authorName });
     } catch (e) {
       console.error(e);
@@ -132,7 +133,7 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
       const pdf = await buildPdf();
       if (!pdf) return;
       const fileNameBase = `${recipient.name}_어르신_정보`;
-      pdf.save(`${fileNameBase}.pdf`);
+      await savePdf(pdf, `${fileNameBase}.pdf`);
       const blob = pdf.output('blob') as Blob;
       const pdfPath = await uploadPrintPdf(blob, recipient.id, fileNameBase);
       logPrintEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'save', authorName, pdfPath });
@@ -224,7 +225,7 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
         />
       </div>
 
-      <div className="no-print sticky bottom-0 z-10 px-5 sm:px-6 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-xl border-t border-surface-border/40 flex gap-2">
+      <div className="print-actions no-print sticky bottom-0 z-10 px-5 sm:px-6 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-xl border-t border-surface-border/40 flex gap-2">
         <IconButton
           onClick={handleShare}
           disabled={isSharing}

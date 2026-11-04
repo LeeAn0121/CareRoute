@@ -57,14 +57,14 @@ export default function PrintHistorySheet({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="px-5 sm:px-6 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] max-h-[70vh] flex flex-col">
+      <div className="px-5 sm:px-6 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] flex flex-col">
         <div className="flex items-center gap-2 pb-3">
           <IconHistory size={18} className="text-foreground/60" />
           <h3 className="text-[16px] font-black text-foreground tracking-tight">
             {recipientName ? `${recipientName} 어르신 출력 이력` : dateLabel ? `${dateLabel} 출력 이력` : '최근 출력 이력'}
           </h3>
         </div>
-        <div className="relative flex-1 overflow-y-auto -mx-1 px-1 min-h-[160px]">
+        <div className="relative min-w-0 -mx-1 px-1">
           {loading && <LoadingOverlay />}
           {logs.length === 0 && !loading ? (
             <p className="text-[13px] font-bold text-foreground/40 py-6 text-center">

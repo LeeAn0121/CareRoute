@@ -278,7 +278,7 @@ export function Modal({
                 }}
               >
                 <motion.div
-                  className="modal-scroll-area w-full max-w-md max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overscroll-contain scroll-pb-28 scroll-pt-20 rounded-t-[36px] sm:rounded-[36px] bg-surface shadow-[0_24px_60px_rgba(0,0,0,0.3)] pointer-events-auto border border-white/20 dark:border-white/10"
+                  className="modal-scroll-area w-full min-w-0 max-w-md max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto overscroll-contain scroll-pb-28 scroll-pt-20 rounded-t-[36px] sm:rounded-[36px] bg-surface shadow-[0_24px_60px_rgba(0,0,0,0.3)] pointer-events-auto border border-white/20 dark:border-white/10"
                   initial={{ opacity: 0, scale: 0.95, y: 16 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 16 }}
@@ -342,7 +342,7 @@ export function BottomSheet({
               }}
             >
               <motion.div
-                className="fixed inset-x-0 bottom-0 z-[90] rounded-t-[36px] bg-surface shadow-[0_-12px_40px_rgba(0,0,0,0.25)] border-t border-white/20 dark:border-white/10 max-h-[85vh] overflow-y-auto"
+                className="modal-scroll-area fixed inset-x-0 bottom-0 z-[90] rounded-t-[36px] bg-surface shadow-[0_-12px_40px_rgba(0,0,0,0.25)] border-t border-white/20 dark:border-white/10 max-h-[85dvh] overflow-y-auto overscroll-contain pb-safe"
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}

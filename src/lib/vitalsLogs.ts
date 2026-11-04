@@ -1,5 +1,6 @@
 // 방문 시 측정한 활력징후(혈압/혈당/체온) 기록 및 추이 조회.
 import { supabase } from './supabase';
+import { saveVisitLog } from './pendingVisitLogs';
 
 export interface VitalsInput {
   systolicBp?: number | null;
@@ -20,7 +21,8 @@ export async function logVitals(params: {
 }) {
   if (!hasAnyVitals(params.vitals)) return;
   try {
-    const { error } = await supabase.from('vitals_logs').insert({
+    const saved = await saveVisitLog('vitals_logs', {
+      recorded_at: new Date().toISOString(),
       recipient_id: params.recipientId,
       recipient_name: params.recipientName,
       systolic_bp: params.vitals.systolicBp ?? null,
@@ -29,7 +31,7 @@ export async function logVitals(params: {
       temperature: params.vitals.temperature ?? null,
       memo: params.memo || null,
     });
-    if (error) throw error;
+    return saved;
   } catch (e) {
     console.error('vitals log insert failed', e);
   }

@@ -1,4 +1,7 @@
 'use client';
+import { CareRouteDevice, downloadBlob } from '@/lib/native';
+import { Capacitor } from '@capacitor/core';
+import { fetchAllRecipientsForExport } from '@/lib/recipientExport';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   IconSettings, IconChevronRight, IconChevronDown,
@@ -127,6 +130,7 @@ export default function SettingsView({
 }: SettingsViewProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [nativeAndroid, setNativeAndroid] = useState(false);
   const [colorTheme, setColorTheme] = useState('theme-navy');
   const [locationPerm, setLocationPerm] = useState('확인 중...');
   const [notifStatus, setNotifStatus] = useState<NotificationStatus | null>(null);
@@ -160,6 +164,7 @@ export default function SettingsView({
 
   useEffect(() => {
     setMounted(true);
+    setNativeAndroid(Capacitor.getPlatform() === 'android');
     const savedColor = localStorage.getItem('careroute_color_theme') || 'theme-navy';
     setColorTheme(savedColor);
 
@@ -177,11 +182,20 @@ export default function SettingsView({
 
     refreshNotifStatus();
 
-    if ('permissions' in navigator) {
+    if (Capacitor.isNativePlatform()) {
+      const refresh = () => {
+        void CareRouteDevice.getLocationPermission().then(({ status }) => setLocationPerm(status === 'precise' ? 'granted' : status === 'approximate' ? 'approximate' : 'prompt')).catch(() => setLocationPerm('확인 불가'));
+        void refreshNotifStatus().catch(() => {});
+      };
+      const visible = () => { if (document.visibilityState === 'visible') refresh(); };
+      refresh();
+      document.addEventListener('visibilitychange', visible);
+      return () => document.removeEventListener('visibilitychange', visible);
+    } else if ('permissions' in navigator) {
       navigator.permissions.query({ name: 'geolocation' }).then(result => {
         setLocationPerm(result.state);
         result.onchange = () => setLocationPerm(result.state);
-      });
+      }).catch(() => setLocationPerm('확인 불가'));
     } else {
       setLocationPerm('지원 안 함');
     }
@@ -208,6 +222,7 @@ export default function SettingsView({
   const handleLeadTimeChange = (time: string) => {
     setNotifLeadTime(time);
     localStorage.setItem('careroute_notif_lead_time', time);
+    window.dispatchEvent(new Event('careroute:notification-permission'));
   };
 
   const handleLargeFontToggle = () => {
@@ -226,8 +241,7 @@ export default function SettingsView({
   const handleExportBackup = async () => {
     setIsExportingBackup(true);
     try {
-      const { data, error } = await supabase.from('recipients').select('*');
-      if (error) throw error;
+      const data = await fetchAllRecipientsForExport();
 
       const dataToExport = {
         app: 'CareRoute',
@@ -239,15 +253,8 @@ export default function SettingsView({
 
       const jsonStr = JSON.stringify(dataToExport, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
       const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      a.href = url;
-      a.download = `careroute_backup_${dateStr}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await downloadBlob(blob, `careroute_backup_${dateStr}.json`);
 
       setFeedbackMessage({ type: 'success', text: `수급자 데이터 백업 파일(JSON)이 다운로드되었습니다.` });
     } catch (e) {
@@ -263,20 +270,12 @@ export default function SettingsView({
   const handleExportCsv = async () => {
     setIsExportingCsv(true);
     try {
-      const { data, error } = await supabase.from('recipients').select('*');
-      if (error) throw error;
+      const data = await fetchAllRecipientsForExport();
 
       const csv = buildRecipientsCsv((data || []).map(pickRecipientColumns));
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
       const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      a.href = url;
-      a.download = `careroute_수급자명단_${dateStr}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await downloadBlob(blob, `careroute_수급자명단_${dateStr}.csv`);
 
       setFeedbackMessage({ type: 'success', text: '수급자 명단 CSV 파일이 다운로드되었습니다.' });
     } catch (e) {
@@ -439,7 +438,7 @@ export default function SettingsView({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
-      className="absolute inset-0 overflow-y-auto px-4 pt-14 pb-36 bg-[#F2F2F7] dark:bg-[#000000] text-black dark:text-white transition-colors duration-300 font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Text','Pretendard',sans-serif]"
+      className="settings-view absolute inset-0 overflow-y-auto px-4 pt-14 pb-36 bg-[#F2F2F7] dark:bg-[#000000] text-black dark:text-white transition-colors duration-300 font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Text','Pretendard',sans-serif]"
     >
       {/* Top Header: iOS Large Title Settings Header */}
       <div className="flex items-center justify-between mb-3 px-1 max-w-xl mx-auto">
@@ -601,15 +600,16 @@ export default function SettingsView({
                     </div>
                   </div>
                   <span className={`text-[12px] font-black px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap ${
-                    locationPerm === 'granted' 
+                    locationPerm === 'granted' || locationPerm === 'approximate'
                       ? 'text-[#34C759] bg-[#34C759]/15' 
                       : locationPerm === 'denied' 
                         ? 'text-[#FF3B30] bg-[#FF3B30]/15' 
                         : 'text-[#8E8E93] bg-[#8E8E93]/15'
                   }`}>
-                    {locationPerm === 'granted' ? '정상 허용됨 ✓' : locationPerm === 'denied' ? '차단됨 ⚠️' : '확인 중'}
+                    {locationPerm === 'granted' ? (nativeAndroid ? '정확한 위치 허용 ✓' : '정상 허용됨 ✓') : locationPerm === 'approximate' ? '대략적 위치 허용 ✓' : locationPerm === 'denied' ? '차단됨 ⚠️' : locationPerm === 'prompt' ? '허용 필요' : locationPerm}
                   </span>
                 </div>
+                {nativeAndroid && <div className="px-4 py-3.5"><button type="button" onClick={() => { void CareRouteDevice.openPermissionSettings().catch(() => setFeedbackMessage({ type: 'error', text: 'Android 앱 설정을 열지 못했습니다.' })); }} className="text-[14px] font-bold text-[#007AFF] py-2">Android 앱 권한 설정 열기</button><p className="text-[12px] text-[#8E8E93]">위치와 알림은 선택 권한입니다. 허용하지 않아도 목록·일정 관리는 사용할 수 있습니다.</p></div>}
               </div>
             </div>
 
@@ -814,8 +814,7 @@ export default function SettingsView({
                           <span>🔔 알림 차단 해제 방법</span>
                           <button onClick={() => setShowUnblockGuide(false)} className="text-xs hover:opacity-70">닫기</button>
                         </div>
-                        <p>• <strong>스마트폰 (Safari/Chrome):</strong> 주소창 좌측 자물쇠 또는 사이트 설정 &gt; 알림 &gt; &apos;허용&apos;으로 변경</p>
-                        <p>• <strong>PC 브라우저:</strong> 브라우저 설정 &gt; 개인정보 보호 및 보안 &gt; 사이트 설정 &gt; 알림 &gt; &apos;허용&apos; 추가</p>
+                        {nativeAndroid ? <><p>Android 설정 &gt; 앱 &gt; 케어루트 &gt; 알림에서 허용해 주세요.</p><button type="button" onClick={() => { void CareRouteDevice.openPermissionSettings().catch(() => setFeedbackMessage({ type: 'error', text: 'Android 앱 설정을 열지 못했습니다.' })); }} className="text-[14px] font-bold text-[#007AFF] py-2">Android 설정 열기</button></> : <><p>• <strong>스마트폰 (Safari/Chrome):</strong> 주소창 좌측 자물쇠 또는 사이트 설정 &gt; 알림 &gt; &apos;허용&apos;으로 변경</p><p>• <strong>PC 브라우저:</strong> 브라우저 설정 &gt; 개인정보 보호 및 보안 &gt; 사이트 설정 &gt; 알림 &gt; &apos;허용&apos; 추가</p></>}
                       </motion.div>
                     )}
                   </AnimatePresence>

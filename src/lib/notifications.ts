@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { Capacitor } from '@capacitor/core';
 
 export function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -20,6 +21,11 @@ export interface NotificationStatus {
 }
 
 export async function getDetailedNotificationStatus(): Promise<NotificationStatus> {
+  if (Capacitor.isNativePlatform()) {
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    const { display } = await LocalNotifications.checkPermissions();
+    return { isSupported: true, permission: display === 'granted' ? 'granted' : display === 'denied' ? 'denied' : 'default', isIOS: false, isStandalone: true, hasSubscription: false };
+  }
   if (typeof window === 'undefined') {
     return {
       isSupported: false,
@@ -59,6 +65,7 @@ export async function getDetailedNotificationStatus(): Promise<NotificationStatu
 }
 
 export async function registerPushSubscription(): Promise<{ success: boolean; error?: string }> {
+  if (Capacitor.isNativePlatform()) return { success: false, error: 'Android 앱은 기기 방문 알림을 사용합니다. 서버 푸시는 별도 연결이 필요합니다.' };
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       return { success: false, error: '이 브라우저는 웹 푸시를 지원하지 않습니다.' };
@@ -106,6 +113,13 @@ export async function requestNotificationPermission(): Promise<{
   permission: NotificationPermission | 'unsupported';
   error?: string;
 }> {
+  if (Capacitor.isNativePlatform()) {
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    const { display } = await LocalNotifications.requestPermissions();
+    window.dispatchEvent(new Event('careroute:notification-permission'));
+    const permission = display === 'granted' ? 'granted' : display === 'denied' ? 'denied' : 'default';
+    return { success: permission === 'granted', permission };
+  }
   if (typeof window === 'undefined' || !('Notification' in window)) {
     return { success: false, permission: 'unsupported', error: '이 브라우저는 알림을 지원하지 않습니다.' };
   }
@@ -124,6 +138,14 @@ export async function requestNotificationPermission(): Promise<{
 }
 
 export async function sendTestNotification(): Promise<{ success: boolean; error?: string }> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { LocalNotifications } = await import('@capacitor/local-notifications');
+      if ((await LocalNotifications.checkPermissions()).display !== 'granted') return { success: false, error: '설정에서 알림 권한을 허용해 주세요.' };
+      await LocalNotifications.schedule({ notifications: [{ id: 900001, title: '케어루트 알림 테스트', body: '기기 알림이 정상적으로 작동합니다.', isExactNotification: false }] });
+      return { success: true };
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : '알림 전송 실패' }; }
+  }
   if (typeof window === 'undefined' || !('Notification' in window)) {
     return { success: false, error: '알림 기능이 지원되지 않는 브라우저입니다.' };
   }

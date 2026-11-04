@@ -290,18 +290,15 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
           }
         }
       } else {
-        let insertRes = await supabase.from('recipients').insert([recipientData]).select('id');
+        const newId = crypto.randomUUID();
+        recipientData.id = newId;
+        let insertRes = await supabase.from('recipients').insert([recipientData]);
         while (insertRes.error && stripMissingColumn(insertRes.error)) {
-          insertRes = await supabase.from('recipients').insert([recipientData]).select('id');
+          insertRes = await supabase.from('recipients').insert([recipientData]);
         }
-        if (insertRes.error) {
-          let fallback = await supabase.from('recipients').insert([recipientData]);
-          while (fallback.error && stripMissingColumn(fallback.error)) {
-            fallback = await supabase.from('recipients').insert([recipientData]);
-          }
-          if (fallback.error) throw fallback.error;
-        } else if (insertRes.data?.[0]?.id && typeof window !== 'undefined' && tagsStr) {
-          localStorage.setItem(`careroute_health_tags_${insertRes.data[0].id}`, tagsStr);
+        if (insertRes.error) throw insertRes.error;
+        if (typeof window !== 'undefined' && tagsStr) {
+          localStorage.setItem(`careroute_health_tags_${newId}`, tagsStr);
         }
       }
 

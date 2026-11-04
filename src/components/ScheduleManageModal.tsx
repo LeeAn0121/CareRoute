@@ -120,6 +120,7 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
 
         {/* Visit Time Range Card - Enhanced UI */}
         <div className="bg-foreground/[0.03] dark:bg-white/[0.03] p-4.5 rounded-[24px] border border-surface-border/40 space-y-3.5">
+          <p className="text-xs text-foreground/60 leading-relaxed">방문 시간은 이 어르신의 모든 방문 일정에 공통으로 적용됩니다.</p>
           <div className="flex items-center justify-between">
             <span className="block text-xs font-bold text-foreground/70 uppercase tracking-wider">방문 예정 시간 범위</span>
             {(visitTime || visitEndTime) && (
@@ -160,7 +161,7 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
           </div>
 
           {/* Time Picker Inputs */}
-          <div className="flex items-center gap-2">
+          <div className="schedule-time-fields flex items-center gap-2">
             <div className="flex-1">
               <span className="block text-[11px] font-bold text-foreground/50 mb-1 pl-1">시작 시간</span>
               <div className="relative">

@@ -1,4 +1,5 @@
 'use client';
+import { savePdf } from '@/lib/native';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconCheck, IconDeviceFloppy } from '@tabler/icons-react';
@@ -227,7 +228,7 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
     try {
       const pdf = await buildPdf();
       if (!pdf) return;
-      pdf.save(fileName);
+      await savePdf(pdf, fileName);
       logWeekly('pdf');
     } catch (e) {
       console.error(e);
@@ -245,7 +246,7 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
     try {
       const pdf = await buildPdf();
       if (!pdf) return;
-      pdf.save(fileName);
+      await savePdf(pdf, fileName);
       const blob = pdf.output('blob') as Blob;
       const pdfPath = await uploadPrintPdf(blob, selectedEntries[0].recipient.id, fileNameBase);
       logWeekly('save', pdfPath);
@@ -396,7 +397,7 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
         )}
       </div>
 
-      <div className="no-print sticky bottom-0 z-10 px-5 sm:px-6 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-xl border-t border-surface-border/40 flex gap-2">
+      <div className="print-actions no-print sticky bottom-0 z-10 px-5 sm:px-6 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-xl border-t border-surface-border/40 flex gap-2">
         <IconButton
           onClick={handleShare}
           disabled={isSharing || selectedEntries.length === 0}

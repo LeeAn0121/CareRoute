@@ -1,5 +1,9 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { Capacitor } from '@capacitor/core';
+import MapErrorBoundary from '@/components/MapErrorBoundary';
+import { CareRouteDevice, scheduleVisitNotifications } from '@/lib/native';
+import { retryPendingVisitLogs } from '@/lib/pendingVisitLogs';
 import { Container, NaverMap, Marker, Polyline } from 'react-naver-maps';
 import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus, IconPrinter, IconFileCheck, IconActivity, IconPill } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
@@ -219,19 +223,43 @@ function MainApp() {
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
   
   const [activeTab, setActiveTab] = useState<'map' | 'list' | 'route' | 'settings'>('map');
+  useEffect(() => {
+    const retry = () => { if (document.visibilityState === 'visible') void retryPendingVisitLogs(); };
+    retry();
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    return () => { window.removeEventListener('online', retry); document.removeEventListener('visibilitychange', retry); };
+  }, []);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let disposed = false;
+    let remove: (() => Promise<void>) | undefined;
+    void import('@capacitor/app').then(async ({ App }) => {
+      const listener = await App.addListener('backButton', () => {
+        if (document.querySelector('[role="dialog"][data-state="open"]')) {
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+        } else if (activeTab !== 'map') setActiveTab('map');
+        else void App.minimizeApp();
+      });
+      if (disposed) await listener.remove();
+      else remove = () => listener.remove();
+    });
+    return () => { disposed = true; void remove?.(); };
+  }, [activeTab]);
   const [listViewMode, setListViewMode] = useState<'list' | 'grid' | 'compact'>('list');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [isSplashVisible, setIsSplashVisible] = useState(true);
 
   // 로딩 화면이 너무 빨리 사라지는 것을 방지 (최소 1.5초 유지)
   useEffect(() => {
-    if (mapLoaded && dataLoaded) {
+    if (dataLoaded) {
       const timer = setTimeout(() => setIsSplashVisible(false), 1500);
       return () => clearTimeout(timer);
     }
-  }, [mapLoaded, dataLoaded]);
+  }, [dataLoaded]);
   const [mapZoom, setMapZoom] = useState(15);
   const [isLocating, setIsLocating] = useState(false);
   const [myLocation, setMyLocation] = useState<{lat: number, lng: number, heading?: number | null} | null>(null);
@@ -1050,8 +1078,8 @@ function MainApp() {
     };
     document.addEventListener('visibilitychange', handleVisibilityResume);
 
-    // Register Service Worker and handle updates
-    if ('serviceWorker' in navigator) {
+    // Installed bundles update through Google Play, not the web service worker.
+    if (!Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {
       const clearAllCaches = async () => {
         if (!('caches' in window)) return;
         try {
@@ -1134,16 +1162,19 @@ function MainApp() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
+    const handleMapError = () => { setMapError(true); setMapLoaded(false); };
+    window.addEventListener('careroute:map-error', handleMapError);
     // Map loading check
     let attempts = 0;
     const checkMap = setInterval(() => {
       attempts++;
-      if (typeof window !== 'undefined' && window.naver && window.naver.maps && window.naver.maps.LatLngBounds && window.naver.maps.Map) {
+      if (window.naver?.maps?.jsContentLoaded && window.naver.maps.LatLngBounds && window.naver.maps.Map) {
         setMapLoaded(true);
+        setMapError(false);
         clearInterval(checkMap);
       }
-      if (attempts > 50) { // Increase timeout to 5 seconds
-        setMapLoaded(true); // Force unlock map
+      if (attempts > 50) {
+        setMapError(true);
         clearInterval(checkMap);
       }
     }, 500);
@@ -1152,6 +1183,7 @@ function MainApp() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       document.removeEventListener('visibilitychange', handleVisibilityResume);
       clearInterval(checkMap);
+      window.removeEventListener('careroute:map-error', handleMapError);
     };
   }, []);
 
@@ -1356,7 +1388,7 @@ function MainApp() {
       .then(res => res.json())
       .then(data => {
         setSidos(data.regcodes || []);
-      });
+      }).catch(() => setSidos([]));
   }, []);
 
   useEffect(() => {
@@ -1369,7 +1401,7 @@ function MainApp() {
           setSelectedSigungu('');
           setDongs([]);
           setSelectedDong('');
-        });
+        }).catch(() => setSigungus([]));
     }
   }, [selectedSido]);
 
@@ -1381,15 +1413,18 @@ function MainApp() {
         .then(data => {
           setDongs(data.regcodes || []);
           setSelectedDong('');
-        });
+        }).catch(() => setDongs([]));
     }
   }, [selectedSigungu]);
 
   const handleRemoveFromSchedule = async (r: Recipient, date: Date) => {
-    if (!window.confirm('해당 어르신을 이 날짜의 방문 일정에서 제외하시겠습니까?')) return;
-    
     const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const day = date.getDay();
+    const recurring = Boolean(r.recurring_weekdays?.split(',').map(Number).includes(day));
+    const message = recurring
+      ? `이 어르신의 ${ymd} 방문 일정과 매주 ${['일', '월', '화', '수', '목', '금', '토'][day]}요일 반복 일정을 함께 해제합니다. 계속하시겠습니까?`
+      : '해당 어르신을 이 날짜의 방문 일정에서 제외하시겠습니까?';
+    if (!window.confirm(message)) return;
     
     try {
       let newNotes = r.notes || '';
@@ -1420,19 +1455,17 @@ function MainApp() {
   const handleDelete = async (id: string) => {
     if (!window.confirm('해당 수급자 어르신을 정말 삭제하시겠습니까?')) return;
     try {
+      const { error } = await supabase.from('recipients').delete().eq('id', id);
+      if (error) throw error;
       setMarkers(prev => {
         const next = prev.filter(m => m.id !== id);
-        try { localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(next)); } catch {}
+        try { localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: next })); } catch {}
         return next;
       });
       if (selectedRecipient && selectedRecipient.id === id) {
         setSelectedRecipient(null);
       }
       setIsDetailModalOpen(false);
-      const { error } = await supabase.from('recipients').delete().eq('id', id);
-      if (error) {
-        console.error('Delete error from DB:', error);
-      }
     } catch (e) {
       console.error(e);
       alert('삭제 중 오류가 발생했습니다.');
@@ -1676,6 +1709,33 @@ function MainApp() {
     }
     return false;
   };
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let chain = Promise.resolve();
+    const refresh = () => {
+      const items: { at: Date; recipientId: string }[] = [];
+      const lead = Number(localStorage.getItem('careroute_notif_lead_time') || '15');
+      for (let offset = 0; offset < 7; offset++) {
+        const day = new Date(); day.setDate(day.getDate() + offset);
+        for (const row of markers) {
+          if (!getScheduledForDate(row, day)) continue;
+          const time = parseVisitTime(row.visit_time, row.notes).startTime;
+          if (!/^\d{2}:\d{2}$/.test(time)) continue;
+          const [hours, minutes] = time.split(':').map(Number);
+          const at = new Date(day); at.setHours(hours, minutes, 0, 0);
+          at.setMinutes(at.getMinutes() - (Number.isFinite(lead) ? lead : 15));
+          items.push({ at, recipientId: row.id });
+        }
+      }
+      chain = chain.then(() => scheduleVisitNotifications(items)).catch(error => console.warn('방문 알림 예약 실패', error));
+    };
+    refresh();
+    window.addEventListener('careroute:notification-permission', refresh);
+    const visible = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', visible);
+    return () => { window.removeEventListener('careroute:notification-permission', refresh); document.removeEventListener('visibilitychange', visible); };
+  }, [markers]);
 
   // 폭염/한파 주의 수준일 때, 오늘 방문 예정이 없는 어르신 안부를 챙기도록 일정 탭에
   // 배너로 안내한다. 하루에 한 번 닫으면 그날은 다시 안 뜨게 로컬에 기억해둔다.
@@ -1937,7 +1997,7 @@ function MainApp() {
 
   const handleSyncToCalendar = async () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) {
+    if (!Capacitor.isNativePlatform() && !clientId) {
       alert('Google Calendar 연동을 위한 클라이언트 ID 설정이 필요합니다. 관리자에게 문의해주세요.');
       return;
     }
@@ -1957,12 +2017,13 @@ function MainApp() {
 
     setIsSyncingCalendar(true);
     try {
-      await loadGoogleScript();
+      const nativeCalendar = Capacitor.isNativePlatform();
+      if (!nativeCalendar) await loadGoogleScript();
 
-      let accessToken = localStorage.getItem('google_access_token');
+      let accessToken = nativeCalendar ? (await CareRouteDevice.authorizeCalendar()).accessToken : localStorage.getItem('google_access_token');
       const expiresAt = localStorage.getItem('google_access_token_expires');
 
-      if (!accessToken || !expiresAt || Date.now() > parseInt(expiresAt)) {
+      if (!nativeCalendar && (!accessToken || !expiresAt || Date.now() > parseInt(expiresAt))) {
         accessToken = await new Promise<string>((resolve, reject) => {
           const tokenClient = window.google.accounts.oauth2.initTokenClient({
             client_id: clientId,
@@ -1991,6 +2052,7 @@ function MainApp() {
         { headers: authHeaders },
       );
       const existing = await existingRes.json();
+      if (!existingRes.ok) throw new Error(existing.error?.message || `캘린더 조회 실패 (${existingRes.status})`);
       
       // 이미 일정이 존재할 경우 사용자에게 알림을 띄우고 처리 방식을 결정합니다.
       if (existing.items && existing.items.length > 0) {
@@ -2001,15 +2063,9 @@ function MainApp() {
           return; // 사용자가 취소하면 중단 (중복 방지)
         }
 
-        // 덮어쓰기에 동의한 경우에만 기존 이벤트 삭제 진행
-        for (const ev of existing.items) {
-          await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${ev.id}`, {
-            method: 'DELETE',
-            headers: authHeaders,
-          });
-        }
       }
 
+      const retainedEventIds = new Set<string>();
       for (const marker of targetRoute) {
         const parsedTime = parseVisitTime(marker.visit_time, marker.notes);
         const hasTime = parsedTime.hasTime;
@@ -2024,22 +2080,37 @@ function MainApp() {
           if (parsedTime.endTime) {
             endDateTime = `${ymd}T${parsedTime.endTime}:00`;
           } else {
-            const endDate = new Date(startDateTime);
+            const endDate = new Date(`${startDateTime}+09:00`);
             endDate.setMinutes(endDate.getMinutes() + 30);
-            endDateTime = `${ymd}T${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}:00`;
+            endDateTime = endDate.toISOString();
           }
           body.start = { dateTime: startDateTime, timeZone: 'Asia/Seoul' };
           body.end = { dateTime: endDateTime, timeZone: 'Asia/Seoul' };
         } else {
           body.start = { date: ymd };
-          body.end = { date: ymd };
+          const nextDay = new Date(`${ymd}T00:00:00Z`);
+          nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+          body.end = { date: nextDay.toISOString().slice(0, 10) };
         }
 
-        await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-          method: 'POST',
+        const previous = existing.items?.find((event: any) => event.extendedProperties?.private?.careRouteRecipientId === marker.id);
+        if (previous) retainedEventIds.add(previous.id);
+        const created = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events${previous ? `/${encodeURIComponent(previous.id)}` : ''}`, {
+          method: previous ? 'PATCH' : 'POST',
           headers: authHeaders,
           body: JSON.stringify(body),
         });
+        if (!created.ok) {
+          const failure = await created.json().catch(() => ({}));
+          throw new Error(failure.error?.message || `일정 등록 실패 (${created.status})`);
+        }
+      }
+
+      // Remove obsolete events only after every replacement was saved successfully.
+      for (const previous of existing.items || []) {
+        if (retainedEventIds.has(previous.id)) continue;
+        const removed = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(previous.id)}`, { method: 'DELETE', headers: authHeaders });
+        if (!removed.ok) throw new Error(`이전 일정 정리 실패 (${removed.status}). 새 일정은 저장되었습니다.`);
       }
 
       alert(`${(syncDate as Date).getMonth()+1}월 ${(syncDate as Date).getDate()}일 방문 일정 ${targetRoute.length}건을 구글 캘린더에 동기화했습니다.`);
@@ -2486,6 +2557,7 @@ function MainApp() {
         
         {/* Map View */}
         <div className={`absolute inset-0 top-0 transition-opacity duration-300 ${activeTab === 'map' ? 'z-0 opacity-100' : 'opacity-0 pointer-events-none'}`} style={{ zIndex: activeTab === 'map' ? 0 : -10 }}>
+          <MapErrorBoundary>
           {mapLoaded ? (
             <Container id="react-naver-map" className="w-full h-full bg-surface-muted transition-all duration-500">
               <NaverMap
@@ -2641,12 +2713,12 @@ function MainApp() {
                   <IconMapPin size={28} className="text-primary" />
                 </div>
               </div>
-              <p className="font-extrabold text-xl text-foreground/70 mb-3 tracking-tight">지도 연동 대기 중</p>
-              <p className="text-[15px] leading-relaxed">네이버 클라우드 서버 동기화가 지연되고 있습니다.<br/>(목록 탭은 지금 바로 정상 사용 가능합니다!)</p>
+              <p className="font-extrabold text-xl text-foreground/70 mb-3 tracking-tight">{mapError ? '지도에 연결하지 못했습니다' : '지도를 불러오는 중입니다'}</p>
+              <p className="text-[15px] leading-relaxed">{mapError ? '연결 상태 또는 지도 서비스 인증 설정을 확인해 주세요.' : '잠시만 기다려 주세요.'}<br/>수급자와 일정 메뉴는 계속 사용할 수 있습니다.</p>
             </div>
           )}
+          </MapErrorBoundary>
         </div>
-
         {/* List View (Redesigned) */}
         {activeTab === 'list' && (
           <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background">
@@ -2827,7 +2899,7 @@ function MainApp() {
                       const q = searchQuery.trim();
                       if (q && !marker.name.includes(q) && !marker.address.includes(q) && !(marker.assigned_caregiver_name && marker.assigned_caregiver_name.includes(q))) return false;
                       if (listFilter === 'today' && !getScheduledForDate(marker, new Date())) return false;
-                      if (listFilter === 'incomplete' && isCompletedToday(marker)) return false;
+                      if (listFilter === 'incomplete' && (!getScheduledForDate(marker, new Date()) || isCompletedToday(marker))) return false;
                       if (listFilter === 'completed' && !isCompletedToday(marker)) return false;
                       if (listFilter === 'recurring' && !marker.recurring_weekdays) return false;
                       return true;
@@ -4078,7 +4150,7 @@ function MainApp() {
 
             <div className="px-6 pb-6 pt-12">
               {/* Senior Title & Health Tags */}
-              <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="flex flex-col min-[400px]:flex-row items-start justify-between gap-3 mb-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-2xl font-black text-foreground tracking-tight">
@@ -4250,8 +4322,8 @@ function MainApp() {
                     onClick={() => handleNavi('tmap', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
                     className="p-2.5 bg-surface border border-surface-border/60 rounded-[18px] flex flex-col items-center justify-center gap-1.5 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
                   >
-                    <div className="w-6 h-6 rounded-[8px] overflow-hidden">
-                      <img src="https://www.tmapmobility.com/favicon.ico" alt="T맵" className="w-full h-full object-contain" />
+                    <div className="w-6 h-6 rounded-[8px] bg-red-500 text-white flex items-center justify-center font-black text-sm" aria-hidden="true">
+                      T
                     </div>
                     <span className="text-[12px] font-black text-foreground/80">T맵</span>
                   </button>
@@ -4260,8 +4332,8 @@ function MainApp() {
                     onClick={() => handleNavi('kakao', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
                     className="p-2.5 bg-surface border border-surface-border/60 rounded-[18px] flex flex-col items-center justify-center gap-1.5 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
                   >
-                    <div className="w-6 h-6 rounded-[8px] overflow-hidden">
-                      <img src="https://map.kakao.com/favicon.ico" alt="카카오내비" className="w-full h-full object-contain" />
+                    <div className="w-6 h-6 rounded-[8px] bg-yellow-400 text-stone-900 flex items-center justify-center" aria-hidden="true">
+                      <IconMapPin size={16} />
                     </div>
                     <span className="text-[12px] font-black text-foreground/80">카카오</span>
                   </button>
@@ -4270,8 +4342,8 @@ function MainApp() {
                     onClick={() => handleNavi('naver', selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
                     className="p-2.5 bg-surface border border-surface-border/60 rounded-[18px] flex flex-col items-center justify-center gap-1.5 hover:bg-surface-muted transition-all active:scale-95 shadow-2xs"
                   >
-                    <div className="w-6 h-6 rounded-[8px] overflow-hidden">
-                      <img src="https://ssl.pstatic.net/static/maps/assets/icons/favicon.ico" alt="네이버지도" className="w-full h-full object-contain" />
+                    <div className="w-6 h-6 rounded-[8px] bg-green-600 text-white flex items-center justify-center font-black text-sm" aria-hidden="true">
+                      N
                     </div>
                     <span className="text-[12px] font-black text-foreground/80">네이버</span>
                   </button>

@@ -154,11 +154,11 @@ export default function ShareReportModal({
   return (
     <Modal open={isOpen} onClose={onClose}>
       <div className="flex items-center justify-between p-6 border-b border-surface-border/60">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-[14px] bg-primary/10 text-primary flex items-center justify-center">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="w-9 h-9 rounded-[14px] bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <IconShieldCheck size={22} strokeWidth={2.5} />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-xl font-black text-foreground tracking-tight">안심 공유 리포트</h2>
             <p className="text-xs font-semibold text-foreground/50">{recipient.name} 어르신 보호자 전달용</p>
           </div>
@@ -203,7 +203,7 @@ export default function ShareReportModal({
         </div>
       )}
 
-      <div className="p-6 flex flex-col gap-4 max-h-[75vh] overflow-y-auto">
+      <div className="p-6 flex flex-col gap-4">
         {/* 케어 항목 원터치 체크 태그 */}
         <div>
           <span className="block text-xs font-black text-foreground/70 uppercase tracking-wider mb-2 pl-0.5">

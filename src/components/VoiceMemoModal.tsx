@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { CareRouteDevice } from '@/lib/native';
 import { Modal, IconButton, Button } from '@/components/ui';
 import { IconX, IconMicrophone, IconPlayerStop, IconSend } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
@@ -58,8 +60,19 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
     }
   };
 
-  const startRecognition = () => {
+  const startRecognition = async () => {
     if (typeof window === 'undefined') return;
+    if (Capacitor.isNativePlatform()) {
+      setErrorMessage('');
+      setIsRecording(true);
+      try {
+        const result = await CareRouteDevice.recognizeSpeech();
+        if (result.text) setTranscript(current => [current.trim(), result.text.trim()].filter(Boolean).join(' '));
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : '음성 인식 서비스를 열지 못했습니다.');
+      } finally { setIsRecording(false); }
+      return;
+    }
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("현재 사용하시는 브라우저에서 마이크 음성 인식이 지원되지 않습니다. Chrome, Safari 또는 Samsung Internet을 이용해주세요.");
@@ -261,7 +274,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
           <span className="block text-xs font-black text-foreground/70 uppercase tracking-wider mb-1.5 pl-0.5">
             활력징후 (선택)
           </span>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
             <div className="flex flex-col gap-1">
               <input
                 type="number"
@@ -328,7 +341,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
               finalTranscriptRef.current = e.target.value;
             }}
             placeholder={isRecording ? '말씀하시면 실시간으로 작성됩니다...' : '여기에 일지가 작성됩니다. 직접 타이핑하셔도 됩니다.'}
-            className="w-full h-full min-h-[120px] bg-transparent resize-none outline-none text-[15px] font-medium leading-relaxed text-foreground placeholder:text-foreground/30"
+            className="w-full h-full min-h-[120px] pb-20 bg-transparent resize-none outline-none text-[15px] font-medium leading-relaxed text-foreground placeholder:text-foreground/30"
           />
           
           <div className="absolute bottom-3.5 right-3.5 flex items-center gap-2">

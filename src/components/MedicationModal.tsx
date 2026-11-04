@@ -83,7 +83,7 @@ export default function MedicationModal({
         </IconButton>
       </div>
 
-      <div className="p-6 flex flex-col gap-4 max-h-[75vh] overflow-y-auto">
+      <div className="p-6 flex flex-col gap-4">
         {/* 등록 폼 */}
         <div className="bg-foreground/[0.03] dark:bg-white/[0.04] p-4 rounded-[22px] border border-surface-border/40 flex flex-col gap-2.5">
           <input
@@ -93,7 +93,7 @@ export default function MedicationModal({
             placeholder="약 이름 (예: 혈압약)"
             className="w-full p-3 bg-surface border border-surface-border/60 rounded-[16px] text-[14px] font-bold outline-none focus:ring-2 focus:ring-primary/30 text-foreground placeholder:text-foreground/35"
           />
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               value={dose}

@@ -268,3 +268,66 @@ body {
     padding-top: 1.5rem;
   }
 }
+
+/* Modal is the vertical scroll owner; fields must shrink within its viewport. */
+.modal-scroll-area :where(input, select, textarea, .flex-1) {
+  min-width: 0;
+  max-width: 100%;
+}
+.modal-scroll-area :where(h2, h3) {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.modal-scroll-area :where(p, textarea) {
+  overflow-wrap: anywhere;
+}
+
+@media screen and (max-width: 639px) {
+  .print-sheet:not(.pdf-export-capture) .print-edit-only.flex {
+    flex-direction: column;
+  }
+  .schedule-time-fields {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .schedule-time-fields > .pt-5 {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 400px) {
+  .print-actions {
+    display: grid;
+    grid-template-columns: 44px 44px minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 6px;
+    padding-inline: 12px;
+  }
+  .print-actions > button {
+    min-width: 0;
+    width: 100%;
+    min-height: 48px;
+    padding-inline: 6px;
+    gap: 4px;
+    font-size: 13px;
+  }
+  .print-actions > button svg { flex-shrink: 0; }
+  .settings-view [id^="section-"]:is(.flex),
+  .settings-view [id^="section-"] .flex.items-center.justify-between,
+  .settings-view [id^="section-"] button.items-center.justify-between {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .settings-view [id^="section-"]:is(.flex) > .flex:first-child,
+  .settings-view [id^="section-"] .items-center.justify-between > .flex:first-child {
+    min-width: 0;
+    flex: 1 1 170px;
+  }
+  .settings-view [id^="section-"]:is(.flex) > :last-child,
+  .settings-view [id^="section-"] .items-center.justify-between > :last-child {
+    margin-inline-start: auto;
+  }
+  .settings-view [id^="section-"] .tracking-tight {
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">케어루트</string>
+    <string name="title_activity_main">케어루트</string>
+    <string name="package_name">com.leean0121.careroute</string>
+    <string name="custom_url_scheme">com.leean0121.careroute</string>
+</resources>
