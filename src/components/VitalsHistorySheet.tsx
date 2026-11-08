@@ -34,7 +34,7 @@ export default function VitalsHistorySheet({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="px-5 sm:px-6 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] flex flex-col">
+      <div className="px-5 sm:px-6 pt-2 pb-[calc(var(--app-safe-bottom)+1.5rem)] flex flex-col">
         <div className="flex items-center gap-2 pb-3">
           <IconActivity size={18} className="text-foreground/60" />
           <h3 className="text-[16px] font-black text-foreground tracking-tight">{recipientName} 어르신 활력징후 추이</h3>

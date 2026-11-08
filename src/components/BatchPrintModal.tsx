@@ -376,7 +376,7 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
         )}
       </div>
 
-      <div className="print-actions no-print sticky bottom-0 z-10 px-5 sm:px-6 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-xl border-t border-surface-border/40 flex gap-2">
+      <div className="print-actions no-print sticky bottom-0 z-10 px-5 sm:px-6 pt-3 pb-[calc(var(--app-safe-bottom)+1rem)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-xl border-t border-surface-border/40 flex gap-2">
         <IconButton
           onClick={handleShare}
           disabled={isSharing || selectedRecipients.length === 0}

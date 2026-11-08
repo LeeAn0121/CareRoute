@@ -141,7 +141,7 @@ export default function WeatherWidget({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.96 }}
               transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="fixed top-[calc(env(safe-area-inset-top,0px)+68px)] left-3.5 right-3.5 max-w-[360px] mx-auto z-50 bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[28px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)] border border-white/40 dark:border-white/10 text-foreground animate-in fade-in pointer-events-auto"
+              className="app-weather-popup fixed top-[calc(var(--app-safe-top)+68px)] left-3.5 right-3.5 max-w-[360px] mx-auto z-50 bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[28px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)] border border-white/40 dark:border-white/10 text-foreground animate-in fade-in pointer-events-auto"
             >
               {/* 상단 타이틀 & 닫기 버튼 */}
               <div className="flex items-center justify-between pb-3 border-b border-surface-border/40 mb-3">

@@ -2123,7 +2123,7 @@ function MainApp() {
   };
 
   return (
-    <main className="flex-1 flex flex-col h-[100dvh] relative bg-background font-sans">
+    <main className="app-shell flex-1 flex flex-col h-[100dvh] relative bg-background font-sans">
       
       <AnimatePresence>
         {isSplashVisible && (
@@ -2309,7 +2309,7 @@ function MainApp() {
 
       {/* Top Floating NowBar Header - Modern iOS / Smart Island Style */}
       {activeTab === 'map' && (
-      <header className="absolute top-[env(safe-area-inset-top,0px)] left-3.5 right-3.5 z-20 flex flex-col items-start gap-2 mt-2.5 pointer-events-none">
+      <header className="app-map-header absolute top-[var(--app-safe-top)] left-3.5 right-3.5 z-20 flex flex-col items-start gap-2 mt-2.5 pointer-events-none">
         {/* Dynamic NowBar Capsule */}
         <div id="tour-header" className="relative flex w-full items-center gap-2 pointer-events-auto">
           {/* Location Button */}
@@ -2367,7 +2367,7 @@ function MainApp() {
               initial={{ opacity: 0, y: -8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
-              className="relative z-20 w-full bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[30px] p-4 sm:p-5 shadow-[0_22px_50px_rgba(0,0,0,0.18)] border border-white/40 dark:border-white/10 pointer-events-auto space-y-3"
+              className="app-map-popup relative z-20 w-full bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[30px] p-4 sm:p-5 shadow-[0_22px_50px_rgba(0,0,0,0.18)] border border-white/40 dark:border-white/10 pointer-events-auto space-y-3"
             >
               <div className="relative">
                 <input
@@ -2495,7 +2495,7 @@ function MainApp() {
 
         {/* Region Filter Dropdown - Inset Card */}
         {isRegionFilterOpen && (
-        <div className="relative z-20 mt-1 p-5 bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/30 dark:border-white/10 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[340px]">
+        <div className="app-map-popup relative z-20 mt-1 p-5 bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/30 dark:border-white/10 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[340px]">
           <div className="flex items-center justify-between pb-3.5 border-b border-surface-border/40 mb-4">
             <div>
               <span className="text-[17px] font-black text-foreground tracking-tight block">지역 직접 선택</span>
@@ -2721,10 +2721,10 @@ function MainApp() {
         </div>
         {/* List View (Redesigned) */}
         {activeTab === 'list' && (
-          <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background">
+          <div className="app-scroll-view absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background">
             
             {/* List View Header & Add Action */}
-            <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="app-list-heading mb-3 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xl font-black text-foreground tracking-tight">
                   수급자 어르신 명단
@@ -3169,7 +3169,7 @@ function MainApp() {
                 setEditingRecipient(null);
                 setIsModalOpen(true);
               }}
-              className="fixed bottom-[84px] right-5 z-40 w-[58px] h-[58px] flex items-center justify-center rounded-[22px] shadow-[0_12px_28px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200 animate-fade-in-up"
+              className="app-fab fixed bottom-[84px] right-5 z-40 w-[58px] h-[58px] flex items-center justify-center rounded-[22px] shadow-[0_12px_28px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200 animate-fade-in-up"
               aria-label="어르신 추가"
               title="새 어르신 등록"
             >
@@ -3181,7 +3181,7 @@ function MainApp() {
         {/* 오늘의 경로: 오늘 방문 예정(날짜 지정 또는 반복 요일)인 곳만 모아
             최근접 삽입 휴리스틱으로 방문 순서를 매겨 보여준다. */}
         {activeTab === 'route' && (
-          <div className="absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background flex flex-col">
+          <div className="app-scroll-view absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background flex flex-col">
             <div className="mb-2.5 flex items-center justify-between gap-3">
               {scheduleDate && (
                 <div>
@@ -3472,7 +3472,7 @@ function MainApp() {
 
                         {/* Timeline Action Buttons */}
                         <div className="flex flex-wrap items-center gap-2 mt-3.5 pt-3 border-t border-surface-border/40" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex flex-1 gap-1.5 min-w-[200px]">
+                          <div className="schedule-actions flex flex-1 flex-wrap gap-1.5 min-w-0">
                             {!completed ? (
                               <button
                                 type="button"
@@ -3560,7 +3560,7 @@ function MainApp() {
             {scheduleDate && (
               <button
                 onClick={() => setIsScheduleAddOpen(true)}
-                className="fixed bottom-[84px] right-5 z-40 w-[58px] h-[58px] flex items-center justify-center rounded-[22px] shadow-[0_12px_28px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200 animate-fade-in-up"
+                className="app-fab fixed bottom-[84px] right-5 z-40 w-[58px] h-[58px] flex items-center justify-center rounded-[22px] shadow-[0_12px_28px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200 animate-fade-in-up"
                 aria-label="일정에 어르신 추가"
                 title="방문 일정 추가"
               >
@@ -3595,7 +3595,7 @@ function MainApp() {
 
       {/* 맵 플로팅 컨트롤 툴바 (줌 / 레이어 / 내위치) - One UI 9.0 Squircle Island */}
       {activeTab === 'map' && (
-        <div id="tour-map-controls" className={`absolute right-4 ${selectedRecipient && !isDetailModalOpen ? 'bottom-[230px]' : 'bottom-[104px]'} transition-all duration-300 z-40 flex flex-col items-center gap-3.5 pointer-events-none`}>
+        <div id="tour-map-controls" className={`absolute right-4 ${selectedRecipient && !isDetailModalOpen ? 'bottom-[calc(230px+var(--app-safe-bottom))]' : 'bottom-[calc(104px+var(--app-safe-bottom))]'} transition-all duration-300 z-40 flex flex-col items-center gap-3.5 pointer-events-none`}>
           
           <div className="flex flex-col items-center bg-surface/85 supports-[backdrop-filter]:bg-surface/70 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-white/30 dark:border-white/10 pointer-events-auto p-1.5 gap-1.5">
             {/* 지도 레이어 (행정구역 경계 + 기상 그리드) 통합 메뉴 */}
@@ -3619,7 +3619,7 @@ function MainApp() {
                       animate={{ opacity: 1, scale: 1, x: 0 }}
                       exit={{ opacity: 0, scale: 0.95, x: 8 }}
                       transition={{ type: 'spring', damping: 28, stiffness: 400 }}
-                      className="absolute right-[56px] top-1/2 -translate-y-1/2 z-20 bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[22px] p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.14)] border border-white/30 dark:border-white/10 w-[196px] pointer-events-auto"
+                      className="map-layer-menu absolute right-[56px] top-1/2 -translate-y-1/2 z-20 bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[22px] p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.14)] border border-white/30 dark:border-white/10 w-[196px] pointer-events-auto"
                     >
                       <button
                         type="button"
@@ -3715,7 +3715,7 @@ function MainApp() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.96 }}
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-lg mx-auto z-40 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[40px] saturate-200 rounded-[30px] p-4 border border-white/30 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.18)]"
+            className="app-recipient-preview app-map-card fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-lg mx-auto z-40 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[40px] saturate-200 rounded-[30px] p-4 border border-white/30 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.18)]"
           >
             <div className="flex items-start gap-3.5">
               {/* Squircle Profile Avatar */}
@@ -3892,7 +3892,7 @@ function MainApp() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.96 }}
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-lg mx-auto z-40 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[40px] saturate-200 rounded-[32px] p-4 border border-white/30 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.14)]"
+            className="app-map-card fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-lg mx-auto z-40 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[40px] saturate-200 rounded-[32px] p-4 border border-white/30 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.14)]"
           >
             <div className="w-10 h-1 rounded-full bg-foreground/15 mx-auto mb-3" />
             {!routeOrigin || !routeDestination ? (
@@ -4394,7 +4394,7 @@ function MainApp() {
       {/* iOS Cupertino Native Tab Bar (Ultra-thin Frosted Glass Material) */}
       <nav
         id="tour-bottom-nav" 
-        className="fixed bottom-0 left-0 right-0 z-50 bg-white/85 dark:bg-[#121214]/85 backdrop-blur-2xl saturate-150 border-t border-black/[0.08] dark:border-white/[0.1] pb-[max(env(safe-area-inset-bottom),8px)] pt-2 px-3 shadow-[0_-4px_24px_rgba(0,0,0,0.03)] select-none pointer-events-auto"
+        className="app-bottom-nav fixed bottom-0 left-0 right-0 z-50 bg-white/85 dark:bg-[#121214]/85 backdrop-blur-2xl saturate-150 border-t border-black/[0.08] dark:border-white/[0.1] pb-[max(var(--app-safe-bottom),8px)] pt-2 px-3 shadow-[0_-4px_24px_rgba(0,0,0,0.03)] select-none pointer-events-auto"
       >
         <div className="max-w-md mx-auto flex h-12 items-center justify-around">
           {([

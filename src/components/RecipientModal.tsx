@@ -587,7 +587,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         </div>
 
         {/* 하단 고정 액션 바: 폼이 길어도 저장 버튼이 항상 화면 안에 보이도록 sticky + 홈 인디케이터 안전영역 확보 */}
-        <div className="sticky bottom-0 z-10 px-5 sm:px-6 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-xl border-t border-surface-border/40">
+        <div className="sticky bottom-0 z-10 px-5 sm:px-6 pt-3 pb-[calc(var(--app-safe-bottom)+1rem)] bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-xl border-t border-surface-border/40">
           <Button type="submit" fullWidth loading={isSubmitting} className="whitespace-nowrap py-3.5 text-[16px] font-black rounded-[22px] shadow-lg shadow-primary/20">
             {recipientToEdit ? '수정 내용 저장하기' : '어르신 등록 완료'}
           </Button>

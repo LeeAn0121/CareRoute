@@ -83,9 +83,9 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
   return (
     <div className="bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_12px_32px_rgba(0,0,0,0.05)] border border-white/20 dark:border-white/10 p-3.5 mb-3 shrink-0 transition-all">
       {/* One UI 9.0 Header */}
-      <div className="flex items-center justify-between mb-4 px-1">
+      <div className="calendar-heading flex flex-wrap items-center justify-between gap-2 mb-4 px-1">
         {/* Month Selector Capsule */}
-        <div className="flex items-center bg-foreground/[0.04] dark:bg-white/[0.06] rounded-full p-1 border border-surface-border/40 shadow-xs">
+        <div className="calendar-month-selector flex items-center bg-foreground/[0.04] dark:bg-white/[0.06] rounded-full p-1 border border-surface-border/40 shadow-xs">
           <motion.button 
             whileTap={{ scale: 0.88 }}
             onClick={prevMonth} 
@@ -108,7 +108,7 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
               className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
               title="월 변경"
             />
-            <span className="text-[16px] font-black tracking-tight text-foreground flex items-center gap-1 cursor-pointer select-none">
+            <span className="whitespace-nowrap text-[16px] font-black tracking-tight text-foreground flex items-center gap-1 cursor-pointer select-none">
               {year}년 {month + 1}월
             </span>
           </div>
@@ -123,7 +123,7 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
           </motion.button>
         </div>
         
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 ml-auto shrink-0">
           {/* Today Action Pill */}
           <motion.button 
             whileTap={{ scale: 0.92 }}
