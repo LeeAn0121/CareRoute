@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -239,6 +239,7 @@ export function Modal({
   children: ReactNode;
   closeOnBackdrop?: boolean;
 }) {
+  const returnFocus = useRef<HTMLElement | null>(null);
   return (
     <Dialog.Root
       open={open}
@@ -264,10 +265,17 @@ export function Modal({
                 asChild
                 onOpenAutoFocus={(e) => {
                   const container = e.currentTarget as HTMLElement;
+                  if (document.activeElement instanceof HTMLElement && !container.contains(document.activeElement)) returnFocus.current = document.activeElement;
                   const firstInput = container.querySelector<HTMLElement>('input, button, select, textarea');
                   if (firstInput) {
                     e.preventDefault();
                     firstInput.focus();
+                  }
+                }}
+                onCloseAutoFocus={(e) => {
+                  if (returnFocus.current?.isConnected && !returnFocus.current.matches(':disabled')) {
+                    e.preventDefault();
+                    returnFocus.current.focus({ preventScroll: true });
                   }
                 }}
                 onPointerDownOutside={(e) => {
@@ -310,6 +318,7 @@ export function BottomSheet({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const returnFocus = useRef<HTMLElement | null>(null);
   return (
     <Dialog.Root
       open={open}
@@ -334,10 +343,17 @@ export function BottomSheet({
               asChild
               onOpenAutoFocus={(e) => {
                 const container = e.currentTarget as HTMLElement;
+                if (document.activeElement instanceof HTMLElement && !container.contains(document.activeElement)) returnFocus.current = document.activeElement;
                 const firstInput = container.querySelector<HTMLElement>('input, button, select, textarea');
                 if (firstInput) {
                   e.preventDefault();
                   firstInput.focus();
+                }
+              }}
+              onCloseAutoFocus={(e) => {
+                if (returnFocus.current?.isConnected && !returnFocus.current.matches(':disabled')) {
+                  e.preventDefault();
+                  returnFocus.current.focus({ preventScroll: true });
                 }
               }}
             >

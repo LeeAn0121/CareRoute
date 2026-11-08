@@ -5,7 +5,7 @@ import MapErrorBoundary from '@/components/MapErrorBoundary';
 import { CareRouteDevice, scheduleVisitNotifications } from '@/lib/native';
 import { retryPendingVisitLogs } from '@/lib/pendingVisitLogs';
 import { Container, NaverMap, Marker, Polyline } from 'react-naver-maps';
-import { IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus, IconPrinter, IconFileCheck, IconActivity, IconPill } from '@tabler/icons-react';
+import { IconPlayerPlay, IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus, IconPrinter, IconFileCheck, IconActivity, IconPill } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
 import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
@@ -22,6 +22,9 @@ import VitalsHistorySheet from '@/components/VitalsHistorySheet';
 import MedicationModal from '@/components/MedicationModal';
 import { fetchPrintedRecipientIdsForDate } from '@/lib/printLogs';
 import { logVisitDuration } from '@/lib/visitLogs';
+import VisitRecordModal from '@/components/VisitRecordModal';
+import { localDateKey, sessionKey, transitionVisitSession, VISIT_STATUS_LABEL, type VisitSession, type VisitStatus } from '@/lib/visitSessions';
+import { useVisitDay, useVisitSessions } from '@/lib/useVisitSessions';
 import { logVitals, type VitalsInput } from '@/lib/vitalsLogs';
 import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
@@ -207,8 +210,17 @@ function MainApp() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   const [completingRecipient, setCompletingRecipient] = useState<Recipient | null>(null);
+  const [completingDateKey, setCompletingDateKey] = useState('');
+  const [completingVersion, setCompletingVersion] = useState(0);
+  const [sharingDateKey, setSharingDateKey] = useState('');
+  const [recordVisit, setRecordVisit] = useState<{ recipient: Recipient; dateKey: string } | null>(null);
+  const [visitSaving, setVisitSaving] = useState(false);
+  const [visitActionError, setVisitActionError] = useState('');
+  const visitBusy = useRef(false);
+  const visitRequestIds = useRef(new Map<string, string>());
   const [sharingRecipient, setSharingRecipient] = useState<Recipient | null>(null);
   const [printingRecipient, setPrintingRecipient] = useState<Recipient | null>(null);
+  const [printingDateKey, setPrintingDateKey] = useState('');
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false);
   const [isWeeklyPrintOpen, setIsWeeklyPrintOpen] = useState(false);
   const [printedRecipientIds, setPrintedRecipientIds] = useState<Set<string>>(new Set());
@@ -219,6 +231,18 @@ function MainApp() {
   const [routeTabWeather, setRouteTabWeather] = useState<WeatherData | null>(null);
   const [isWeatherBannerDismissed, setIsWeatherBannerDismissed] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
+  const todayKey = useVisitDay();
+  const selectedDateKey = scheduleDate ? localDateKey(scheduleDate) : todayKey;
+  const visits = useVisitSessions(todayKey, selectedDateKey);
+  const previousVisitDay = useRef(todayKey);
+  useEffect(() => {
+    const previous = previousVisitDay.current;
+    previousVisitDay.current = todayKey;
+    // Follow "today" across midnight, but never move a date while its form is open.
+    if (previous !== todayKey && scheduleDate && localDateKey(scheduleDate) === previous && !isDetailModalOpen && !completingRecipient && !recordVisit && !isModalOpen && !document.querySelector('[role="dialog"]')) {
+      setScheduleDate(new Date());
+    }
+  }, [todayKey, scheduleDate, isDetailModalOpen, completingRecipient, recordVisit, isModalOpen]);
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
   
@@ -462,7 +486,7 @@ function MainApp() {
     }
     return () => { isMounted = false; };
   }, [mapCenter]);
-  const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring'>('all');
+  const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring' | 'missed' | 'cancelled'>('all');
   // 지도 상단 헤더 팝업들의 상호 배타적 단일 상태 (지역 선택 | 실시간 날씨 | 어르신 검색)
   // 하나의 상태로 관리하여 어떤 순서로 누르더라도 레이어가 겹치는 문제를 원천 차단합니다.
   const [activeHeaderModal, setActiveHeaderModal] = useState<'none' | 'region' | 'weather' | 'search'>('none');
@@ -981,13 +1005,13 @@ function MainApp() {
   // 포그라운드 방문 예정 시간 실시간 리마인더 (앱 사용 중 30초 간격 체크)
   useEffect(() => {
     const checkScheduledVisits = () => {
-      if (!markers || markers.length === 0) return;
+      if (!markers || markers.length === 0 || visits.loading || visits.error) return;
       const now = new Date();
       const currentHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       const ymd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
       // 오늘 방문 예정 어르신 목록
-      const scheduledToday = markers.filter((r) => getScheduledForDate(r, now));
+      const scheduledToday = markers.filter((r) => getScheduledForDate(r, now) && (visits.sessions[sessionKey(r.id, ymd)]?.status || 'planned') === 'planned');
 
       for (const recipient of scheduledToday) {
         const parsedTime = parseVisitTime(recipient.visit_time, recipient.notes);
@@ -1043,7 +1067,7 @@ function MainApp() {
     checkScheduledVisits();
 
     return () => clearInterval(intervalId);
-  }, [markers]);
+  }, [markers, visits.sessions, visits.loading, visits.error]);
 
   useEffect(() => {
     if (!localStorage.getItem('careroute_tutorial_done_v2')) {
@@ -1556,153 +1580,127 @@ function MainApp() {
 
 
 
-  // 완료 체크: last_completed_key가 "오늘 날짜"와 같으면 오늘 방문 완료로 간주.
-  // 날짜가 바뀌면(다음 날/다음 예정일) 자동으로 다시 미완료 상태가 된다.
-  const todayYMD = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const todayYMD = () => todayKey;
+  const getVisit = (r: Recipient, dateKey = todayKey): VisitSession => {
+    const stored = visits.sessions[sessionKey(r.id, dateKey)];
+    if (stored) return stored;
+    const completed = r.last_completed_key === dateKey && dateKey <= todayKey;
+    const started = dateKey === todayKey && r.last_visit_started_at && localDateKey(new Date(r.last_visit_started_at)) === dateKey;
+    return { id: '', recipient_id: r.id, visit_date: dateKey, status: completed ? 'completed' : started ? 'in_progress' : 'planned',
+      started_at: started ? r.last_visit_started_at! : null, completed_at: null,
+      memo: completed ? r.last_completed_memo || null : null, version: 0, updated_at: '' };
   };
-  const isCompletedForDate = (r: Recipient, date: Date) => {
-    const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    return r.last_completed_key === ymd;
+  const projectVisitForDate = (r: Recipient, dateKey: string): Recipient => {
+    const session = getVisit(r, dateKey);
+    return { ...r, last_completed_key: session.status === 'completed' ? dateKey : null,
+      last_completed_memo: session.status === 'completed' ? session.memo : null };
   };
-  const isCompletedToday = (r: Recipient) => r.last_completed_key === todayYMD();
+  const openPrintRecipient = (r: Recipient, dateKey = detailDateKey) => {
+    setPrintingDateKey(dateKey);
+    setPrintingRecipient(projectVisitForDate(r, dateKey));
+  };
+  const visitActionIcon = (r: Recipient, dateKey = todayKey, size = 18) => {
+    const status = getVisit(r, dateKey).status;
+    if (status === 'completed') return <IconFileCheck size={size} strokeWidth={2.5} />;
+    if (status === 'planned') return <IconPlayerPlay size={size} strokeWidth={2.5} />;
+    if (status === 'in_progress') return <IconCheck size={size} strokeWidth={2.5} />;
+    return <IconEye size={size} strokeWidth={2.5} />;
+  };
+  const isCompletedForDate = (r: Recipient, date: Date) => getVisit(r, localDateKey(date)).status === 'completed';
+  const isCompletedToday = (r: Recipient) => getVisit(r).status === 'completed';
+  const isVisitStartedToday = (r: Recipient) => getVisit(r).status === 'in_progress';
+  const detailDateKey = activeTab === 'route' ? selectedDateKey : todayKey;
+  const isSelectedVisitCompleted = (r: Recipient) => getVisit(r, detailDateKey).status === 'completed';
 
-  // 방문 시작 여부: "오늘" 시작한 기록만 유효하게 본다(어제 깜빡 안 끈 시작 기록이
-  // 다음 날까지 "진행 중"으로 남아있지 않도록).
-  const isVisitStartedToday = (r: Recipient) => {
-    if (!r.last_visit_started_at) return false;
-    const d = new Date(r.last_visit_started_at);
-    const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return ymd === todayYMD();
-  };
-
-  const handleStartVisit = async (r: Recipient) => {
-    const startedAt = new Date().toISOString();
-    setMarkers((prev) => prev.map((m) => (m.id === r.id ? { ...m, last_visit_started_at: startedAt } : m)));
-    if (selectedRecipient && selectedRecipient.id === r.id) {
-      setSelectedRecipient((prev) => prev ? { ...prev, last_visit_started_at: startedAt } : null);
+  const saveVisitTransition = async (r: Recipient, dateKey: string, status: VisitStatus, memo?: string | null, reason?: string, expectedVersion?: number) => {
+    if (visitBusy.current || visits.loading || visits.error) {
+      const message = visitBusy.current ? '다른 방문 기록을 저장 중입니다. 잠시 기다려 주세요.' : '방문 기록을 다시 불러온 뒤 저장해 주세요.';
+      setVisitActionError(message);
+      throw new Error(message);
     }
-    const { error } = await supabase.from('recipients').update({ last_visit_started_at: startedAt }).eq('id', r.id);
-    if (error) {
-      console.error('방문 시작 저장 실패', error);
-      setMarkers((prev) => prev.map((m) => (m.id === r.id ? { ...m, last_visit_started_at: r.last_visit_started_at } : m)));
-      if (selectedRecipient && selectedRecipient.id === r.id) {
-        setSelectedRecipient((prev) => prev ? { ...prev, last_visit_started_at: r.last_visit_started_at } : null);
-      }
-      alert('방문 시작 기록에 실패했습니다. 다시 시도해주세요.');
-    }
+    visitBusy.current = true;
+    setVisitSaving(true);
+    setVisitActionError('');
+    const savedMemo = memo === undefined ? getVisit(r, dateKey).memo : memo;
+    const version = expectedVersion ?? getVisit(r, dateKey).version;
+    const requestKey = JSON.stringify([r.id, dateKey, status, savedMemo || null, reason || null, version]);
+    const requestId = visitRequestIds.current.get(requestKey) || crypto.randomUUID();
+    visitRequestIds.current.set(requestKey, requestId);
+    try {
+      const saved = await transitionVisitSession({ recipientId: r.id, dateKey, status, memo: savedMemo, reason,
+        expectedVersion: version, requestId });
+      visits.apply(saved);
+      visitRequestIds.current.delete(requestKey);
+      fetchMarkers();
+      void visits.refresh();
+      return saved;
+    } catch (error) {
+      const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : '방문 기록 저장에 실패했습니다. 입력 내용은 유지됩니다.';
+      setVisitActionError(message);
+      void visits.refresh();
+      throw new Error(message);
+    } finally { visitBusy.current = false; setVisitSaving(false); }
   };
-
-  const toggleCompleted = async (r: Recipient) => {
-    if (isCompletedToday(r)) {
-      // 이미 완료된 상태면 완료 취소
-      const key = null;
-      setMarkers((prev) => prev.map((m) => (m.id === r.id ? { ...m, last_completed_key: key, last_completed_memo: null } : m)));
-      if (selectedRecipient && selectedRecipient.id === r.id) {
-        setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: key, last_completed_memo: null } : null);
-      }
-      const { error } = await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: null }).eq('id', r.id);
-      if (error) {
-        console.error('완료 취소 저장 실패', error);
-        // 저장 실패 시 화면 상태를 되돌려 실제 DB 상태와 어긋나지 않게 한다.
-        setMarkers((prev) => prev.map((m) => (m.id === r.id ? { ...m, last_completed_key: r.last_completed_key, last_completed_memo: r.last_completed_memo } : m)));
-        if (selectedRecipient && selectedRecipient.id === r.id) {
-          setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: r.last_completed_key, last_completed_memo: r.last_completed_memo } : null);
-        }
-        alert('완료 취소 저장에 실패했습니다. 다시 시도해주세요.');
-      }
-    } else {
-      // 미완료 상태면 일지 작성 모달 띄우기
-      setCompletingRecipient(r);
-    }
+  const openVisitRecord = (r: Recipient, dateKey = todayKey) => {
+    setVisitActionError('');
+    setRecordVisit({ recipient: r, dateKey });
   };
-
+  const handleStartVisit = async (r: Recipient, dateKey = todayKey) => {
+    try { await saveVisitTransition(r, dateKey, 'in_progress'); } catch (error) { setVisitActionError(error instanceof Error ? error.message : '방문 시작을 저장하지 못했습니다.'); }
+  };
+  const visitPrimaryLabel = (r: Recipient, dateKey = todayKey) => {
+    const status = getVisit(r, dateKey).status;
+    if (status === 'completed') return '방문 기록 보기';
+    if (status === 'missed' || status === 'cancelled' || dateKey > todayKey) return '방문 상태 보기';
+    return status === 'planned' && dateKey === todayKey ? '방문 시작' : '방문 완료';
+  };
+  const openCompletionForm = (r: Recipient, dateKey = todayKey) => {
+    setVisitActionError('');
+    const status = getVisit(r, dateKey).status;
+    if (status === 'completed' || status === 'cancelled' || status === 'missed' || dateKey > todayKey) {
+      openVisitRecord(r, dateKey);
+      return;
+    }
+    setCompletingDateKey(dateKey);
+    setCompletingVersion(getVisit(r, dateKey).version);
+    setCompletingRecipient(r);
+  };
+  const toggleCompleted = (r: Recipient, dateKey = todayKey) => {
+    if (getVisit(r, dateKey).status === 'planned' && dateKey === todayKey) {
+      void handleStartVisit(r, dateKey);
+    } else openCompletionForm(r, dateKey);
+  };
   const handleShareReport = (r: Recipient) => {
-    setSharingRecipient(r);
+    const session = getVisit(r, detailDateKey);
+    setSharingDateKey(detailDateKey);
+    setSharingRecipient({ ...r, last_completed_key: session.status === 'completed' ? detailDateKey : null, last_completed_memo: session.memo });
   };
-
-  const handleSaveMemo = async (memo: string, vitals?: VitalsInput) => {
-    if (!completingRecipient) return;
-    const key = todayYMD();
-    const rId = completingRecipient.id;
-    const target = completingRecipient;
-    const hadStarted = isVisitStartedToday(target);
-    const endedAt = new Date().toISOString();
-    setCompletingRecipient(null); // 모달 닫기
-
-    // 낙관적 업데이트. "방문 시작"을 눌러뒀다면 완료 처리와 함께 진행 중 표시를 지운다.
-    setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: key, last_completed_memo: memo || null, last_visit_started_at: null } : m)));
-    if (selectedRecipient && selectedRecipient.id === rId) {
-      setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: key, last_completed_memo: memo || null, last_visit_started_at: null } : null);
-    }
-    const { error } = await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null, last_visit_started_at: null }).eq('id', rId);
-    if (error) {
-      console.error('방문완료 저장 실패', error);
-      // 저장 실패 시 화면 상태를 되돌려 실제 DB 상태와 어긋나지 않게 한다.
-      setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo, last_visit_started_at: target.last_visit_started_at } : m)));
-      if (selectedRecipient && selectedRecipient.id === rId) {
-        setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo, last_visit_started_at: target.last_visit_started_at } : null);
-      }
-      alert('방문완료 저장에 실패했습니다. 다시 시도해주세요.');
-      return;
-    }
-
-    // "방문 시작"을 눌러뒀던 경우에만 실제 머문 시간을 기록(안 눌렀으면 시작 시각을 몰라 기록하지 않음).
-    if (hadStarted && target.last_visit_started_at) {
-      logVisitDuration({ recipientId: rId, recipientName: target.name, startedAt: target.last_visit_started_at, endedAt });
-    }
-    if (vitals) {
-      logVitals({ recipientId: rId, recipientName: target.name, vitals, memo });
-    }
-
-    // 방문완료 처리 직후 확인서 출력을 가볍게 제안(공유까지 바로 이어가는 경우는 이미
-    // 다른 마무리 동작을 한 것이므로 여기선 제안하지 않음).
-    setPrintSuggestionRecipient(target);
-  };
-
-  const handleSaveAndShareMemo = async (memo: string, vitals?: VitalsInput) => {
+  const finishVisit = async (memo: string, vitals?: VitalsInput, share = false) => {
     if (!completingRecipient) return;
     const target = completingRecipient;
-    const key = todayYMD();
-    const rId = target.id;
-    const hadStarted = isVisitStartedToday(target);
-    const endedAt = new Date().toISOString();
-    setCompletingRecipient(null);
-
-    const updated = { ...target, last_completed_key: key, last_completed_memo: memo || null, last_visit_started_at: null };
-    setMarkers((prev) => prev.map((m) => (m.id === rId ? updated : m)));
-    if (selectedRecipient && selectedRecipient.id === rId) {
-      setSelectedRecipient(updated);
-    }
-    const { error } = await supabase.from('recipients').update({ last_completed_key: key, last_completed_memo: memo || null, last_visit_started_at: null }).eq('id', rId);
-    if (error) {
-      console.error('방문완료 저장 실패', error);
-      // 저장 실패 시 화면 상태를 되돌려 실제 DB 상태와 어긋나지 않게 한다.
-      setMarkers((prev) => prev.map((m) => (m.id === rId ? { ...m, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo, last_visit_started_at: target.last_visit_started_at } : m)));
-      if (selectedRecipient && selectedRecipient.id === rId) {
-        setSelectedRecipient((prev) => prev ? { ...prev, last_completed_key: target.last_completed_key, last_completed_memo: target.last_completed_memo, last_visit_started_at: target.last_visit_started_at } : null);
+    const dateKey = completingDateKey || todayKey;
+    const before = getVisit(target, dateKey);
+    try {
+      const saved = await saveVisitTransition(target, dateKey, 'completed', memo, undefined, completingVersion);
+      const updated = { ...target, last_completed_key: dateKey, last_completed_memo: saved.memo, last_visit_started_at: null };
+      setCompletingRecipient(null);
+      if (before.started_at && saved.completed_at) {
+        void logVisitDuration({ recipientId: target.id, recipientName: target.name, startedAt: before.started_at, endedAt: saved.completed_at });
       }
-      alert('방문완료 저장에 실패했습니다. 다시 시도해주세요.');
-      return;
-    }
-
-    if (hadStarted && target.last_visit_started_at) {
-      logVisitDuration({ recipientId: rId, recipientName: target.name, startedAt: target.last_visit_started_at, endedAt });
-    }
-    if (vitals) {
-      logVitals({ recipientId: rId, recipientName: target.name, vitals, memo });
-    }
-
-    // 바로 안심 공유 모달 열기
-    setSharingRecipient(updated);
+      if (vitals) void logVitals({ recipientId: target.id, recipientName: target.name, vitals, memo });
+      if (share) { setSharingDateKey(dateKey); setSharingRecipient(updated); }
+      else setPrintSuggestionRecipient(updated);
+    } catch { /* Keep memo and vitals open for retry. */ }
   };
+  const handleSaveMemo = (memo: string, vitals?: VitalsInput) => finishVisit(memo, vitals);
+  const handleSaveAndShareMemo = (memo: string, vitals?: VitalsInput) => finishVisit(memo, vitals, true);
 
   // 선택한 날짜에 방문 예정인지: 특정 날짜로 지정했거나, 반복 요일에 오늘 요일이 포함되면 해당
 
 
   const getScheduledForDate = (r: Recipient, date: Date) => {
     const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    if (visits.sessions[sessionKey(r.id, ymd)]) return true;
     if (r.notes && r.notes.includes(ymd)) return true;
     if (r.recurring_weekdays) {
       return r.recurring_weekdays.split(',').map(Number).includes(date.getDay());
@@ -1711,7 +1709,7 @@ function MainApp() {
   };
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!Capacitor.isNativePlatform() || visits.loading || visits.error) return;
     let chain = Promise.resolve();
     const refresh = () => {
       const items: { at: Date; recipientId: string }[] = [];
@@ -1719,7 +1717,7 @@ function MainApp() {
       for (let offset = 0; offset < 7; offset++) {
         const day = new Date(); day.setDate(day.getDate() + offset);
         for (const row of markers) {
-          if (!getScheduledForDate(row, day)) continue;
+          if (!getScheduledForDate(row, day) || getVisit(row, localDateKey(day)).status !== 'planned') continue;
           const time = parseVisitTime(row.visit_time, row.notes).startTime;
           if (!/^\d{2}:\d{2}$/.test(time)) continue;
           const [hours, minutes] = time.split(':').map(Number);
@@ -1735,7 +1733,7 @@ function MainApp() {
     const visible = () => { if (document.visibilityState === 'visible') refresh(); };
     document.addEventListener('visibilitychange', visible);
     return () => { window.removeEventListener('careroute:notification-permission', refresh); document.removeEventListener('visibilitychange', visible); };
-  }, [markers]);
+  }, [markers, visits.sessions, visits.loading, visits.error]);
 
   // 폭염/한파 주의 수준일 때, 오늘 방문 예정이 없는 어르신 안부를 챙기도록 일정 탭에
   // 배너로 안내한다. 하루에 한 번 닫으면 그날은 다시 안 뜨게 로컬에 기억해둔다.
@@ -1861,7 +1859,7 @@ function MainApp() {
   // 없을 경우 기본 알고리즘(시간 지정 일정 뼈대 + 최근접 삽입 휴리스틱)으로 정렬한다.
   const scheduleRoute = useMemo(() => {
     if (!scheduleDate) return [];
-    const todays = markers.filter(r => getScheduledForDate(r, scheduleDate));
+    const todays = markers.filter(r => getScheduledForDate(r, scheduleDate) || Boolean(visits.sessions[sessionKey(r.id, localDateKey(scheduleDate))]));
     if (todays.length === 0) return [];
 
     // 자동 최적화 기본 경로 계산
@@ -1942,7 +1940,7 @@ function MainApp() {
     }
 
     return computedRoute;
-  }, [markers, mapCenter, scheduleDate, scheduleDateKey, customOrderMap]);
+  }, [markers, mapCenter, scheduleDate, scheduleDateKey, customOrderMap, visits.sessions]);
 
   // 이번 주 전체 출력용: 선택한 날짜가 포함된 일(일요일)~토요일 묶음을 날짜별로 미리 묶어둔다.
   // 경로 최적화까진 필요 없어(서류 준비용) 시간 있는 일정 먼저, 그 외는 이름순으로 가볍게 정렬.
@@ -1958,7 +1956,7 @@ function MainApp() {
       const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const dateLabel = `${d.getMonth() + 1}월 ${d.getDate()}일 (${weekdayLabels[d.getDay()]})`;
       const recipients = markers
-        .filter((r) => getScheduledForDate(r, d))
+        .filter((r) => getScheduledForDate(r, d) || Boolean(visits.sessions[sessionKey(r.id, localDateKey(d))]))
         .sort((a, b) => {
           const ta = parseVisitTime(a.visit_time, a.notes);
           const tb = parseVisitTime(b.visit_time, b.notes);
@@ -1967,10 +1965,10 @@ function MainApp() {
           if (tb.hasTime) return 1;
           return a.name.localeCompare(b.name);
         });
-      days.push({ dateKey, dateLabel, recipients });
+      days.push({ dateKey, dateLabel, recipients: recipients.map(r => projectVisitForDate(r, dateKey)) });
     }
     return days;
-  }, [markers, scheduleDate]);
+  }, [markers, scheduleDate, visits.sessions]);
 
   const weekLabel = weekDays.length === 7
     ? `${weekDays[0].dateKey.slice(5).replace('-', '.')}~${weekDays[6].dateKey.slice(5).replace('-', '.')}`
@@ -2066,7 +2064,7 @@ function MainApp() {
       }
 
       const retainedEventIds = new Set<string>();
-      for (const marker of targetRoute) {
+      for (const marker of targetRoute.filter(r => getVisit(r, localDateKey(syncDate as Date)).status !== 'cancelled')) {
         const parsedTime = parseVisitTime(marker.visit_time, marker.notes);
         const hasTime = parsedTime.hasTime;
         const body: any = {
@@ -2232,6 +2230,12 @@ function MainApp() {
         </div>
       )}
 
+      {(visits.error || (visitActionError && !completingRecipient && !recordVisit)) && (
+        <div role="alert" className="absolute top-[calc(1rem+var(--app-safe-top))] left-4 right-4 max-w-xl mx-auto z-[70] bg-surface border border-rose-500/40 rounded-2xl p-3 text-sm text-foreground shadow-lg">
+          <p>{visits.error || visitActionError}</p>
+          <button type="button" className="mt-2 underline font-bold" onClick={() => { setVisitActionError(''); void visits.refresh(); }}>다시 불러오기</button>
+        </div>
+      )}
       {/* 오프라인 안내: 서버 연결에 실패하면 마지막으로 저장해둔 명단을 대신
           보여주는데, 그게 최신 데이터가 아닐 수 있다는 걸 알려준다. */}
       {isOffline && (
@@ -2748,12 +2752,12 @@ function MainApp() {
             </div>
 
             {/* Live Care Insight Metrics Bar */}
-            <div className="grid grid-cols-4 gap-2 mb-3.5">
+            <div className="grid grid-cols-2 min-[480px]:grid-cols-4 gap-2 mb-3.5">
               {[
                 { key: 'all' as const, label: '전체', count: markers.length, color: 'text-primary', bg: 'bg-primary/10' },
-                { key: 'today' as const, label: '오늘 방문', count: markers.filter(m => getScheduledForDate(m, new Date())).length, color: 'text-[#FF9500]', bg: 'bg-[#FF9500]/10' },
+                { key: 'today' as const, label: '오늘 일정', count: markers.filter(m => getScheduledForDate(m, new Date())).length, color: 'text-[#FF9500]', bg: 'bg-[#FF9500]/10' },
                 { key: 'completed' as const, label: '방문 완료', count: markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length, color: 'text-[#34C759]', bg: 'bg-[#34C759]/10' },
-                { key: 'incomplete' as const, label: '미방문', count: markers.filter(m => getScheduledForDate(m, new Date()) && !isCompletedToday(m)).length, color: 'text-[#FF2D55]', bg: 'bg-[#FF2D55]/10' },
+                { key: 'incomplete' as const, label: '예정·진행', count: markers.filter(m => getScheduledForDate(m, new Date()) && ['planned', 'in_progress'].includes(getVisit(m).status)).length, color: 'text-[#FF2D55]', bg: 'bg-[#FF2D55]/10' },
               ].map(stat => (
                 <button
                   key={stat.key}
@@ -2765,7 +2769,7 @@ function MainApp() {
                       : 'bg-surface/80 hover:bg-surface border border-surface-border/40'
                   }`}
                 >
-                  <span className="text-[10px] font-bold text-foreground/50 block truncate leading-tight">{stat.label}</span>
+                  <span className="text-[12px] font-bold text-foreground/50 block leading-tight">{stat.label}</span>
                   <div className="flex items-baseline gap-0.5 mt-1">
                     <span className={`text-[17px] font-black tracking-tight ${stat.color}`}>{stat.count}</span>
                     <span className="text-[10px] font-bold text-foreground/40">명</span>
@@ -2837,16 +2841,19 @@ function MainApp() {
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
                 {([
                   { key: 'all', label: '전체' },
-                  { key: 'today', label: '오늘 방문' },
-                  { key: 'incomplete', label: '미방문' },
+                  { key: 'today', label: '오늘 일정' },
+                  { key: 'incomplete', label: '예정·진행' },
                   { key: 'completed', label: '방문 완료' },
                   { key: 'recurring', label: '정기 일정' },
+                  { key: 'missed', label: '미방문 기록' },
+                  { key: 'cancelled', label: '방문 취소' },
                 ] as const).map((f) => {
                   const count = markers.filter((m) => {
                     if (f.key === 'today') return getScheduledForDate(m, new Date());
-                    if (f.key === 'incomplete') return getScheduledForDate(m, new Date()) && !isCompletedToday(m);
-                    if (f.key === 'completed') return isCompletedToday(m);
+                    if (f.key === 'incomplete') return getScheduledForDate(m, new Date()) && ['planned', 'in_progress'].includes(getVisit(m).status);
+                    if (f.key === 'completed') return getScheduledForDate(m, new Date()) && isCompletedToday(m);
                     if (f.key === 'recurring') return Boolean(m.recurring_weekdays);
+                    if (f.key === 'missed' || f.key === 'cancelled') return getVisit(m).status === f.key;
                     return true;
                   }).length;
 
@@ -2899,9 +2906,10 @@ function MainApp() {
                       const q = searchQuery.trim();
                       if (q && !marker.name.includes(q) && !marker.address.includes(q) && !(marker.assigned_caregiver_name && marker.assigned_caregiver_name.includes(q))) return false;
                       if (listFilter === 'today' && !getScheduledForDate(marker, new Date())) return false;
-                      if (listFilter === 'incomplete' && (!getScheduledForDate(marker, new Date()) || isCompletedToday(marker))) return false;
-                      if (listFilter === 'completed' && !isCompletedToday(marker)) return false;
+                      if (listFilter === 'incomplete' && (!getScheduledForDate(marker, new Date()) || !['planned', 'in_progress'].includes(getVisit(marker).status))) return false;
+                      if (listFilter === 'completed' && (!getScheduledForDate(marker, new Date()) || !isCompletedToday(marker))) return false;
                       if (listFilter === 'recurring' && !marker.recurring_weekdays) return false;
+                      if ((listFilter === 'missed' || listFilter === 'cancelled') && getVisit(marker).status !== listFilter) return false;
                       return true;
                     })
                     .sort((a, b) => {
@@ -2949,7 +2957,8 @@ function MainApp() {
                     whileTap={{ scale: 0.98 }}
                     className={`rounded-[32px] ${listViewMode === 'list' ? 'mb-3.5' : ''} border border-white/30 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.05)] cursor-pointer bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-xl overflow-hidden flex flex-col hover:shadow-xl transition-all`}
                     onClick={() => {
-                      focusRecipientOnMap(marker);
+                      setSelectedRecipient(marker);
+                      setIsDetailModalOpen(true);
                     }}
                   >
                     {/* One UI 9.0 Inset List Card */}
@@ -2965,9 +2974,7 @@ function MainApp() {
                               )}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[19px] font-black text-foreground tracking-tight truncate">
-                                {marker.name} 어르신
-                              </p>
+                              <button type="button" aria-label={`${marker.name} 어르신 상세 보기`} onClick={(e) => { e.stopPropagation(); setSelectedRecipient(marker); setIsDetailModalOpen(true); }} className="text-left max-w-full text-[19px] font-black text-foreground tracking-tight truncate">{marker.name} 어르신</button>
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-accent/15 text-accent border border-accent/20">
                                   <IconClock size={12} strokeWidth={2.5} />
@@ -2976,10 +2983,10 @@ function MainApp() {
                                     return parsed.hasTime ? `${parsed.formattedText} 방문` : '시간 미정';
                                   })()}
                                 </span>
-                                {isCompletedToday(marker) && (
+                                {getVisit(marker).status !== 'planned' && (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-600 border border-emerald-500/20">
                                     <IconCheck size={12} strokeWidth={3} />
-                                    방문 완료
+                                    {VISIT_STATUS_LABEL[getVisit(marker).status]}
                                   </span>
                                 )}
                               </div>
@@ -2989,14 +2996,15 @@ function MainApp() {
                           <div className="flex flex-col gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
                             <IconButton
                               onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
+                              disabled={visitSaving || visits.loading}
                               className={`w-10 h-10 rounded-[18px] transition-all ${
                                 isCompletedToday(marker)
                                   ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
                                   : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'
                               }`}
-                              aria-label="방문 완료 토글"
+                              aria-label={visitPrimaryLabel(marker)}
                             >
-                              <IconCheck size={18} strokeWidth={2.5} />
+                              {visitActionIcon(marker, todayKey, 18)}
                             </IconButton>
                             {/* 경로 출발/도착 지정: 누르면 지도 탭의 경로 그리기 모드가 켜지고 순서대로 출발→도착이 지정된다 */}
                             <IconButton
@@ -3056,7 +3064,7 @@ function MainApp() {
                           </button>
                           <button 
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); setCompletingRecipient(marker); }} 
+                            onClick={(e) => { e.stopPropagation(); openCompletionForm(marker); }}
                             className="py-2.5 rounded-[16px] bg-primary/10 hover:bg-primary/15 text-primary text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
                           >
                             <IconMessageCircle size={15} />
@@ -3097,16 +3105,17 @@ function MainApp() {
                             )}
                           </div>
                           <button 
-                            onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }} 
+                            onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
+                              disabled={visitSaving || visits.loading}
                             className={`w-9 h-9 flex items-center justify-center rounded-[14px] transition-colors ${
                               isCompletedToday(marker) ? 'bg-emerald-500 text-white shadow-sm' : 'bg-surface-muted text-foreground/40 hover:bg-surface-border'
                             }`}
-                            aria-label="완료 토글"
+                            aria-label={visitPrimaryLabel(marker)}
                           >
-                            <IconCheck size={16} strokeWidth={2.5} />
+                            {visitActionIcon(marker, todayKey, 16)}
                           </button>
                         </div>
-                        <p className="text-[17px] font-black text-foreground tracking-tight truncate">{marker.name} 어르신</p>
+                        <button type="button" aria-label={`${marker.name} 어르신 상세 보기`} onClick={(e) => { e.stopPropagation(); setSelectedRecipient(marker); setIsDetailModalOpen(true); }} className="text-left max-w-full text-[17px] font-black text-foreground tracking-tight truncate">{marker.name} 어르신</button>
                         <p className="text-xs font-bold text-accent mb-2 truncate">
                           {parseVisitTime(marker.visit_time, marker.notes).formattedText}
                         </p>
@@ -3135,7 +3144,7 @@ function MainApp() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-black text-[15px] text-foreground tracking-tight truncate">{marker.name}</p>
+                            <button type="button" aria-label={`${marker.name} 어르신 상세 보기`} onClick={(e) => { e.stopPropagation(); setSelectedRecipient(marker); setIsDetailModalOpen(true); }} className="text-left max-w-full font-black text-[15px] text-foreground tracking-tight truncate">{marker.name}</button>
                             {isCompletedToday(marker) && (
                               <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
                                 <IconCheck size={10} strokeWidth={3} />
@@ -3190,7 +3199,7 @@ function MainApp() {
                     방문 일정
                   </p>
                   <p className="text-xs text-foreground/50 font-semibold">
-                    총 {scheduleRoute.length}곳 방문 예정
+                    총 {scheduleRoute.length}건 · 미방문 {scheduleRoute.filter(r => getVisit(r, selectedDateKey).status === 'missed').length}건 · 취소 {scheduleRoute.filter(r => getVisit(r, selectedDateKey).status === 'cancelled').length}건
                   </p>
                 </div>
               )}
@@ -3302,12 +3311,13 @@ function MainApp() {
               {/* Progress metric */}
               {scheduleRoute.length > 0 && (() => {
                 const completedCount = scheduleRoute.filter(r => isCompletedForDate(r, scheduleDate as Date)).length;
-                const percent = Math.round((completedCount / scheduleRoute.length) * 100);
+                const targetCount = scheduleRoute.filter(r => getVisit(r, selectedDateKey).status !== 'cancelled').length;
+                const percent = targetCount ? Math.round((completedCount / targetCount) * 100) : 0;
                 return (
                   <div className="space-y-1 pt-1 border-t border-surface-border/30">
-                    <div className="flex justify-between text-[11px] font-bold text-foreground/60">
+                    <div className="flex flex-wrap gap-1 justify-between text-[11px] font-bold text-foreground/60">
                       <span>방문 달성 현황</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-black">{completedCount} / {scheduleRoute.length}곳 완료 ({percent}%)</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-black">{targetCount ? `${completedCount} / ${targetCount}곳 완료 (${percent}%)` : '방문 대상 없음'} · 취소 제외</span>
                     </div>
                     <div className="w-full h-2 bg-foreground/[0.06] dark:bg-white/[0.06] rounded-full overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
@@ -3350,7 +3360,7 @@ function MainApp() {
                 
                 {scheduleRoute.map((marker, i) => {
                   const completed = isCompletedForDate(marker, scheduleDate);
-                  const isNext = !completed && (i === 0 || isCompletedForDate(scheduleRoute[i-1], scheduleDate));
+                  const isNext = ['planned', 'in_progress'].includes(getVisit(marker, selectedDateKey).status) && scheduleRoute.slice(0, i).every(r => ['completed', 'missed', 'cancelled'].includes(getVisit(r, selectedDateKey).status));
 
                   return (
                     <motion.div
@@ -3385,9 +3395,8 @@ function MainApp() {
                           
                           <div className="flex-1 min-w-0 pt-0.5">
                             <div className="flex items-center gap-2 mb-1">
-                              <p className={`font-black text-[18px] text-foreground tracking-tight truncate ${completed ? 'line-through opacity-80' : ''}`}>
-                                {marker.name} 어르신
-                              </p>
+                              <button type="button" aria-label={`${marker.name} 어르신 상세 보기`} onClick={(e) => { e.stopPropagation(); setSelectedRecipient(marker); setIsDetailModalOpen(true); }} className={`text-left max-w-full font-black text-[18px] text-foreground tracking-tight truncate ${completed ? 'opacity-80' : ''}`} >{marker.name} 어르신</button>
+                              <span className="text-xs font-bold text-foreground/65">{VISIT_STATUS_LABEL[getVisit(marker, selectedDateKey).status]}</span>
                               {isNext && (
                                 <span className="px-2.5 py-0.5 bg-accent text-accent-foreground text-[10px] font-black rounded-full animate-pulse shadow-xs">
                                   NEXT
@@ -3486,7 +3495,8 @@ function MainApp() {
 
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
+                              onClick={(e) => { e.stopPropagation(); toggleCompleted(marker, selectedDateKey); }}
+                              disabled={visitSaving || visits.loading}
                               className={`flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black transition-all whitespace-nowrap active:scale-95 ${
                                 completed 
                                   ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border border border-surface-border/40' 
@@ -3494,12 +3504,12 @@ function MainApp() {
                               }`}
                             >
                               <IconCheck size={15} strokeWidth={2.5} />
-                              <span>{completed ? '완료 취소' : '방문 완료'}</span>
+                              <span>{visitPrimaryLabel(marker, selectedDateKey)}</span>
                             </button>
 
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); setCompletingRecipient(marker); }}
+                              onClick={(e) => { e.stopPropagation(); openCompletionForm(marker, selectedDateKey); }}
                               className="flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black bg-primary/10 hover:bg-primary/20 text-primary transition-colors whitespace-nowrap active:scale-95 border border-primary/20"
                             >
                               <IconMessageCircle size={15} />
@@ -3521,7 +3531,7 @@ function MainApp() {
                           <div className="flex items-center gap-1.5 ml-auto">
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); setPrintingRecipient(marker); }}
+                              onClick={(e) => { e.stopPropagation(); openPrintRecipient(marker, selectedDateKey); }}
                               className="w-9 h-9 flex items-center justify-center rounded-[16px] bg-surface-muted text-foreground/75 hover:bg-surface-border transition-colors active:scale-95 border border-surface-border/40 shrink-0"
                               aria-label="출력"
                               title="이 어르신만 바로 출력"
@@ -3726,7 +3736,7 @@ function MainApp() {
                 ) : (
                   <IconUser size={30} className="text-primary" />
                 )}
-                {isCompletedToday(selectedRecipient) && (
+                {isSelectedVisitCompleted(selectedRecipient) && (
                   <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs text-[11px] font-black border-2 border-surface">
                     ✓
                   </div>
@@ -3739,23 +3749,24 @@ function MainApp() {
                   <h3 className="text-[17px] font-black text-foreground tracking-tight truncate">
                     {selectedRecipient.name} 어르신
                   </h3>
-                  {isCompletedToday(selectedRecipient) ? (
+                  {isSelectedVisitCompleted(selectedRecipient) ? (
                     <span className="px-2 py-0.5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-black text-[10px] rounded-full">
                       방문완료
                     </span>
                   ) : isVisitStartedToday(selectedRecipient) ? (
                     <span className="px-2 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 font-black text-[10px] rounded-full">
-                      진행 중 · {Math.max(0, Math.floor((Date.now() - new Date(selectedRecipient.last_visit_started_at as string).getTime()) / 60000))}분
+                      진행 중 · {Math.max(0, Math.floor((Date.now() - new Date(getVisit(selectedRecipient, detailDateKey).started_at as string).getTime()) / 60000))}분
                     </span>
                   ) : (
                     <span className="px-2 py-0.5 bg-primary/10 text-primary font-black text-[10px] rounded-full">
                       {parseVisitTime(selectedRecipient.visit_time, selectedRecipient.notes).formattedText}
                     </span>
                   )}
-                  {!isCompletedToday(selectedRecipient) && !isVisitStartedToday(selectedRecipient) && (
+                  {getVisit(selectedRecipient, detailDateKey).status === 'planned' && detailDateKey === todayKey && (
                     <button
                       type="button"
                       onClick={() => handleStartVisit(selectedRecipient)}
+                      disabled={visitSaving || visits.loading}
                       className="px-2 py-0.5 bg-foreground/[0.06] hover:bg-foreground/[0.1] text-foreground/60 font-black text-[10px] rounded-full active:scale-95 transition-all shrink-0"
                     >
                       방문 시작
@@ -3851,20 +3862,21 @@ function MainApp() {
 
               <button
                 type="button"
-                onClick={() => toggleCompleted(selectedRecipient)}
+                onClick={() => toggleCompleted(selectedRecipient, detailDateKey)}
+                    disabled={visitSaving || visits.loading}
                 className={`py-2.5 rounded-[16px] text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border ${
-                  isCompletedToday(selectedRecipient)
+                  isSelectedVisitCompleted(selectedRecipient)
                     ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border border-surface-border/40'
                     : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 border-emerald-500/25'
                 }`}
               >
                 <IconCheck size={15} strokeWidth={2.5} />
-                <span>{isCompletedToday(selectedRecipient) ? '완료취소' : '방문완료'}</span>
+                <span>{visitPrimaryLabel(selectedRecipient, detailDateKey)}</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => setCompletingRecipient(selectedRecipient)}
+                onClick={() => openCompletionForm(selectedRecipient, detailDateKey)}
                 className="py-2.5 rounded-[16px] bg-primary/10 hover:bg-primary/20 text-primary text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
               >
                 <IconMessageCircle size={15} />
@@ -4156,7 +4168,7 @@ function MainApp() {
                     <p className="text-2xl font-black text-foreground tracking-tight">
                       {selectedRecipient.name} 어르신
                     </p>
-                    {isCompletedToday(selectedRecipient) && (
+                    {isSelectedVisitCompleted(selectedRecipient) && (
                       <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-600 border border-emerald-500/20">
                         방문 완료 ✓
                       </span>
@@ -4188,14 +4200,15 @@ function MainApp() {
                   </div>
                 </div>
 
-                {/* Quick Toggle Complete & Edit Actions */}
+                {/* Visit action & edit actions */}
                 <div className="flex gap-1.5 shrink-0">
                   <IconButton 
-                    onClick={() => toggleCompleted(selectedRecipient)} 
-                    className={`w-11 h-11 rounded-[18px] transition-all ${isCompletedToday(selectedRecipient) ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'}`} 
-                    aria-label="방문 완료 토글"
+                    onClick={() => toggleCompleted(selectedRecipient, detailDateKey)}
+                    disabled={visitSaving || visits.loading}
+                    className={`w-11 h-11 rounded-[18px] transition-all ${isSelectedVisitCompleted(selectedRecipient) ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'}`}
+                    aria-label={visitPrimaryLabel(selectedRecipient, detailDateKey)}
                   >
-                    <IconCheck size={20} strokeWidth={2.5} />
+                    {visitActionIcon(selectedRecipient, detailDateKey, 20)}
                   </IconButton>
                   <IconButton 
                     onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} 
@@ -4214,6 +4227,10 @@ function MainApp() {
                 </div>
               </div>
 
+                <button type="button" onClick={() => openVisitRecord(selectedRecipient, detailDateKey)} className="rounded-2xl border border-surface-border px-3 py-2 text-sm font-bold text-left">
+                  {detailDateKey} · {VISIT_STATUS_LABEL[getVisit(selectedRecipient, detailDateKey).status]} · 기록·정정
+                </button>
+
               {/* One UI 9.0 Quick Action Pill Bar */}
               <div className="grid grid-cols-4 gap-2 my-4">
                 <button
@@ -4225,7 +4242,7 @@ function MainApp() {
                 </button>
 
                 <button
-                  onClick={() => setCompletingRecipient(selectedRecipient)}
+                  onClick={() => openCompletionForm(selectedRecipient, detailDateKey)}
                   className="py-3 px-1 rounded-[20px] bg-primary/10 hover:bg-primary/15 text-primary flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
                 >
                   <IconMessageCircle size={20} />
@@ -4241,7 +4258,7 @@ function MainApp() {
                 </button>
 
                 <button
-                  onClick={() => setPrintingRecipient(selectedRecipient)}
+                  onClick={() => openPrintRecipient(selectedRecipient)}
                   className="py-3 px-1 rounded-[20px] bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-surface-border/40"
                 >
                   <IconPrinter size={20} />
@@ -4250,11 +4267,11 @@ function MainApp() {
               </div>
 
               {/* Today Completed Visit Memo Inset */}
-              {isCompletedToday(selectedRecipient) && selectedRecipient.last_completed_memo && (
+              {isSelectedVisitCompleted(selectedRecipient) && getVisit(selectedRecipient, detailDateKey).memo && (
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[24px] p-4 my-3 relative">
-                  <div className="text-[11px] font-black uppercase tracking-wider text-emerald-600 mb-1">오늘의 방문 일지</div>
+                  <div className="text-[11px] font-black uppercase tracking-wider text-emerald-600 mb-1">{detailDateKey} 방문 일지</div>
                   <p className="text-[14px] font-bold text-foreground/85 whitespace-pre-wrap leading-relaxed">
-                    {selectedRecipient.last_completed_memo}
+                    {getVisit(selectedRecipient, detailDateKey).memo}
                   </p>
                 </div>
               )}
@@ -4371,7 +4388,7 @@ function MainApp() {
               <button
                 type="button"
                 onClick={() => {
-                  setPrintingRecipient(printSuggestionRecipient);
+                  openPrintRecipient(printSuggestionRecipient, printSuggestionRecipient.last_completed_key || todayKey);
                   setPrintSuggestionRecipient(null);
                 }}
                 className="px-3 py-2 rounded-full bg-white/15 dark:bg-zinc-900/10 text-[12px] font-black whitespace-nowrap active:scale-95 transition-transform"
@@ -4413,9 +4430,9 @@ function MainApp() {
               badge: (() => {
                 const todayCount = markers.filter(m => getScheduledForDate(m, new Date())).length;
                 const completedCount = markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length;
-                const remaining = todayCount - completedCount;
+                const remaining = markers.filter(m => getScheduledForDate(m, new Date()) && ['planned', 'in_progress'].includes(getVisit(m).status)).length;
                 if (todayCount === 0) return undefined;
-                if (remaining === 0) return '✓';
+                if (remaining === 0) return completedCount === todayCount ? '✓' : undefined;
                 return String(remaining);
               })(),
               badgeColor: (() => {
@@ -4456,31 +4473,41 @@ function MainApp() {
       <VoiceMemoModal
         key={completingRecipient?.id || 'none'}
         isOpen={Boolean(completingRecipient)}
-        onClose={() => setCompletingRecipient(null)}
+        onClose={() => { if (!visitSaving) setCompletingRecipient(null); }}
         onSave={handleSaveMemo}
         onSaveAndShare={handleSaveAndShareMemo}
         recipientName={completingRecipient?.name || ''}
         recipientId={completingRecipient?.id}
-        initialMemo={completingRecipient?.last_completed_memo}
+        initialMemo={completingRecipient ? getVisit(completingRecipient, completingDateKey || todayKey).memo : null}
+        saving={visitSaving}
+        saveError={visitActionError}
+        visitDateLabel={completingDateKey}
       />
+
+      {recordVisit && <VisitRecordModal open onClose={() => { if (!visitSaving) setRecordVisit(null); }}
+        recipientName={recordVisit.recipient.name} dateKey={recordVisit.dateKey} session={getVisit(recordVisit.recipient, recordVisit.dateKey)}
+        saving={visitSaving} error={visitActionError}
+        onTransition={async (status, reason, expectedVersion) => { await saveVisitTransition(recordVisit.recipient, recordVisit.dateKey, status, undefined, reason, expectedVersion); }} />}
 
       <ShareReportModal
         isOpen={Boolean(sharingRecipient)}
         onClose={() => setSharingRecipient(null)}
         recipient={sharingRecipient}
-        selectedDate={scheduleDate}
+        selectedDate={sharingDateKey ? new Date(`${sharingDateKey}T12:00:00`) : new Date()}
       />
 
       <PrintProfileModal
         isOpen={Boolean(printingRecipient)}
         onClose={() => { setPrintingRecipient(null); refetchPrintedRecipientIds(); }}
         recipient={printingRecipient}
+        dateKey={printingDateKey || todayKey}
       />
 
       <BatchPrintModal
         isOpen={isBatchPrintOpen}
         onClose={() => { setIsBatchPrintOpen(false); refetchPrintedRecipientIds(); }}
-        recipients={scheduleDate ? scheduleRoute.map((r) => ({ ...r, completed: isCompletedForDate(r, scheduleDate) })) : scheduleRoute}
+        recipients={scheduleDate ? scheduleRoute.map((r) => ({ ...projectVisitForDate(r, selectedDateKey), completed: isCompletedForDate(r, scheduleDate) })) : scheduleRoute}
+        dateKey={selectedDateKey}
         dateLabel={scheduleDate ? `${scheduleDate.getMonth() + 1}월 ${scheduleDate.getDate()}일` : undefined}
       />
 

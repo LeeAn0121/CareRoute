@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconDeviceFloppy } from '@tabler/icons-react';
 import { Modal, IconButton, Button } from './ui';
 import PrintSheet from './PrintSheet';
+import { usePrintDraft } from './usePrintDraft';
 import PrintHistorySheet from './PrintHistorySheet';
 import { captureSheetCanvas, createA4Pdf, addCanvasAsA4Page } from '@/lib/pdfExport';
 import { logPrintEvent, uploadPrintPdf } from '@/lib/printLogs';
@@ -31,6 +32,7 @@ interface PrintProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   recipient: Recipient | null;
+  dateKey?: string;
 }
 
 function todayYMD(): string {
@@ -38,9 +40,10 @@ function todayYMD(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintProfileModalProps) {
-  const [healthStatus, setHealthStatus] = useState('');
-  const [memo, setMemo] = useState('');
+export default function PrintProfileModal({ isOpen, onClose, recipient, dateKey = todayYMD() }: PrintProfileModalProps) {
+  const [healthStatus, setHealthStatus] = usePrintDraft(recipient?.id, 'health', dateKey, '', isOpen);
+  const selectedMemo = recipient?.last_completed_key === dateKey ? recipient?.last_completed_memo : null;
+  const [memo, setMemo] = usePrintDraft(recipient?.id, 'memo', dateKey, selectedMemo, isOpen);
   const [writtenDate, setWrittenDate] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [confirmerName, setConfirmerName] = useState('');
@@ -53,17 +56,9 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  // 어르신별로 작성 중이던 내용을 기억해뒀다가 다음에 출력할 때 이어서 쓸 수 있게 한다.
-  // 작성자명/기관 정보는 기기 공용으로 기억해 매번 다시 입력하지 않게 하고,
-  // 작성일/확인자는 열 때마다 초기화한다(확인자는 방문마다 달라질 수 있어 비워 둠).
-  // 메모 칸은 로컬에 남은 작성 중 초안을 우선하고, 초안이 없으면서 "오늘" 방문완료 처리를
-  // 했다면 그때 남긴 돌봄 일지(last_completed_memo)를 기본값으로 채워 다시 타이핑하지 않게 한다.
-  // (완료가 오늘이 아니면 며칠 지난 옛 메모가 엉뚱하게 섞여 들어가지 않도록 제외한다.)
+  // 작성일은 실제 오늘 날짜로, 방문일과 별도로 초기화한다.
   useEffect(() => {
     if (isOpen && recipient && typeof window !== 'undefined') {
-      setHealthStatus(localStorage.getItem(`careroute_print_health_${recipient.id}`) || '');
-      const todaysMemo = recipient.last_completed_key === todayYMD() ? recipient.last_completed_memo : null;
-      setMemo(localStorage.getItem(`careroute_print_memo_${recipient.id}`) || todaysMemo || '');
       setWrittenDate(todayYMD());
       setAuthorName(localStorage.getItem('careroute_print_author_name') || '');
       setConfirmerName('');
@@ -72,18 +67,6 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
       setIsPreview(false);
     }
   }, [isOpen, recipient]);
-
-  useEffect(() => {
-    if (!recipient || typeof window === 'undefined') return;
-    if (healthStatus) localStorage.setItem(`careroute_print_health_${recipient.id}`, healthStatus);
-    else localStorage.removeItem(`careroute_print_health_${recipient.id}`);
-  }, [healthStatus, recipient]);
-
-  useEffect(() => {
-    if (!recipient || typeof window === 'undefined') return;
-    if (memo) localStorage.setItem(`careroute_print_memo_${recipient.id}`, memo);
-    else localStorage.removeItem(`careroute_print_memo_${recipient.id}`);
-  }, [memo, recipient]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -208,6 +191,7 @@ export default function PrintProfileModal({ isOpen, onClose, recipient }: PrintP
         <PrintSheet
           ref={sheetRef}
           recipient={recipient}
+            scheduleLabel={dateKey}
           healthStatus={healthStatus}
           onHealthStatusChange={setHealthStatus}
           memo={memo}

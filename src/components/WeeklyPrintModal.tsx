@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconCheck, IconDeviceFloppy } from '@tabler/icons-react';
 import { Modal, IconButton, Button } from './ui';
 import PrintSheet from './PrintSheet';
+import { usePrintDraft } from './usePrintDraft';
 import PrintHistorySheet from './PrintHistorySheet';
 import { captureSheetCanvas, createA4Pdf, addCanvasAsA4Page } from '@/lib/pdfExport';
 import { logPrintEvent, uploadPrintPdf } from '@/lib/printLogs';
@@ -49,30 +50,9 @@ function entryKey(dateKey: string, recipientId: string): string {
   return `${dateKey}__${recipientId}`;
 }
 
-// 같은 어르신이 여러 날 방문 예정이어도 수기 입력 초안은 사람 기준으로 하나만 기억한다
-// (개별/일괄 출력과 동일한 저장 방식). 메모는 로컬 초안이 없으면 방문완료 시 남긴
-// 돌봄 일지(last_completed_memo)를 기본값으로 채운다.
-function useRecipientDraft(recipientId: string, storageKey: 'health' | 'memo', fallbackMemo?: string | null) {
-  const key = `careroute_print_${storageKey}_${recipientId}`;
-  const [value, setValue] = useState('');
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const draft = localStorage.getItem(key);
-    if (draft) setValue(draft);
-    else if (storageKey === 'memo') setValue(fallbackMemo || '');
-    else setValue('');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (value) localStorage.setItem(key, value);
-    else localStorage.removeItem(key);
-  }, [key, value]);
-  return [value, setValue] as const;
-}
-
 function RecipientSheetCard({
   recipient,
+  dateKey,
   scheduleLabel,
   writtenDate,
   authorName,
@@ -87,6 +67,7 @@ function RecipientSheetCard({
   sheetRef,
 }: {
   recipient: Recipient;
+  dateKey: string;
   scheduleLabel: string;
   writtenDate: string;
   authorName: string;
@@ -100,9 +81,9 @@ function RecipientSheetCard({
   onOrgContactChange: (v: string) => void;
   sheetRef: (el: HTMLDivElement | null) => void;
 }) {
-  const [healthStatus, setHealthStatus] = useRecipientDraft(recipient.id, 'health');
-  const todaysMemo = recipient.last_completed_key === todayYMD() ? recipient.last_completed_memo : null;
-  const [memo, setMemo] = useRecipientDraft(recipient.id, 'memo', todaysMemo);
+  const [healthStatus, setHealthStatus] = usePrintDraft(recipient.id, 'health', dateKey);
+  const selectedMemo = recipient.last_completed_key === dateKey ? recipient.last_completed_memo : null;
+  const [memo, setMemo] = usePrintDraft(recipient.id, 'memo', dateKey, selectedMemo);
 
   return (
     <PrintSheet
@@ -142,7 +123,7 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
   const sheetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const allEntries = days.flatMap((day) =>
-    day.recipients.map((recipient) => ({ key: entryKey(day.dateKey, recipient.id), dateLabel: day.dateLabel, recipient }))
+    day.recipients.map((recipient) => ({ key: entryKey(day.dateKey, recipient.id), dateKey: day.dateKey, dateLabel: day.dateLabel, recipient }))
   );
 
   useEffect(() => {
@@ -379,6 +360,7 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
               <p className="no-print text-[12px] font-black text-foreground/40 pl-1">{entry.dateLabel} · {entry.recipient.name} 어르신</p>
               <RecipientSheetCard
                 recipient={entry.recipient}
+                dateKey={entry.dateKey}
                 scheduleLabel={entry.dateLabel}
                 writtenDate={writtenDate}
                 authorName={authorName}

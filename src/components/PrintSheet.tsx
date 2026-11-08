@@ -244,6 +244,7 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
       {/* 3. 참고 (메모용): 수기 입력란. 인쇄/PDF 시 A4 한 장을 채우도록 늘어남 */}
       <div className="print-grow flex flex-col gap-1.5">
         <span className="text-[17px] font-black text-[#1c1c1e] tracking-tight pl-1">참고 (메모용)</span>
+        <p className="print-edit-only text-xs text-foreground/60">출력용 메모입니다. 방문 일지는 방문 기록 화면에서 정정해 주세요.</p>
         <QuickPhraseChips phrases={MEMO_PHRASES} onPick={(p) => onMemoChange(appendPhrase(memo, p))} />
         <textarea
           value={memo}

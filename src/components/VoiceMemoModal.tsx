@@ -11,14 +11,37 @@ import { fetchMedicationsForRecipient, type MedicationRow } from '@/lib/medicati
 interface VoiceMemoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (memo: string, vitals: VitalsInput) => void;
-  onSaveAndShare?: (memo: string, vitals: VitalsInput) => void;
+  onSave: (memo: string, vitals: VitalsInput) => void | Promise<void>;
+  onSaveAndShare?: (memo: string, vitals: VitalsInput) => void | Promise<void>;
   recipientName: string;
   recipientId?: string;
   initialMemo?: string | null;
+  saving?: boolean;
+  saveError?: string;
+  visitDateLabel?: string;
 }
 
-export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare, recipientName, recipientId, initialMemo }: VoiceMemoModalProps) {
+export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare, recipientName, recipientId, initialMemo, saving = false, saveError = '', visitDateLabel }: VoiceMemoModalProps) {
+  const [submitting, setSubmitting] = useState(false);
+  const [callbackError, setCallbackError] = useState('');
+  const submitRef = useRef(false);
+  const busy = saving || submitting;
+  const close = () => { if (!busy && !submitRef.current) { stopRecognition(); onClose(); } };
+  const save = async (memo: string, share = false) => {
+    if (busy || submitRef.current) return;
+    submitRef.current = true;
+    setSubmitting(true);
+    setCallbackError('');
+    stopRecognition();
+    try {
+      await (share && onSaveAndShare ? onSaveAndShare(memo, collectVitals()) : onSave(memo, collectVitals()));
+    } catch (error) {
+      setCallbackError(error instanceof Error ? error.message : '저장하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      submitRef.current = false;
+      setSubmitting(false);
+    }
+  };
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimText, setInterimText] = useState('');
@@ -47,6 +70,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
   const recognitionRef = useRef<any>(null);
   const isRecordingRef = useRef<boolean>(false);
   const finalTranscriptRef = useRef<string>('');
+  const initializedDraft = useRef<string | null>(null);
 
   const stopRecognition = () => {
     isRecordingRef.current = false;
@@ -161,18 +185,26 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
   // 모달이 열릴 때 상태 초기화 및 닫힐 때 음성 인식 중단
   useEffect(() => {
     if (isOpen) {
+      const identity = `${recipientId || recipientName}/${visitDateLabel || ''}`;
+      if (initializedDraft.current === identity) return;
+      initializedDraft.current = identity;
       const initial = initialMemo || '';
       setTranscript(initial);
+      setSystolicBp('');
+      setDiastolicBp('');
+      setBloodSugar('');
+      setTemperature('');
       setInterimText('');
       setErrorMessage('');
       finalTranscriptRef.current = initial;
     } else {
+      initializedDraft.current = null;
       stopRecognition();
     }
-    return () => {
-      stopRecognition();
-    };
-  }, [isOpen, initialMemo]);
+  }, [isOpen, initialMemo, recipientId, recipientName, visitDateLabel]);
+
+  // A server refresh must not interrupt dictation for the same visit draft.
+  useEffect(() => () => { stopRecognition(); }, [isOpen, recipientId, visitDateLabel]);
 
   const toggleRecording = () => {
     if (isRecording) {
@@ -183,20 +215,21 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
   };
 
   return (
-    <Modal open={isOpen} onClose={onClose}>
-      <div className="flex items-center justify-between p-6 border-b border-surface-border/60">
-        <div>
+    <Modal open={isOpen} onClose={close} closeOnBackdrop={!busy}>
+      <div className="flex items-start justify-between gap-3 p-6 border-b border-surface-border/60">
+        <div className="min-w-0 break-words">
           <h2 className="text-xl font-black text-primary tracking-tight">{recipientName} 어르신 방문 일지</h2>
+          {visitDateLabel && <p className="mt-1 text-base font-bold text-primary break-words">{visitDateLabel}</p>}
           <p className="text-xs font-semibold text-foreground/50 mt-0.5">실시간 음성 인식으로 방문 내용을 기록합니다.</p>
         </div>
-        <IconButton onClick={onClose} className="rounded-[18px] bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="닫기">
+        <IconButton onClick={close} disabled={busy} className="shrink-0 rounded-[18px] bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="닫기">
           <IconX size={20} />
         </IconButton>
       </div>
 
-      <div className="p-6 flex flex-col gap-4">
+      <fieldset disabled={busy} aria-busy={busy} className="m-0 min-w-0 w-full border-0 p-6 flex flex-col gap-4">
         {/* Status Chip */}
-        <div className="flex items-center justify-between px-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-2">
             <span className={`w-2.5 h-2.5 rounded-full ${isRecording ? 'bg-red-500 animate-ping' : 'bg-foreground/30'}`} />
             <span className="text-xs font-black tracking-tight text-foreground/70">
@@ -219,7 +252,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
         </div>
 
         {/* Quick Phrases for One-Touch Memo */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex flex-wrap gap-1.5 pb-1">
           {[
             '식사 및 투약 완료, 상태 양호',
             '혈압 및 체온 정상, 대화 나누심',
@@ -234,7 +267,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
                 setTranscript(updated);
                 finalTranscriptRef.current = updated;
               }}
-              className="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-foreground/[0.04] dark:bg-white/[0.06] hover:bg-foreground/[0.08] text-foreground/75 border border-surface-border/50 whitespace-nowrap active:scale-95 transition-all shrink-0"
+              className="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-foreground/[0.04] dark:bg-white/[0.06] hover:bg-foreground/[0.08] text-foreground/75 border border-surface-border/50 whitespace-normal break-words text-left active:scale-95 transition-all min-w-0"
             >
               + {phrase}
             </button>
@@ -247,7 +280,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
             <span className="block text-xs font-black text-foreground/70 uppercase tracking-wider pl-0.5">
               복약 확인 (눌러서 기록)
             </span>
-            <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            <div className="flex flex-wrap gap-1.5 pb-1">
               {medications.map((med) => {
                 const phrase = `${med.drug_name} 복약 확인${med.times_of_day ? `(${med.times_of_day.split(',').join('/')})` : ''}`;
                 return (
@@ -259,7 +292,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
                       setTranscript(updated);
                       finalTranscriptRef.current = updated;
                     }}
-                    className="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/25 whitespace-nowrap active:scale-95 transition-all shrink-0"
+                    className="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/25 whitespace-normal break-words text-left active:scale-95 transition-all min-w-0"
                   >
                     💊 {med.drug_name}
                   </button>
@@ -366,25 +399,29 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
           </div>
         </div>
 
+        {(saveError || callbackError) && <p role="alert" className="p-3 bg-red-500/10 border border-red-500/20 rounded-[18px] text-base font-bold text-red-600 dark:text-red-400 break-words">{saveError || callbackError}</p>}
+
         <div className="flex flex-col gap-2 mt-2">
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <Button 
               type="button" 
               variant="ghost" 
               fullWidth 
-              onClick={() => { stopRecognition(); onSave('', collectVitals()); }}
-              className="py-3 rounded-[18px] font-bold text-foreground/60 text-xs sm:text-sm"
+              disabled={busy}
+              onClick={() => { void save(''); }}
+              className="py-3 rounded-[18px] font-bold text-foreground/60 text-base whitespace-normal break-words"
             >
-              메모 없이 완료
+              메모 없이 방문 완료
             </Button>
             <Button
               type="button"
               fullWidth
-              onClick={() => { stopRecognition(); onSave(transcript, collectVitals()); }}
-              className="py-3 rounded-[18px] font-black shadow-sm text-xs sm:text-sm"
+              disabled={busy}
+              onClick={() => { void save(transcript); }}
+              className="py-3 rounded-[18px] font-black shadow-sm text-base whitespace-normal break-words"
               startIcon={<IconSend size={16} />}
             >
-              기록 저장
+              기록하고 방문 완료
             </Button>
           </div>
 
@@ -392,15 +429,16 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
             <Button
               type="button"
               fullWidth
-              onClick={() => { stopRecognition(); onSaveAndShare(transcript, collectVitals()); }}
-              className="py-3.5 rounded-[18px] font-black bg-amber-400 hover:bg-amber-500 text-stone-900 border-none shadow-md text-sm"
+              disabled={busy}
+              onClick={() => { void save(transcript, true); }}
+              className="py-3.5 rounded-[18px] font-black bg-amber-400 hover:bg-amber-500 text-stone-900 border-none shadow-md text-base whitespace-normal break-words"
               startIcon={<span className="text-base">💙</span>}
             >
-              저장하고 보호자 안심 공유하기
+              기록하고 방문 완료 · 보호자 안심 공유
             </Button>
           )}
         </div>
-      </div>
+      </fieldset>
     </Modal>
   );
 }

@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconCheck, IconDeviceFloppy } from '@tabler/icons-react';
 import { Modal, IconButton, Button } from './ui';
 import PrintSheet from './PrintSheet';
+import { usePrintDraft } from './usePrintDraft';
 import PrintHistorySheet from './PrintHistorySheet';
 import { captureSheetCanvas, createA4Pdf, addCanvasAsA4Page } from '@/lib/pdfExport';
 import { logPrintEvent, uploadPrintPdf } from '@/lib/printLogs';
@@ -33,6 +34,7 @@ interface BatchPrintModalProps {
   onClose: () => void;
   recipients: Recipient[];
   dateLabel?: string;
+  dateKey?: string;
 }
 
 function todayYMD(): string {
@@ -40,30 +42,9 @@ function todayYMD(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// 어르신별 건강 상태/메모는 각자 로컬 저장소에 보관해, 개별 출력 화면에서 작성한 내용을 그대로 이어서 쓴다.
-// 메모는 로컬 초안이 없으면서 "오늘" 방문완료 처리를 했다면 그때 남긴 돌봄 일지
-// (last_completed_memo)를 기본값으로 채운다(옛 메모가 섞여 들어가지 않도록 오늘 것만 사용).
-function useRecipientDraft(recipient: Recipient, storageKey: 'health' | 'memo') {
-  const key = `careroute_print_${storageKey}_${recipient.id}`;
-  const [value, setValue] = useState('');
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const draft = localStorage.getItem(key);
-    if (draft) setValue(draft);
-    else if (storageKey === 'memo') setValue((recipient.last_completed_key === todayYMD() ? recipient.last_completed_memo : null) || '');
-    else setValue('');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (value) localStorage.setItem(key, value);
-    else localStorage.removeItem(key);
-  }, [key, value]);
-  return [value, setValue] as const;
-}
-
 function RecipientSheetCard({
   recipient,
+  dateKey,
   writtenDate,
   authorName,
   confirmerName,
@@ -77,6 +58,7 @@ function RecipientSheetCard({
   sheetRef,
 }: {
   recipient: Recipient;
+  dateKey: string;
   writtenDate: string;
   authorName: string;
   confirmerName: string;
@@ -89,13 +71,15 @@ function RecipientSheetCard({
   onOrgContactChange: (v: string) => void;
   sheetRef: (el: HTMLDivElement | null) => void;
 }) {
-  const [healthStatus, setHealthStatus] = useRecipientDraft(recipient, 'health');
-  const [memo, setMemo] = useRecipientDraft(recipient, 'memo');
+  const [healthStatus, setHealthStatus] = usePrintDraft(recipient.id, 'health', dateKey);
+  const selectedMemo = recipient.last_completed_key === dateKey ? recipient.last_completed_memo : null;
+  const [memo, setMemo] = usePrintDraft(recipient.id, 'memo', dateKey, selectedMemo);
 
   return (
     <PrintSheet
       ref={sheetRef}
       recipient={recipient}
+      scheduleLabel={dateKey}
       healthStatus={healthStatus}
       onHealthStatusChange={setHealthStatus}
       memo={memo}
@@ -114,7 +98,7 @@ function RecipientSheetCard({
   );
 }
 
-export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel }: BatchPrintModalProps) {
+export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel, dateKey = todayYMD() }: BatchPrintModalProps) {
   const [writtenDate, setWrittenDate] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [confirmerName, setConfirmerName] = useState('');
@@ -359,6 +343,7 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
               <p className="no-print text-[12px] font-black text-foreground/40 pl-1">{r.name} 어르신</p>
               <RecipientSheetCard
                 recipient={r}
+                dateKey={dateKey}
                 writtenDate={writtenDate}
                 authorName={authorName}
                 confirmerName={confirmerName}

@@ -19,6 +19,12 @@ interface FeedRecipient {
   recurring_weekdays?: string | null;
 }
 
+interface FeedSession {
+  recipient_id: string | null;
+  visit_date: string;
+  status: "cancelled" | "planned";
+}
+
 function escapeIcsText(text: string): string {
   return text
     .replace(/\\/g, "\\\\")
@@ -66,7 +72,14 @@ function nextOccurrenceOf(weekday: number, from: Date): Date {
   return d;
 }
 
-function buildCalendarIcs(recipients: FeedRecipient[], now: Date): string {
+function buildCalendarIcs(recipients: FeedRecipient[], sessions: FeedSession[], now: Date): string {
+  const byRecipient = new Map<string, FeedSession[]>();
+  for (const session of sessions) {
+    if (!session.recipient_id) continue;
+    const dates = byRecipient.get(session.recipient_id) ?? [];
+    dates.push(session);
+    byRecipient.set(session.recipient_id, dates);
+  }
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -83,15 +96,23 @@ function buildCalendarIcs(recipients: FeedRecipient[], now: Date): string {
     const summary = escapeIcsText(`${r.name} 어르신 방문`);
     const loc = location(r);
 
-    if (r.recurring_weekdays) {
-      const weekdays = r.recurring_weekdays
+    const states = byRecipient.get(r.id) ?? [];
+    const cancelled = new Set(states.filter((s) => s.status === "cancelled").map((s) => s.visit_date));
+    const weekdays = (r.recurring_weekdays || "")
         .split(",")
+        .filter((v) => v.trim() !== "")
         .map((v) => Number(v))
-        .filter((n) => !Number.isNaN(n) && n >= 0 && n <= 6)
+        .filter((n, i, all) => Number.isInteger(n) && n >= 0 && n <= 6 && all.indexOf(n) === i)
         .sort((a, b) => a - b);
-      if (weekdays.length > 0) {
+    const dateTime = (date: string) => {
+      const [y, m, d] = date.split("-").map(Number);
+      return new Date(y, m - 1, d, hour, minute, 0, 0);
+    };
+    let recurringStart: Date | null = null;
+    if (weekdays.length > 0) {
         const dtStartDate = nextOccurrenceOf(weekdays[0], now);
         dtStartDate.setHours(hour, minute, 0, 0);
+        recurringStart = dtStartDate;
         lines.push(
           "BEGIN:VEVENT",
           `UID:${r.id}-recurring@careroute`,
@@ -99,18 +120,23 @@ function buildCalendarIcs(recipients: FeedRecipient[], now: Date): string {
           `DTSTART:${formatIcsDateTime(dtStartDate)}`,
           `DURATION:PT${durationMin}M`,
           `RRULE:FREQ=WEEKLY;BYDAY=${weekdays.map((w) => WEEKDAY_ICS[w]).join(",")}`,
+          ...([...cancelled].sort().filter((date) => weekdays.includes(dateTime(date).getDay()))
+            .map((date) => `EXDATE:${formatIcsDateTime(dateTime(date))}`)),
           `SUMMARY:${summary}`,
           ...(loc ? [`LOCATION:${loc}`] : []),
           "END:VEVENT",
         );
-      }
     }
 
     const oneOffDates = (r.notes || "")
       .split(",")
       .map((s) => s.trim())
       .filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s));
-    for (const dateStr of oneOffDates) {
+    for (const session of states) {
+      if (session.status === "planned") oneOffDates.push(session.visit_date);
+    }
+    for (const dateStr of new Set(oneOffDates)) {
+      if (cancelled.has(dateStr) || (recurringStart && dateTime(dateStr) >= recurringStart && weekdays.includes(dateTime(dateStr).getDay()))) continue;
       const [y, m, d] = dateStr.split("-").map(Number);
       const dt = new Date(y, m - 1, d, hour, minute, 0, 0);
       lines.push(
@@ -143,20 +169,44 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/recipients?select=id,name,address,detail_address,visit_time,notes,recurring_weekdays`,
-      {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-      },
-    );
-    if (!res.ok) {
-      return new Response("Failed to load schedule", { status: 502 });
+    const headers = {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    };
+    const data: FeedRecipient[] = [];
+    for (let offset = 0; ; offset += 500) {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/recipients?select=id,name,address,detail_address,visit_time,notes,recurring_weekdays&order=id&offset=${offset}&limit=500`,
+        { headers },
+      );
+      if (!res.ok) return new Response("Failed to load schedule", { status: 502 });
+      const rows = await res.json();
+      if (!Array.isArray(rows)) return new Response("Failed to load schedule", { status: 502 });
+      data.push(...rows);
+      if (rows.length < 500) break;
     }
-    const data = (await res.json()) as FeedRecipient[];
-    const ics = buildCalendarIcs(data, new Date());
+    const sessions: FeedSession[] = [];
+    try {
+      for (let offset = 0; ; offset += 500) {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/visit_sessions?select=recipient_id,visit_date,status&status=in.(cancelled,planned)&order=id&offset=${offset}&limit=500`,
+          { headers },
+        );
+        if (!res.ok) throw new Error("Visit state fetch failed");
+        const rows = await res.json();
+        if (!Array.isArray(rows) || rows.some((row) => !row ||
+          (row.recipient_id !== null && typeof row.recipient_id !== "string") ||
+          typeof row.visit_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(row.visit_date) ||
+          !["planned", "cancelled"].includes(row.status))) {
+          throw new Error("Invalid visit state response");
+        }
+        sessions.push(...rows);
+        if (rows.length < 500) break;
+      }
+    } catch {
+      return new Response("Failed to load visit states", { status: 503 });
+    }
+    const ics = buildCalendarIcs(data, sessions, new Date());
 
     return new Response(ics, {
       status: 200,

@@ -49,22 +49,51 @@ Deno.serve(async () => {
   const { ymd, hm, weekday } = seoulNow();
   const notifiedKey = `${ymd}_${hm}`;
 
-  // 오늘 날짜로 지정된 방문 + 반복 요일에 오늘이 포함된 방문 모두 조회
-  const recRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/recipients?select=id,name,address,visit_time,notes,recurring_weekdays,last_notified_key&or=(notes.eq.${ymd},recurring_weekdays.not.is.null)`,
-    { headers: restHeaders },
-  );
-  if (!recRes.ok) {
-    return new Response(await recRes.text(), { status: 500 });
+  // Read every page before sending: a missing state page must never allow a reminder.
+  const recipients: any[] = [];
+  const planned = new Set<string>();
+  const inactive = new Set<string>();
+  try {
+    for (let offset = 0; ; offset += 500) {
+      const recRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/recipients?select=id,name,address,visit_time,notes,recurring_weekdays,last_notified_key&order=id&offset=${offset}&limit=500`,
+        { headers: restHeaders },
+      );
+      if (!recRes.ok) throw new Error("Recipient fetch failed");
+      const rows = await recRes.json();
+      if (!Array.isArray(rows)) throw new Error("Invalid recipients response");
+      recipients.push(...rows);
+      if (rows.length < 500) break;
+    }
+    for (let offset = 0; ; offset += 500) {
+      const stateRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/visit_sessions?select=recipient_id,status&visit_date=eq.${ymd}&order=id&offset=${offset}&limit=500`,
+        { headers: restHeaders },
+      );
+      if (!stateRes.ok) throw new Error("Visit state fetch failed");
+      const states = await stateRes.json();
+      if (!Array.isArray(states)) throw new Error("Invalid visit state response");
+      for (const row of states) {
+        if (!row || typeof row.status !== "string" ||
+            (row.recipient_id !== null && typeof row.recipient_id !== "string")) {
+          throw new Error("Invalid visit state");
+        }
+        if (row.recipient_id) {
+          (row.status === "planned" ? planned : inactive).add(row.recipient_id);
+        }
+      }
+      if (states.length < 500) break;
+    }
+  } catch {
+    return new Response("방문 상태 확인 실패", { status: 503 });
   }
-  const recipients = await recRes.json();
-
   const isScheduledToday = (r: any) =>
-    r.notes === ymd ||
+    planned.has(r.id) ||
+    r.notes?.split(",").map((value: string) => value.trim()).includes(ymd) ||
     (r.recurring_weekdays && r.recurring_weekdays.split(",").map(Number).includes(weekday));
 
   const due = recipients.filter((r: any) =>
-    isScheduledToday(r) &&
+    isScheduledToday(r) && !inactive.has(r.id) &&
     r.visit_time &&
     r.visit_time !== "00:00:00" &&
     r.visit_time.substring(0, 5) === hm &&
