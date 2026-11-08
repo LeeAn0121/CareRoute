@@ -738,6 +738,9 @@ export default function SettingsView({
                   <button
                     type="button"
                     onClick={handleDimToggle}
+                    role="switch"
+                    aria-checked={dimCompleted}
+                    aria-label="완료한 어르신 흐리게 표시"
                     className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${
                       dimCompleted ? 'bg-[#34C759]' : 'bg-[#E5E5EA] dark:bg-[#3A3A3C]'
                     }`}
@@ -960,7 +963,7 @@ export default function SettingsView({
 
                 {/* 어르신/현장 맞춤 큰 글씨 가독성 모드 */}
                 <div id="section-font" className="px-4 py-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <label htmlFor="large-font-toggle" className="flex flex-1 min-w-0 items-center gap-3 min-h-12 cursor-pointer">
                     <div className="w-[32px] h-[32px] rounded-[10px] bg-[#AF52DE] text-white flex items-center justify-center shrink-0 shadow-2xs">
                       <IconTypography size={18} strokeWidth={2.5} />
                     </div>
@@ -972,11 +975,15 @@ export default function SettingsView({
                         야외 현장 및 어르신 카드 글자 크기 확대
                       </span>
                     </div>
-                  </div>
+                  </label>
 
                   <button
                     type="button"
                     onClick={handleLargeFontToggle}
+                    id="large-font-toggle"
+                    role="switch"
+                    aria-checked={isLargeFont}
+                    aria-label="큰 글씨 가독성 모드"
                     className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${
                       isLargeFont ? 'bg-[#34C759]' : 'bg-[#E5E5EA] dark:bg-[#3A3A3C]'
                     }`}

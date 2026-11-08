@@ -112,6 +112,18 @@ body {
 }
 
 @media screen {
+  /* Keep the saved reading preference effective for pixel-sized utility text, too. */
+  .large-font-mode :is(.text-\[10px\], .text-\[11px\]) { font-size: 13px; }
+  .large-font-mode :is(.text-xs, .text-\[12px\]) { font-size: 15px; }
+  .large-font-mode .text-\[13px\] { font-size: 16px; }
+  .large-font-mode :is(.text-sm, .text-\[14px\]) { font-size: 17px; }
+  .large-font-mode .text-\[15px\] { font-size: 18px; }
+  .large-font-mode :is(.text-base, .text-\[16px\]) { font-size: 19px; }
+  .app-scroll-view button { word-break: keep-all; }
+  .app-scroll-view :where(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
   .app-shell { height: 100dvh; min-height: 0; min-width: 0; }
   .app-scroll-view {
     padding-top: calc(4rem + var(--app-safe-top));
@@ -179,6 +191,8 @@ body {
 }
 
 @media screen and (max-height: 520px) {
+  /* On keyboard-sized viewports, two sticky bars can cover the entire form. */
+  .modal-scroll-area .sticky.bottom-0 { position: static; }
   #tour-map-controls {
     flex-direction: row;
     gap: .5rem;
@@ -204,6 +218,11 @@ body {
 @media screen and (max-height: 520px) and (max-width: 539px) {
   /* Close the active map card to resume auxiliary map controls on short, narrow screens. */
   .app-shell:has(.app-map-card) #tour-map-controls { visibility: hidden; }
+}
+
+@media screen and (max-width: 639px) and (max-height: 640px) {
+  /* Keep the active field unobstructed even if a WebView delays its resize event. */
+  .modal-scroll-area:has(:is(input, textarea, select):focus) .sticky.bottom-0 { position: static; }
 }
 
 /* Naver Map Dark Mode Simulation */
@@ -383,6 +402,23 @@ body {
 }
 
 @media screen and (max-width: 639px) {
+  .print-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding-inline: 12px;
+  }
+  .print-actions > button {
+    min-width: 0;
+    width: 100%;
+    min-height: 48px;
+    padding-inline: 8px;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+  }
+  .print-actions > button svg { flex-shrink: 0; }
   .print-sheet:not(.pdf-export-capture) .print-edit-only.flex {
     flex-direction: column;
   }
@@ -400,21 +436,6 @@ body {
   .calendar-month-selector > button { flex-shrink: 0; }
   .app-list-heading { flex-direction: column; align-items: stretch; }
   .app-list-heading > button { align-self: flex-end; white-space: nowrap; }
-  .print-actions {
-    display: grid;
-    grid-template-columns: 44px 44px minmax(0, 1fr) minmax(0, 1.2fr);
-    gap: 6px;
-    padding-inline: 12px;
-  }
-  .print-actions > button {
-    min-width: 0;
-    width: 100%;
-    min-height: 48px;
-    padding-inline: 6px;
-    gap: 4px;
-    font-size: 13px;
-  }
-  .print-actions > button svg { flex-shrink: 0; }
   .settings-view [id^="section-"]:is(.flex),
   .settings-view [id^="section-"] .flex.items-center.justify-between,
   .settings-view [id^="section-"] button.items-center.justify-between {

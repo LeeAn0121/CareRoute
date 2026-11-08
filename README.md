@@ -2,7 +2,9 @@
 
 **케어루트**는 방문 요양 보호사 및 사회복지사 분들을 위한 **스마트 동선 관리 및 어르신 명단 관리 웹 애플리케이션(PWA)** 입니다.
 
-현재 버전은 **v1.37.1**이며, Android 앱은 버전 코드 **10**입니다. Android 설치·Google 캘린더 인증·권한 및 서명 빌드는 [ANDROID.md](ANDROID.md), 버전별 변경사항은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요. 태그와 릴리즈 설명은 [GitHub Releases](https://github.com/LeeAn0121/CareRoute/releases)에 기록하며, AAB 파일은 로컬에서만 생성하고 GitHub에는 업로드하지 않습니다.
+현재 버전은 **v1.37.2**이며, Android 앱은 버전 코드 **11**입니다. Android 설치·Google 캘린더 인증·권한 및 서명 빌드는 [ANDROID.md](ANDROID.md), 버전별 변경사항은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요. 태그와 릴리즈 설명은 [GitHub Releases](https://github.com/LeeAn0121/CareRoute/releases)에 기록하며, AAB 파일은 로컬에서만 생성하고 GitHub에는 업로드하지 않습니다.
+
+Android 7.0 이상 및 Chromium 기반 WebView 111 이상을 실행 기준으로 사용합니다. 작은 화면·폴더블·분할 화면·태블릿·큰 글씨·화면 회전 조건으로 검증하며, 모든 제조사·기종의 실기기 검증을 완료했다는 의미는 아닙니다. 오래된 WebView에서는 업데이트 안내가 표시됩니다.
 
 종이 명단이나 복잡한 지도 앱 대신, 케어루트 하나로 어르신들의 위치를 한눈에 파악하고 가장 효율적인 방문 경로를 추천받으세요!
 

@@ -18,8 +18,8 @@ import type { Viewport } from 'next';
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
   themeColor: '#12203D',
   viewportFit: 'cover',
   // 모바일 키보드가 올라오면 레이아웃 뷰포트(dvh)가 줄어들어 모달 하단 버튼이 가려지지 않게 한다

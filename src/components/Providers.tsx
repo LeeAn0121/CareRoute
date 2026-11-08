@@ -14,6 +14,39 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    let pending: ReturnType<typeof setTimeout>;
+    const keepFieldVisible = () => {
+      clearTimeout(pending);
+      pending = setTimeout(() => {
+        const field = document.activeElement;
+        if (!(field instanceof HTMLElement) || !field.matches('input, textarea, select')) return;
+        const modal = field.closest<HTMLElement>('.modal-scroll-area');
+        if (!modal) return;
+        const bounds = modal.getBoundingClientRect();
+        const rect = field.getBoundingClientRect();
+        const viewportBottom = window.visualViewport ? window.visualViewport.offsetTop + window.visualViewport.height : window.innerHeight;
+        const footer = modal.querySelector<HTMLElement>('.sticky.bottom-0');
+        const footerHeight = footer && getComputedStyle(footer).position === 'sticky' ? footer.getBoundingClientRect().height : 0;
+        const visibleTop = Math.max(bounds.top, window.visualViewport?.offsetTop ?? 0) + 72;
+        const visibleBottom = Math.min(bounds.bottom, viewportBottom) - footerHeight - 16;
+        if (rect.top < visibleTop || rect.bottom > visibleBottom) {
+          const targetTop = visibleTop + Math.max(0, (visibleBottom - visibleTop - rect.height) / 2);
+          modal.scrollBy({ top: rect.top - targetTop, behavior: 'smooth' });
+        }
+      }, 180);
+    };
+    document.addEventListener('focusin', keepFieldVisible);
+    window.addEventListener('resize', keepFieldVisible);
+    window.visualViewport?.addEventListener('resize', keepFieldVisible);
+    return () => {
+      clearTimeout(pending);
+      document.removeEventListener('focusin', keepFieldVisible);
+      window.removeEventListener('resize', keepFieldVisible);
+      window.visualViewport?.removeEventListener('resize', keepFieldVisible);
+    };
+  }, []);
+
+  useEffect(() => {
     installNativeSharing();
     const reportFailure = () => window.dispatchEvent(new Event('careroute:map-error'));
     const globals = window as Window & { navermap_authFailure?: () => void; careRouteNaverReady?: () => void };
@@ -35,6 +68,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     // Load saved color theme
     const savedColorTheme = localStorage.getItem('careroute_color_theme') || 'theme-navy';
     document.documentElement.classList.add(savedColorTheme);
+    document.documentElement.classList.toggle('large-font-mode', localStorage.getItem('careroute_large_font') === 'true');
     setMounted(true);
     return () => {
       script?.removeEventListener('error', reportFailure);
