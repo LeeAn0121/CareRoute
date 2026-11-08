@@ -83,6 +83,13 @@ Android 인증 코드에는 OAuth 클라이언트 비밀키나 Firebase 설정�
 
 현재 APK/AAB 생성과 실제 기기 기능 검증·Play 게시 완료는 별개입니다.
 
+## v1.38.1 목록 사용성·가독성
+
+- Android 버전 코드 13. 서명된 로컬 파일: `android/app/build/outputs/bundle/release/CareRoute-v1.38.1-code13.aab`. GitHub에는 업로드하지 않습니다.
+- 검색 결과·조건 초기화, 여러 단어 검색, 필터 선택 상태와 터치 영역을 개선합니다. 좁은 화면에서는 카드 작업 버튼과 그리드를 재배치합니다.
+- 중복 등록 플로팅 버튼을 제거해 카드 가림을 줄이고, 상단 제목 옆의 등록 버튼을 유지합니다.
+- Playwright에서 280px 폴더블 외부 화면부터 데스크톱까지, 라이트·다크·큰 글씨·글자 확대·가로 화면을 검증했습니다. Android 서명 빌드를 확인했으며 모든 제조사 실기기를 검증했다는 의미는 아닙니다.
+
 ## v1.38.0 날짜별 방문 관리
 
 - Android 버전 코드 12. 로컬 파일: `android/app/build/outputs/bundle/release/CareRoute-v1.38.0-code12.aab`. GitHub에는 업로드하지 않습니다.
