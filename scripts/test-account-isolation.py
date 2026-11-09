@@ -626,6 +626,12 @@ def main():
     if 'PGPASSWORD' in os.environ:
         env['PGPASSWORD'] = os.environ['PGPASSWORD']
     env.update(PGCONNECT_TIMEOUT='5', PGSSLMODE='disable')
+    # Pin the client destination, including localhost, to a literal loopback IP.
+    # Docker-published local ports report a bridge IP in inet_server_addr();
+    # that server-side address is not the destination the client connected to.
+    if args.host in ('127.0.0.1', 'localhost', '::1'):
+        env['PGHOSTADDR'] = '::1' if args.host == '::1' else '127.0.0.1'
+
     preflight = """
 DO $$ BEGIN
  IF current_database()<>'careroute_security_test' THEN
@@ -633,10 +639,6 @@ DO $$ BEGIN
  END IF;
  IF NOT (SELECT rolsuper FROM pg_roles WHERE rolname=current_user) THEN
    RAISE EXCEPTION 'Test fixture requires a local superuser';
- END IF;
- IF inet_server_addr() IS NOT NULL AND NOT
-    (inet_server_addr() <<= '127.0.0.0/8'::inet OR inet_server_addr()='::1'::inet) THEN
-   RAISE EXCEPTION 'Refusing a non-loopback server';
  END IF;
  IF EXISTS (SELECT FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
     WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','S','f'))
