@@ -45,7 +45,13 @@ const restHeaders = {
   "Content-Type": "application/json",
 };
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  if (req.headers.get('Authorization') !== `Bearer ${SERVICE_ROLE_KEY}`) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+  if (Deno.env.get('VISIT_ALERTS_ENABLED') !== 'true') {
+    return new Response('Visit reminders temporarily paused for access-control recovery', { status: 503 });
+  }
   const { ymd, hm, weekday } = seoulNow();
   const notifiedKey = `${ymd}_${hm}`;
 
@@ -106,22 +112,33 @@ Deno.serve(async () => {
     });
   }
 
-  const subRes = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?select=*`, {
-    headers: restHeaders,
-  });
-  const subscriptions = await subRes.json();
+  const subscriptionsByRecipient = new Map<string, any[]>();
+  try {
+    for (const recipient of due) {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/authorized_visit_subscriptions`, {
+        method: 'POST', headers: restHeaders,
+        body: JSON.stringify({ p_recipient_id: recipient.id }),
+      });
+      if (!response.ok) throw new Error('Subscription authorization unavailable');
+      const subscriptions = await response.json();
+      if (!Array.isArray(subscriptions)) throw new Error('Invalid authorized subscriptions');
+      subscriptionsByRecipient.set(recipient.id, subscriptions);
+    }
+  } catch {
+    return new Response('알림 수신 계정 확인 실패', { status: 503 });
+  }
 
   let sent = 0;
   const errors: any[] = [];
   for (const recipient of due) {
     const payload = JSON.stringify({
       title: "케어루트 알림 🚨",
-      body: `${recipient.name} 어르신 방문 예정 시간입니다! (${recipient.address})`,
+      body: '예정된 방문 시간이 다가옵니다. 케어루트에서 일정을 확인해 주세요.',
       url: `/CareRoute/?focus=${recipient.id}`,
       recipientId: recipient.id,
     });
 
-    for (const sub of subscriptions) {
+    for (const sub of subscriptionsByRecipient.get(recipient.id) || []) {
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -136,13 +153,10 @@ Deno.serve(async () => {
             headers: restHeaders,
           });
         } else {
-          console.error("push failed", sub.endpoint, err);
+          console.error("push failed", err?.statusCode || 'unknown');
         }
         errors.push({
-          endpoint: sub.endpoint.slice(0, 60),
           statusCode: err?.statusCode,
-          message: err?.message || String(err),
-          body: err?.body,
         });
       }
     }

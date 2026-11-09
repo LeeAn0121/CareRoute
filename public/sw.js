@@ -1,4 +1,4 @@
-const CACHE_NAME = 'careroute-store-v5';
+const CACHE_NAME = 'careroute-store-v6-account-auth';
 
 self.addEventListener('install', () => {});
 
@@ -21,6 +21,14 @@ self.addEventListener('fetch', (e) => {
   const { request } = e;
 
   if (request.method !== 'GET') {
+    return;
+  }
+  // Cache only this app's public shell, never auth responses, signed files,
+  // third-party identity pages or credentialed/API requests.
+  const requestedUrl = new URL(request.url);
+  if (requestedUrl.origin !== self.location.origin || request.headers.has('Authorization') ||
+      /\/(auth|rest|storage|functions)\/v1\//.test(requestedUrl.pathname)) {
+    e.respondWith(fetch(request));
     return;
   }
 
@@ -111,7 +119,11 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  const url = event.notification.data?.url || '/CareRoute/';
+  let url = '/CareRoute/';
+  try {
+    const target = new URL(event.notification.data?.url || url, self.location.origin);
+    if (target.origin === self.location.origin && target.pathname.startsWith('/CareRoute/')) url = target.href;
+  } catch { /* Ignore untrusted notification URLs. */ }
   const recipientId = event.notification.data?.recipientId;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {

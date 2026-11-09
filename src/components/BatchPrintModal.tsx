@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconCheck, IconDeviceFloppy } from '@tabler/icons-react';
 import { Modal, IconButton, Button } from './ui';
 import PrintSheet from './PrintSheet';
-import { usePrintDraft } from './usePrintDraft';
+import { usePrintDraft, usePrintSetting } from './usePrintDraft';
 import PrintHistorySheet from './PrintHistorySheet';
 import { captureSheetCanvas, createA4Pdf, addCanvasAsA4Page } from '@/lib/pdfExport';
 import { logPrintEvent, uploadPrintPdf } from '@/lib/printLogs';
@@ -100,10 +100,10 @@ function RecipientSheetCard({
 
 export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel, dateKey = todayYMD() }: BatchPrintModalProps) {
   const [writtenDate, setWrittenDate] = useState('');
-  const [authorName, setAuthorName] = useState('');
+  const [authorName, setAuthorName] = usePrintSetting('careroute_print_author_name', isOpen);
   const [confirmerName, setConfirmerName] = useState('');
-  const [orgName, setOrgName] = useState('');
-  const [orgContact, setOrgContact] = useState('');
+  const [orgName, setOrgName] = usePrintSetting('careroute_print_org_name', isOpen);
+  const [orgContact, setOrgContact] = usePrintSetting('careroute_print_org_contact', isOpen);
   const [isExporting, setIsExporting] = useState(false);
   const [isSavingBackup, setIsSavingBackup] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -115,30 +115,12 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
   useEffect(() => {
     if (isOpen && typeof window !== 'undefined') {
       setWrittenDate(todayYMD());
-      setAuthorName(localStorage.getItem('careroute_print_author_name') || '');
       setConfirmerName('');
-      setOrgName(localStorage.getItem('careroute_print_org_name') || '');
-      setOrgContact(localStorage.getItem('careroute_print_org_contact') || '');
       setIsPreview(false);
       setSelectedIds(new Set(recipients.map((r) => r.id)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (authorName) localStorage.setItem('careroute_print_author_name', authorName);
-  }, [authorName]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (orgName) localStorage.setItem('careroute_print_org_name', orgName);
-  }, [orgName]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (orgContact) localStorage.setItem('careroute_print_org_contact', orgContact);
-  }, [orgContact]);
 
   const setSheetRef = useCallback(
     (id: string) => (el: HTMLDivElement | null) => {

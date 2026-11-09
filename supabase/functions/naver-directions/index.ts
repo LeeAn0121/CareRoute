@@ -3,6 +3,8 @@
 // Directions 5는 비밀키(X-NCP-APIGW-API-KEY)가 필요해 정적으로 배포되는
 // 클라이언트에 직접 둘 수 없으므로, 이 Edge Function이 서버 측에서 대신 호출한다.
 
+import { authenticateGoogleUser } from "../_shared/auth.ts";
+
 const NAVER_MAPS_CLIENT_ID = Deno.env.get("NAVER_MAPS_CLIENT_ID") ?? "";
 const NAVER_MAPS_CLIENT_SECRET = Deno.env.get("NAVER_MAPS_CLIENT_SECRET") ?? "";
 
@@ -23,6 +25,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  if (!await authenticateGoogleUser(req)) return json({ error: "Unauthorized" }, 401);
 
   if (!NAVER_MAPS_CLIENT_ID || !NAVER_MAPS_CLIENT_SECRET) {
     return json({ error: "NAVER_MAPS_CLIENT_ID / NAVER_MAPS_CLIENT_SECRET 환경변수가 설정되지 않았습니다." }, 500);

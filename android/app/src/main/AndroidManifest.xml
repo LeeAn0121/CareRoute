@@ -27,6 +27,7 @@
         </activity>
 
         <activity android:name=".CalendarAuthorizationActivity" android:exported="false" />
+        <activity android:name=".GoogleSignInActivity" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

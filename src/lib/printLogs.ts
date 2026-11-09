@@ -2,6 +2,7 @@
 // print_logs 테이블이 아직 없는 환경(마이그레이션 미적용)에서도 출력 기능 자체는
 // 끊기지 않도록, 기록 실패는 콘솔에만 남기고 조용히 무시한다.
 import { supabase } from './supabase';
+import { getPrivateStorageSignedUrl, requireVerifiedStorageAccount } from './privateStorage';
 
 export type PrintMethod = 'print' | 'pdf' | 'share' | 'save';
 
@@ -15,6 +16,8 @@ export async function logPrintEvent(params: {
   pdfPath?: string | null;
 }) {
   try {
+    const scope = await requireVerifiedStorageAccount();
+    if (!scope.isCurrent()) throw new Error('Account changed');
     const { error } = await supabase.from('print_logs').insert({
       recipient_id: params.recipientId || null,
       recipient_ids: params.recipientIds && params.recipientIds.length > 0 ? params.recipientIds : null,
@@ -82,7 +85,10 @@ export async function uploadPrintPdf(blob: Blob, primaryRecipientId: string, fil
     // Storage 키는 한글 등 비-ASCII 문자를 거부하므로(Invalid key) 경로에는 영문/숫자만 남긴다.
     // 실제로 사람이 보는 파일명(pdf.save)과는 별개로, 이 경로는 내부 저장 키로만 쓰인다.
     const safeName = fileNameBase.replace(/[^\w.-]/g, '_');
-    const path = `${primaryRecipientId}/${Date.now()}_${safeName}.pdf`;
+    const scope = await requireVerifiedStorageAccount();
+    if (!/^[a-zA-Z0-9_-]+$/.test(primaryRecipientId)) throw new Error('Invalid recipient ID');
+    const path = `${scope.accountId}/${primaryRecipientId}/${crypto.randomUUID()}_${safeName}.pdf`;
+    if (!scope.isCurrent()) throw new Error('Account changed');
     const { error } = await supabase.storage.from('print-pdfs').upload(path, blob, { contentType: 'application/pdf' });
     if (error) throw error;
     return path;
@@ -92,8 +98,9 @@ export async function uploadPrintPdf(blob: Blob, primaryRecipientId: string, fil
   }
 }
 
-export function getPrintPdfPublicUrl(path: string): string {
-  return supabase.storage.from('print-pdfs').getPublicUrl(path).data.publicUrl;
+// Compatibility name: private buckets always require asynchronous signed access.
+export async function getPrintPdfPublicUrl(path: string): Promise<string> {
+  return getPrivateStorageSignedUrl('print-pdfs', path);
 }
 
 // 캘린더의 출력 기록 점을 눌렀을 때: 특정 날짜(로컬 기준)에 있었던 출력 이력만 모아 반환.

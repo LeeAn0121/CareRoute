@@ -4,6 +4,8 @@
 // appKey는 도메인 제한과 호출 쿼터가 걸린 값이라 공개 정적 사이트에 그대로 두지 않고
 // 이 Edge Function을 통해서만 호출한다.
 
+import { authenticateGoogleUser } from "../_shared/auth.ts";
+
 const TMAP_APP_KEY = Deno.env.get("TMAP_APP_KEY") ?? "";
 
 const corsHeaders = {
@@ -41,6 +43,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  if (!await authenticateGoogleUser(req)) return json({ error: "Unauthorized" }, 401);
 
   if (!TMAP_APP_KEY) {
     return json({ error: "TMAP_APP_KEY 환경변수가 설정되지 않았습니다." }, 500);

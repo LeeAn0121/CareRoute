@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { captureAccountStorage } from '@/lib/accountStorage';
+import { getRecipientPhotoCanonicalUrl, requireVerifiedStorageAccount } from '@/lib/privateStorage';
+import PrivateImage from './PrivateImage';
 import { DaumPostcodeEmbed } from 'react-daum-postcode';
 import { IconX, IconSearch, IconCamera, IconUser } from '@tabler/icons-react';
 import { motion } from 'motion/react';
@@ -44,6 +47,7 @@ interface RecipientModalProps {
 }
 
 export default function RecipientModal({ isOpen, onClose, onSuccess, recipientToEdit }: RecipientModalProps) {
+  const accountScope = captureAccountStorage();
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [detailAddress, setDetailAddress] = useState('');
@@ -101,7 +105,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       setGuardianRelation(recipientToEdit.guardian_relation || '');
       setGuardianPhone(recipientToEdit.guardian_phone || '');
       const savedHealthTags = recipientToEdit.health_tags || 
-        (typeof window !== 'undefined' ? localStorage.getItem(`careroute_health_tags_${recipientToEdit.id}`) : null);
+        (typeof window !== 'undefined' ? accountScope.getItem(`careroute_health_tags_${recipientToEdit.id}`) : null);
       setHealthTags(savedHealthTags ? savedHealthTags.split(',').filter(Boolean) : []);
       setExistingPhotoUrl(recipientToEdit.photo_url || null);
       } else {
@@ -164,6 +168,9 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
     setIsSubmitting(true);
 
     try {
+      if (!accountScope.isCurrent()) throw new Error('로그인 계정을 다시 확인해주세요.');
+      const verified = await requireVerifiedStorageAccount();
+      if (!accountScope.isCurrent() || verified.accountId !== accountScope.accountId) throw new Error('계정이 변경되었습니다.');
       const getLatLng = async (): Promise<{ lat: number; lng: number }> => {
         try {
           return await new Promise((resolve, reject) => {
@@ -222,7 +229,8 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         }
       }
 
-      let photoUrl = existingPhotoUrl;
+      if (!accountScope.isCurrent()) throw new Error('계정이 변경되었습니다.');
+      let photoUrl = existingPhotoUrl ? getRecipientPhotoCanonicalUrl(existingPhotoUrl) : null;
       if (photoFile) {
         // 파일명(한글/공백 등 비ASCII 문자 포함 가능)은 Storage 키로 쓰기 안전하지 않으니,
         // MIME 타입에서 확장자를 뽑고 영문/숫자만 남겨 "Invalid Key" 업로드 오류를 방지한다.
@@ -230,11 +238,11 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         const nameExt = photoFile.name.split('.').pop();
         const rawExt = (mimeExt || nameExt || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
         const ext = rawExt || 'jpg';
-        const path = `${crypto.randomUUID()}.${ext}`;
+        const path = `${accountScope.accountId}/${crypto.randomUUID()}.${ext}`;
         const { error: uploadError } = await supabase.storage.from('recipient-photos').upload(path, photoFile);
         if (uploadError) throw uploadError;
-        const { data: publicUrlData } = supabase.storage.from('recipient-photos').getPublicUrl(path);
-        photoUrl = publicUrlData.publicUrl;
+        if (!accountScope.isCurrent()) throw new Error('계정이 변경되었습니다.');
+        photoUrl = getRecipientPhotoCanonicalUrl(path);
       }
 
       const recipientData: Record<string, any> = {
@@ -275,34 +283,37 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         return true;
       };
 
+      if (!accountScope.isCurrent()) throw new Error('계정이 변경되었습니다.');
       if (recipientToEdit?.id) {
-        let { error } = await supabase.from('recipients').update(recipientData).eq('id', recipientToEdit.id);
+        let { error } = await supabase.from('recipients').update(recipientData).eq('id', recipientToEdit.id).select('id').single();
         while (error && stripMissingColumn(error)) {
-          const retry = await supabase.from('recipients').update(recipientData).eq('id', recipientToEdit.id);
+          if (!accountScope.isCurrent()) throw new Error('계정이 변경되었습니다.');
+          const retry = await supabase.from('recipients').update(recipientData).eq('id', recipientToEdit.id).select('id').single();
           error = retry.error;
         }
         if (error) throw error;
         if (typeof window !== 'undefined') {
           if (tagsStr) {
-            localStorage.setItem(`careroute_health_tags_${recipientToEdit.id}`, tagsStr);
+            accountScope.setItem(`careroute_health_tags_${recipientToEdit.id}`, tagsStr);
           } else {
-            localStorage.removeItem(`careroute_health_tags_${recipientToEdit.id}`);
+            accountScope.removeItem(`careroute_health_tags_${recipientToEdit.id}`);
           }
         }
       } else {
         const newId = crypto.randomUUID();
         recipientData.id = newId;
-        let insertRes = await supabase.from('recipients').insert([recipientData]);
+        let insertRes = await supabase.from('recipients').insert([recipientData]).select('id').single();
         while (insertRes.error && stripMissingColumn(insertRes.error)) {
-          insertRes = await supabase.from('recipients').insert([recipientData]);
+          if (!accountScope.isCurrent()) throw new Error('계정이 변경되었습니다.');
+          insertRes = await supabase.from('recipients').insert([recipientData]).select('id').single();
         }
         if (insertRes.error) throw insertRes.error;
         if (typeof window !== 'undefined' && tagsStr) {
-          localStorage.setItem(`careroute_health_tags_${newId}`, tagsStr);
+          accountScope.setItem(`careroute_health_tags_${newId}`, tagsStr);
         }
       }
 
-      onSuccess();
+      if (accountScope.isCurrent()) onSuccess();
     } catch (error: any) {
       alert(`오류가 발생했습니다: ${error.message}`);
     } finally {
@@ -341,8 +352,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
                 aria-label="사진 등록 (카메라 또는 앨범 선택)"
               >
                 {photoPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoPreview} alt="" className="w-full h-full object-cover" />
+                  <PrivateImage src={photoPreview} alt="" className="w-full h-full object-cover" fallback={<IconUser size={32} className="text-foreground/45" />} />
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-foreground/45">
                     <IconUser size={32} />

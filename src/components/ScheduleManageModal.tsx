@@ -54,7 +54,7 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
       const { error } = await supabase.from('recipients').update({
         visit_time: finalTime,
         notes: finalNotes
-      }).eq('id', recipient.id);
+      }).eq('id', recipient.id).select('id').single();
 
       if (error) throw error;
       onSuccess();
@@ -80,7 +80,7 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
           <h2 className="text-xl font-black text-primary tracking-tight">{recipient.name} 어르신 일정</h2>
           <p className="text-xs font-semibold text-foreground/50 mt-0.5">방문 예정 시간을 설정하고 일정을 관리하세요.</p>
         </div>
-        <IconButton onClick={onClose} className="rounded-[18px] bg-foreground/[0.04] hover:bg-foreground/[0.08]">
+        <IconButton onClick={onClose} aria-label="닫기" className="rounded-[18px] bg-foreground/[0.04] hover:bg-foreground/[0.08]">
           <IconX size={20} />
         </IconButton>
       </div>

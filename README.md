@@ -2,7 +2,11 @@
 
 **케어루트**는 방문 요양보호사와 사회복지사를 위한 **방문 일정·어르신 명단 관리 Android 앱 및 웹 애플리케이션(PWA)** 입니다.
 
-현재 버전은 **v1.38.2**이며, Android 앱은 버전 코드 **14**입니다. Android 설치·Google 캘린더 인증·권한 및 서명 빌드는 [ANDROID.md](ANDROID.md), 버전별 변경사항은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요. 태그와 릴리즈 설명은 [GitHub Releases](https://github.com/LeeAn0121/CareRoute/releases)에 기록하며, AAB 파일은 로컬에서만 생성하고 GitHub에는 업로드하지 않습니다.
+현재 버전은 **v1.39.0**이며, Android 앱은 버전 코드 **15**입니다. Android 설치·Google 캘린더 인증·권한 및 서명 빌드는 [ANDROID.md](ANDROID.md), 버전별 변경사항은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요. 태그와 릴리즈 설명은 [GitHub Releases](https://github.com/LeeAn0121/CareRoute/releases)에 기록하며, AAB 파일은 로컬에서만 생성하고 GitHub에는 업로드하지 않습니다.
+
+Google 로그인이 필요하며, 서버에서 확인한 계정의 데이터만 조회·수정합니다. 새 데이터는 생성한 계정에 귀속됩니다. 기존 공용 데이터는 `public.legacy_data_access`의 활성 이메일에만 공유됩니다. 이 허용 목록은 Supabase Table Editor/SQL Editor의 관리자 권한으로 수정하며 앱에서는 수정할 수 없습니다. 초기 허용 계정은 `jggen0121@naver.com`, `jggen0401@gmail.com`, `jggen4177@gmail.com`입니다. 사진·PDF는 비공개 버킷에서 권한을 확인한 만료 링크로 엽니다.
+
+이전 버전은 로그인 없이 데이터에 접근하므로 더 이상 운영 DB에 접근할 수 없습니다. 설치 앱은 새 AAB로 업데이트해야 합니다. 계정 전환 시 명단·일지 초안·임시 기록·정렬 순서·캘린더 토큰을 섞지 않으며, 계정 없는 옛 캐시는 자동으로 가져오지 않습니다. 앱 재실행 시 로그인 검증에는 네트워크가 필요합니다.
 
 Android 7.0 이상 및 Chromium 기반 WebView 111 이상을 실행 기준으로 사용합니다. 작은 화면·폴더블·분할 화면·태블릿·큰 글씨·화면 회전 조건으로 검증하며, 모든 제조사·기종의 실기기 검증을 완료했다는 의미는 아닙니다. 오래된 WebView에서는 업데이트 안내가 표시됩니다.
 

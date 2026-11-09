@@ -37,6 +37,32 @@ public class CareRouteDevicePlugin extends Plugin {
         } catch (Exception error) { call.reject("앱 설정을 열지 못했습니다.", error); }
     }
     @PluginMethod
+    public void signInGoogle(PluginCall call) {
+        String clientId = call.getString("clientId");
+        String nonce = call.getString("nonce");
+        if (clientId == null || clientId.isEmpty() || nonce == null || !nonce.matches("[0-9a-f]{64}")) {
+            call.reject("Google 로그인 설정이 올바르지 않습니다."); return;
+        }
+        Intent intent = new Intent(getContext(), GoogleSignInActivity.class);
+        intent.putExtra("clientId", clientId);
+        intent.putExtra("nonce", nonce);
+        startActivityForResult(call, intent, "googleSignInResult");
+    }
+
+    @ActivityCallback
+    private void googleSignInResult(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        Intent data = result.getData();
+        if (result.getResultCode() != Activity.RESULT_OK || data == null) {
+            call.reject(data != null && data.hasExtra("error") ? data.getStringExtra("error") : "Google 로그인이 취소되었습니다.");
+            return;
+        }
+        String token = data.getStringExtra("idToken");
+        if (token == null || token.isEmpty()) { call.reject("Google ID 토큰을 받지 못했습니다."); return; }
+        call.resolve(new JSObject().put("idToken", token));
+    }
+
+    @PluginMethod
     public void authorizeCalendar(PluginCall call) {
         startActivityForResult(call, new Intent(getContext(), CalendarAuthorizationActivity.class), "calendarResult");
     }

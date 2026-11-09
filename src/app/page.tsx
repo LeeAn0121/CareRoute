@@ -2,6 +2,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Capacitor } from '@capacitor/core';
 import MapErrorBoundary from '@/components/MapErrorBoundary';
+import AuthGate from '@/components/AuthGate';
+import PrivateImage from '@/components/PrivateImage';
+import { accountStorage, captureAccountStorage } from '@/lib/accountStorage';
+import { resolveRecipientPhotoUrl, PRIVATE_STORAGE_TTL_SECONDS } from '@/lib/privateStorage';
 import { CareRouteDevice, scheduleVisitNotifications } from '@/lib/native';
 import { retryPendingVisitLogs } from '@/lib/pendingVisitLogs';
 import { Container, NaverMap, Marker, Polyline } from 'react-naver-maps';
@@ -128,7 +132,11 @@ const regionFeatureKey = (f: any): string =>
   `${f.properties.name}_${Number(f.properties._centerLat).toFixed(4)}_${Number(f.properties._centerLng).toFixed(4)}`;
 let currentRenderedLevel = ''; // Track currently rendered level to prevent re-rendering
 
-function MainApp() {
+function escapeMarkerText(value: string): string {
+  return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!);
+}
+
+function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut: () => Promise<void> }) {
 
   // 내 위치 추적용 ID
   const watchIdRef = useRef<number | null>(null);
@@ -288,18 +296,35 @@ function MainApp() {
   const [isLocating, setIsLocating] = useState(false);
   const [myLocation, setMyLocation] = useState<{lat: number, lng: number, heading?: number | null} | null>(null);
   const [isOffline, setIsOffline] = useState(false);
+  const [dataError, setDataError] = useState('');
+  const [markerPhotoUrls, setMarkerPhotoUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const scope = captureAccountStorage();
+    let active = true;
+    const refresh = async () => {
+      const photos = await Promise.all(markers.filter(marker => marker.photo_url).map(async marker => {
+        try { return [marker.id, await resolveRecipientPhotoUrl(marker.photo_url)] as const; }
+        catch { return [marker.id, null] as const; }
+      }));
+      if (active && scope.isCurrent()) setMarkerPhotoUrls(Object.fromEntries(photos.filter((photo): photo is readonly [string, string] => Boolean(photo[1]))));
+    };
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, Math.max(30, PRIVATE_STORAGE_TTL_SECONDS - 45) * 1000);
+    return () => { active = false; clearInterval(timer); };
+  }, [markers]);
   const [showRegions, setShowRegions] = useState(false);
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
   const [showWeatherGrid, setShowWeatherGrid] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('careroute_show_weather_grid') === 'true';
+      return accountStorage.getItem('careroute_show_weather_grid') === 'true';
     }
     return false;
   });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('careroute_show_weather_grid', String(showWeatherGrid));
+      accountStorage.setItem('careroute_show_weather_grid', String(showWeatherGrid));
     }
   }, [showWeatherGrid]);
 
@@ -760,7 +785,7 @@ function MainApp() {
       marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(centerLat, centerLng),
         icon: {
-          content: `<div class="marker-wrapper" style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${normalFs}; font-weight: bold; border: 1px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; cursor: pointer;">${name}</div>`,
+          content: `<div class="marker-wrapper" style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${normalFs}; font-weight: bold; border: 1px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; cursor: pointer;">${escapeMarkerText(name)}</div>`,
           anchor: new window.naver.maps.Point(20, 10),
         },
       });
@@ -1240,6 +1265,8 @@ function MainApp() {
   const OFFLINE_CACHE_KEY = 'careroute_markers_cache_v1';
 
   const fetchMarkers = () => {
+    const scope = captureAccountStorage();
+    if (!scope.isCurrent()) return;
     let query = supabase.from('recipients').select('*');
 
     // DB에 dong, sigungu 컬럼이 존재하지 않으므로 오직 address.ilike 로만 필터링합니다.
@@ -1256,13 +1283,15 @@ function MainApp() {
       if (sidoName) query = query.ilike('address', `%${sidoName.substring(0, 2)}%`);
     }
 
-    query.then(({ data, error }) => {
+    query.then(({ data, error, status }) => {
+      if (!scope.isCurrent()) return;
       if (!error && data) {
         setIsOffline(false);
+        setDataError('');
         // Supabase DB 스키마 캐시에 health_tags가 없더라도 로컬 스토리지에 캐시된 건강 태그로 자동 병합(Hydration)
         const hydratedData = data.map((marker: any) => ({
           ...marker,
-          health_tags: marker.health_tags || (typeof window !== 'undefined' ? localStorage.getItem(`careroute_health_tags_${marker.id}`) : null),
+          health_tags: marker.health_tags || scope.getItem(`careroute_health_tags_${marker.id}`),
         }));
 
         // 근접 마커 자동 분산 처리: 완전히 같은 좌표뿐 아니라 같은 건물/블록처럼
@@ -1302,13 +1331,23 @@ function MainApp() {
         // 약해져도 마지막으로 받은 명단/위치는 계속 보이도록).
         if (!selectedSido && !selectedSigungu && !selectedDong) {
           try {
-            localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: offsetData }));
+            scope.setItem(OFFLINE_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: offsetData }));
           } catch {}
         }
       } else {
+        if (status !== 0 && !/Failed to fetch|NetworkError|Load failed/i.test(error?.message || '')) {
+          setMarkers([]);
+          setIsOffline(false);
+          scope.removeItem(OFFLINE_CACHE_KEY);
+          setDataError(status === 401 || status === 403 || error?.code === '42501'
+            ? '현재 계정의 데이터 접근 권한을 확인하지 못했습니다. 다시 로그인하거나 관리자에게 문의해 주세요.'
+            : '명단을 불러오지 못했습니다. 서버 연결과 계정 권한을 확인한 뒤 다시 시도해 주세요.');
+          setDataLoaded(true);
+          return;
+        }
         // 네트워크 실패 등으로 못 받아왔으면 마지막으로 저장해둔 캐시를 대신 보여준다.
         try {
-          const cached = localStorage.getItem(OFFLINE_CACHE_KEY);
+          const cached = scope.getItem(OFFLINE_CACHE_KEY);
           if (cached) {
             const { data: cachedData } = JSON.parse(cached);
             setMarkers(cachedData);
@@ -1441,49 +1480,22 @@ function MainApp() {
     }
   }, [selectedSigungu]);
 
-  const handleRemoveFromSchedule = async (r: Recipient, date: Date) => {
-    const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    const day = date.getDay();
-    const recurring = Boolean(r.recurring_weekdays?.split(',').map(Number).includes(day));
-    const message = recurring
-      ? `이 어르신의 ${ymd} 방문 일정과 매주 ${['일', '월', '화', '수', '목', '금', '토'][day]}요일 반복 일정을 함께 해제합니다. 계속하시겠습니까?`
-      : '해당 어르신을 이 날짜의 방문 일정에서 제외하시겠습니까?';
-    if (!window.confirm(message)) return;
-    
-    try {
-      let newNotes = r.notes || '';
-      if (newNotes.includes(ymd)) {
-        newNotes = newNotes.split(',').map(s => s.trim()).filter(s => s && s !== ymd).join(',');
-      }
-      
-      let newRecurring = r.recurring_weekdays || '';
-      if (newRecurring.split(',').map(Number).includes(day)) {
-        newRecurring = newRecurring.split(',').map(Number).filter(d => d !== day).join(',');
-      }
-      
-      const { error } = await supabase.from('recipients').update({ 
-        notes: newNotes || null,
-        recurring_weekdays: newRecurring || null
-      }).eq('id', r.id);
-      
-      if (error) throw error;
-      
-      // Update local state
-      setMarkers(prev => prev.map(m => m.id === r.id ? { ...m, notes: newNotes || null, recurring_weekdays: newRecurring || null } : m));
-    } catch (e) {
-      console.error(e);
-      alert('일정 제외 중 오류가 발생했습니다.');
-    }
+  const handleRemoveFromSchedule = (r: Recipient, date: Date) => {
+    // Cancel this date through the audited state flow. Do not silently remove
+    // every future occurrence of the weekday or leave a persisted session active.
+    openVisitRecord(r, localDateKey(date));
   };
 
   const handleDelete = async (id: string) => {
+    const scope = captureAccountStorage();
     if (!window.confirm('해당 수급자 어르신을 정말 삭제하시겠습니까?')) return;
     try {
-      const { error } = await supabase.from('recipients').delete().eq('id', id);
+      const { error } = await supabase.from('recipients').delete().eq('id', id).select('id').single();
       if (error) throw error;
+      if (!scope.isCurrent()) return;
       setMarkers(prev => {
         const next = prev.filter(m => m.id !== id);
-        try { localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: next })); } catch {}
+        try { scope.setItem(OFFLINE_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: next })); } catch {}
         return next;
       });
       if (selectedRecipient && selectedRecipient.id === id) {
@@ -1550,7 +1562,7 @@ function MainApp() {
   const handleDirections = (lat: number, lng: number, address: string, detail: string | null = null) => {
     let prefType: 'system' | 'tmap' | 'kakao' | 'naver' = 'system';
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('careroute_default_navi');
+      const saved = accountStorage.getItem('careroute_default_navi');
       if (saved === 'system' || saved === 'kakao' || saved === 'tmap' || saved === 'naver') {
         prefType = saved;
       }
@@ -1561,7 +1573,7 @@ function MainApp() {
   const handleNearbySearch = (keyword: '약국' | '병원', lat: number, lng: number) => {
     let prefType = 'naver';
     if (typeof window !== 'undefined') {
-      prefType = localStorage.getItem('careroute_default_navi') || 'naver';
+      prefType = accountStorage.getItem('careroute_default_navi') || 'naver';
     }
 
     const encQuery = encodeURIComponent(keyword);
@@ -1713,7 +1725,7 @@ function MainApp() {
     let chain = Promise.resolve();
     const refresh = () => {
       const items: { at: Date; recipientId: string }[] = [];
-      const lead = Number(localStorage.getItem('careroute_notif_lead_time') || '15');
+      const lead = Number(accountStorage.getItem('careroute_notif_lead_time') || '15');
       for (let offset = 0; offset < 7; offset++) {
         const day = new Date(); day.setDate(day.getDate() + offset);
         for (const row of markers) {
@@ -1740,7 +1752,7 @@ function MainApp() {
   const isViewingToday = Boolean(scheduleDate) && scheduleDate!.toDateString() === new Date().toDateString();
   useEffect(() => {
     if (activeTab !== 'route' || !isViewingToday) return;
-    if (typeof window !== 'undefined' && localStorage.getItem(`careroute_weather_banner_dismissed_${todayYMD()}`)) {
+    if (typeof window !== 'undefined' && accountStorage.getItem(`careroute_weather_banner_dismissed_${todayYMD()}`)) {
       setIsWeatherBannerDismissed(true);
       return;
     }
@@ -1753,7 +1765,7 @@ function MainApp() {
   const dismissWeatherBanner = () => {
     setIsWeatherBannerDismissed(true);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`careroute_weather_banner_dismissed_${todayYMD()}`, '1');
+      accountStorage.setItem(`careroute_weather_banner_dismissed_${todayYMD()}`, '1');
     }
   };
 
@@ -1774,7 +1786,7 @@ function MainApp() {
   useEffect(() => {
     if (!scheduleDateKey || typeof window === 'undefined') return;
     try {
-      const saved = localStorage.getItem(`careroute_order_${scheduleDateKey}`);
+      const saved = accountStorage.getItem(`careroute_order_${scheduleDateKey}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
@@ -1821,7 +1833,7 @@ function MainApp() {
     setCustomOrderMap((prev) => ({ ...prev, [scheduleDateKey]: newOrderIds }));
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem(`careroute_order_${scheduleDateKey}`, JSON.stringify(newOrderIds));
+        accountStorage.setItem(`careroute_order_${scheduleDateKey}`, JSON.stringify(newOrderIds));
       } catch (e) {
         console.error('Failed to save custom route order:', e);
       }
@@ -1838,7 +1850,7 @@ function MainApp() {
     });
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem(`careroute_order_${scheduleDateKey}`);
+        accountStorage.removeItem(`careroute_order_${scheduleDateKey}`);
       } catch (e) {
         console.error('Failed to reset custom route order:', e);
       }
@@ -1994,6 +2006,8 @@ function MainApp() {
   });
 
   const handleSyncToCalendar = async () => {
+    const scope = captureAccountStorage();
+    if (!scope.isCurrent()) return;
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     if (!Capacitor.isNativePlatform() && !clientId) {
       alert('Google Calendar 연동을 위한 클라이언트 ID 설정이 필요합니다. 관리자에게 문의해주세요.');
@@ -2018,8 +2032,8 @@ function MainApp() {
       const nativeCalendar = Capacitor.isNativePlatform();
       if (!nativeCalendar) await loadGoogleScript();
 
-      let accessToken = nativeCalendar ? (await CareRouteDevice.authorizeCalendar()).accessToken : localStorage.getItem('google_access_token');
-      const expiresAt = localStorage.getItem('google_access_token_expires');
+      let accessToken = nativeCalendar ? (await CareRouteDevice.authorizeCalendar()).accessToken : scope.getItem('google_access_token');
+      const expiresAt = scope.getItem('google_access_token_expires');
 
       if (!nativeCalendar && (!accessToken || !expiresAt || Date.now() > parseInt(expiresAt))) {
         accessToken = await new Promise<string>((resolve, reject) => {
@@ -2029,9 +2043,9 @@ function MainApp() {
             callback: (resp: any) => {
               if (resp.error) reject(new Error(resp.error));
               else {
-                localStorage.setItem('google_access_token', resp.access_token);
+                scope.setItem('google_access_token', resp.access_token);
                 // expires_in is usually 3599 seconds. We subtract 60s for safety buffer.
-                localStorage.setItem('google_access_token_expires', (Date.now() + (resp.expires_in - 60) * 1000).toString());
+                scope.setItem('google_access_token_expires', (Date.now() + (resp.expires_in - 60) * 1000).toString());
                 resolve(resp.access_token);
               }
             },
@@ -2042,6 +2056,7 @@ function MainApp() {
       }
 
       const ymd = `${(syncDate as Date).getFullYear()}-${String((syncDate as Date).getMonth() + 1).padStart(2, '0')}-${String((syncDate as Date).getDate()).padStart(2, '0')}`;
+      if (!scope.isCurrent()) throw new Error('로그인 계정이 변경되어 캘린더 동기화를 중단했습니다.');
       const authHeaders = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
 
       // 이미 동기화한 이벤트가 있는지 확인합니다.
@@ -2270,6 +2285,12 @@ function MainApp() {
       )}
       {/* 오프라인 안내: 서버 연결에 실패하면 마지막으로 저장해둔 명단을 대신
           보여주는데, 그게 최신 데이터가 아닐 수 있다는 걸 알려준다. */}
+      {dataError && (
+        <div role="alert" className="absolute top-[calc(4rem+var(--app-safe-top))] left-4 right-4 z-[60] rounded-2xl border border-red-500/30 bg-surface p-3 text-sm text-foreground shadow-lg">
+          <p>{dataError}</p>
+          <button type="button" onClick={fetchMarkers} className="mt-2 min-h-11 rounded-xl border border-surface-border px-3 font-bold">다시 불러오기</button>
+        </div>
+      )}
       {isOffline && (
         <div className="absolute top-4 left-4 right-4 z-[60] bg-accent text-primary p-3 rounded-2xl shadow-xl flex items-center gap-2 animate-fade-in-down">
           <IconDownload size={18} className="flex-shrink-0" />
@@ -2719,7 +2740,7 @@ function MainApp() {
                               ${isSelected ? '<div class="absolute -inset-1.5 bg-accent rounded-full opacity-60 animate-ping"></div>' : ''}
                               <div class="relative w-11 h-11 rounded-full overflow-hidden ${isCompleted ? 'bg-emerald-600' : 'bg-primary'} flex items-center justify-center border-2 ${routeBadge ? (routeBadge === '출발' ? 'border-emerald-400 ring-2 ring-emerald-400/50' : 'border-rose-400 ring-2 ring-rose-400/50') : isSelected ? 'border-accent ring-2 ring-accent/50' : isCompleted ? 'border-emerald-400' : 'border-white'} shadow-md shadow-foreground/20 transition-colors duration-300">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                                ${marker.photo_url ? `<img src="${marker.photo_url}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
+                                ${markerPhotoUrls[marker.id] ? `<img src="${escapeMarkerText(markerPhotoUrls[marker.id])}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
                               </div>
                               ${isCompleted ? `
                                 <div class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border border-white text-white flex items-center justify-center shadow-xs text-[10px] font-black">
@@ -2729,7 +2750,7 @@ function MainApp() {
                             </div>
                             <div class="mt-0.5 px-1.5 py-0.5 ${isSelected ? 'bg-accent text-primary font-black' : isCompleted ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700' : 'bg-surface text-primary'} text-[11px] font-bold rounded-md shadow-sm border border-surface-border whitespace-nowrap transition-colors duration-300 flex items-center gap-1">
                               ${isCompleted ? '<span class="text-emerald-600 dark:text-emerald-400 font-black">✓</span>' : ''}
-                              <span>${marker.name}</span>
+                              <span>${escapeMarkerText(marker.name)}</span>
                             </div>
                           </div>
                         `,
@@ -2993,7 +3014,7 @@ function MainApp() {
                           <div className="flex-1 flex gap-3.5 items-start min-w-0">
                             <div className="w-14 h-14 bg-primary/5 rounded-[22px] flex items-center justify-center shrink-0 overflow-hidden border border-surface-border/40 shadow-2xs">
                               {marker.photo_url ? (
-                                <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                                <PrivateImage src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                               ) : (
                                 <IconUser size={28} className="text-primary" />
                               )}
@@ -3124,7 +3145,7 @@ function MainApp() {
                         <div className="flex justify-between items-start mb-3">
                           <div className="w-12 h-12 bg-primary/5 rounded-[18px] flex items-center justify-center overflow-hidden border border-surface-border/40 shadow-2xs shrink-0">
                             {marker.photo_url ? (
-                              <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                              <PrivateImage src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <IconUser size={24} className="text-primary" />
                             )}
@@ -3162,7 +3183,7 @@ function MainApp() {
                       <div className="p-3.5 flex items-center gap-3">
                         <div className="w-10 h-10 bg-primary/5 rounded-[16px] flex items-center justify-center shrink-0 overflow-hidden border border-surface-border/30">
                           {marker.photo_url ? (
-                            <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                            <PrivateImage src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <IconUser size={20} className="text-primary" />
                           )}
@@ -3401,7 +3422,7 @@ function MainApp() {
                         <div className="flex gap-3.5 items-start">
                           <div className="w-13 h-13 rounded-[20px] bg-primary/5 flex items-center justify-center shrink-0 overflow-hidden border border-surface-border/40 shadow-2xs">
                             {marker.photo_url ? (
-                              <img src={marker.photo_url} alt="" className="w-full h-full object-cover" />
+                              <PrivateImage src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <IconUser size={26} className="text-primary" />
                             )}
@@ -3566,8 +3587,8 @@ function MainApp() {
                               type="button"
                               onClick={(e) => { e.stopPropagation(); handleRemoveFromSchedule(marker, scheduleDate); }}
                               className="w-9 h-9 flex items-center justify-center rounded-[16px] bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors active:scale-95 border border-red-500/20 shrink-0"
-                              aria-label="일정에서 제외"
-                              title="일정에서 제외"
+                              aria-label="방문 상태 관리"
+                              title="이 날짜의 방문 취소·정정 기록 열기"
                             >
                               <IconX size={15} strokeWidth={2.5} />
                             </button>
@@ -3597,6 +3618,8 @@ function MainApp() {
       
       {activeTab === 'settings' && (
         <SettingsView 
+          accountEmail={accountEmail}
+          onSignOut={onSignOut}
           onSyncCalendar={handleSyncToCalendar}
           isSyncingCalendar={isSyncingCalendar}
           onReplayTutorial={() => {
@@ -3746,7 +3769,7 @@ function MainApp() {
               <div className="relative w-14 h-14 rounded-[22px] overflow-hidden bg-primary/10 flex items-center justify-center shrink-0 border border-surface-border/60 shadow-xs">
                 {selectedRecipient.photo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={selectedRecipient.photo_url} alt="" className="w-full h-full object-cover" />
+                  <PrivateImage src={selectedRecipient.photo_url} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <IconUser size={30} className="text-primary" />
                 )}
@@ -3818,7 +3841,7 @@ function MainApp() {
                 {/* Badges: Health Tags & Passcode & Parking */}
                 {(() => {
                   const activeTags = selectedRecipient.health_tags || 
-                    (typeof window !== 'undefined' ? localStorage.getItem(`careroute_health_tags_${selectedRecipient.id}`) : null);
+                    (typeof window !== 'undefined' ? accountStorage.getItem(`careroute_health_tags_${selectedRecipient.id}`) : null);
                   return (selectedRecipient.door_passcode || selectedRecipient.parking_memo || selectedRecipient.guardian_phone || activeTags) ? (
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       {activeTags && activeTags.split(',').filter(Boolean).slice(0, 2).map((tag, idx) => (
@@ -4167,7 +4190,7 @@ function MainApp() {
               <div className="absolute left-6 -bottom-10 w-22 h-22 rounded-[24px] bg-surface border-4 border-surface shadow-xl overflow-hidden flex items-center justify-center">
                 {selectedRecipient.photo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={selectedRecipient.photo_url} alt="" className="w-full h-full object-cover" />
+                  <PrivateImage src={selectedRecipient.photo_url} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <IconUser size={38} className="text-primary" />
                 )}
@@ -4191,7 +4214,7 @@ function MainApp() {
 
                   {(() => {
                     const activeTags = selectedRecipient.health_tags || 
-                      (typeof window !== 'undefined' ? localStorage.getItem(`careroute_health_tags_${selectedRecipient.id}`) : null);
+                      (typeof window !== 'undefined' ? accountStorage.getItem(`careroute_health_tags_${selectedRecipient.id}`) : null);
                     if (!activeTags) return null;
                     return (
                       <div className="flex flex-wrap gap-1.5 mt-2">
@@ -4607,4 +4630,7 @@ function MainApp() {
 }
 
 import dynamic from 'next/dynamic';
-export default dynamic(() => Promise.resolve(MainApp), { ssr: false });
+function AuthenticatedPage() {
+  return <AuthGate>{(user, signOut) => <MainApp key={user.id} accountEmail={user.email} onSignOut={signOut} />}</AuthGate>;
+}
+export default dynamic(() => Promise.resolve(AuthenticatedPage), { ssr: false });

@@ -1,11 +1,28 @@
 // 일정 탭의 방문 일정을 외부 캘린더 앱(구글/애플 캘린더 등)이 "구독"(iCal) 형태로 실시간으로
 // 받아볼 수 있게 하는 공개 피드. 앱이 정적 배포(output: export)라 Next.js 라우트 핸들러로는
-// 만들 수 없어 Edge Function으로 둔다. 캘린더 앱은 Supabase 인증 헤더를 보낼 수 없으므로
-// 이 함수는 --no-verify-jwt로 배포하고, 대신 URL에 섞인 토큰으로 무작위 접근만 막는다
-// (로그인 시스템이 아직 없는 지금 앱 전체의 보안 수준과 동일한 한계 — 진짜 인증은 아님).
+// 만들 수 없어 Edge Function으로 둔다. --no-verify-jwt로 배포하되 계정별 capability를
+// SHA-256 해시로 검증한다. 공유 전역 토큰과 anon 데이터 조회는 지원하지 않는다.
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-const CALENDAR_FEED_TOKEN = Deno.env.get("CALENDAR_FEED_TOKEN") ?? "";
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+// Aggregate only: never log the request URL, capability, hash, or recipient data.
+let deniedWindow = Date.now();
+let deniedCount = 0;
+function unauthorized(): Response {
+  if (Date.now() - deniedWindow >= 60_000) {
+    deniedWindow = Date.now();
+    deniedCount = 0;
+  }
+  deniedCount++;
+  if (deniedCount === 1 || deniedCount % 100 === 0) {
+    console.warn("calendar_feed_denied", { count: deniedCount, windowMs: 60_000 });
+  }
+  return new Response("Unauthorized", { status: 401, headers: { "Cache-Control": "no-store" } });
+}
+
+function unavailable(status = 503): Response {
+  return new Response("Calendar feed unavailable", { status, headers: { "Cache-Control": "no-store" } });
+}
 
 const WEEKDAY_ICS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 
@@ -27,6 +44,7 @@ interface FeedSession {
 
 function escapeIcsText(text: string): string {
   return text
+    .replace(/\r\n?/g, "\n")
     .replace(/\\/g, "\\\\")
     .replace(/;/g, "\\;")
     .replace(/,/g, "\\,")
@@ -160,28 +178,43 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const token = url.searchParams.get("token");
 
-  if (!CALENDAR_FEED_TOKEN || token !== CALENDAR_FEED_TOKEN) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  if (!token || !/^[a-f0-9]{512}$/.test(token)) return unauthorized();
 
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    return new Response("Server not configured", { status: 500 });
-  }
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return unavailable();
 
   try {
     const headers = {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      apikey: SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
     };
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+    const tokenHash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+    const resolved = await fetch(`${SUPABASE_URL}/rest/v1/rpc/resolve_calendar_feed_token`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_token_hash: tokenHash }),
+      cache: "no-store",
+    });
+    if (!resolved.ok) return unavailable();
+    const owners = await resolved.json();
+    if (!Array.isArray(owners)) return unavailable();
+    if (owners.length === 0) return unauthorized();
+    const owner = owners[0];
+    if (owners.length !== 1 || typeof owner?.owner_id !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(owner.owner_id) ||
+      typeof owner.legacy_access !== "boolean") return unavailable();
+    const scope = owner.legacy_access
+      ? `or=(owner_id.eq.${owner.owner_id},owner_id.is.null)`
+      : `owner_id=eq.${owner.owner_id}`;
     const data: FeedRecipient[] = [];
     for (let offset = 0; ; offset += 500) {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/recipients?select=id,name,address,detail_address,visit_time,notes,recurring_weekdays&order=id&offset=${offset}&limit=500`,
+        `${SUPABASE_URL}/rest/v1/recipients?select=id,name,address,detail_address,visit_time,notes,recurring_weekdays&${scope}&order=id&offset=${offset}&limit=500`,
         { headers },
       );
-      if (!res.ok) return new Response("Failed to load schedule", { status: 502 });
+      if (!res.ok) return unavailable(502);
       const rows = await res.json();
-      if (!Array.isArray(rows)) return new Response("Failed to load schedule", { status: 502 });
+      if (!Array.isArray(rows)) return unavailable(502);
       data.push(...rows);
       if (rows.length < 500) break;
     }
@@ -189,7 +222,7 @@ Deno.serve(async (req) => {
     try {
       for (let offset = 0; ; offset += 500) {
         const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/visit_sessions?select=recipient_id,visit_date,status&status=in.(cancelled,planned)&order=id&offset=${offset}&limit=500`,
+          `${SUPABASE_URL}/rest/v1/visit_sessions?select=recipient_id,visit_date,status&status=in.(cancelled,planned)&${scope}&order=id&offset=${offset}&limit=500`,
           { headers },
         );
         if (!res.ok) throw new Error("Visit state fetch failed");
@@ -204,7 +237,7 @@ Deno.serve(async (req) => {
         if (rows.length < 500) break;
       }
     } catch {
-      return new Response("Failed to load visit states", { status: 503 });
+      return unavailable();
     }
     const ics = buildCalendarIcs(data, sessions, new Date());
 
@@ -216,7 +249,7 @@ Deno.serve(async (req) => {
         "Cache-Control": "no-store",
       },
     });
-  } catch (err) {
-    return new Response(err instanceof Error ? err.message : String(err), { status: 500 });
+  } catch {
+    return unavailable();
   }
 });

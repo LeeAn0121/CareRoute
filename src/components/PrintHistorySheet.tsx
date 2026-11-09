@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureAccountStorage } from '@/lib/accountStorage';
 import { IconHistory, IconPrinter, IconFileDownload, IconShare2, IconCloudCheck, IconExternalLink } from '@tabler/icons-react';
 import { Modal, LoadingOverlay, IconButton } from './ui';
 import { fetchRecentPrintLogs, fetchRecentPrintLogsForRecipient, fetchRecentPrintLogsForDate, getPrintPdfPublicUrl, type PrintLogRow } from '@/lib/printLogs';
@@ -41,6 +42,22 @@ export default function PrintHistorySheet({
 }) {
   const [logs, setLogs] = useState<PrintLogRow[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const openPdf = async (path: string) => {
+    const scope = captureAccountStorage();
+    // Open synchronously to retain the user gesture for popup blockers.
+    const tab = window.open('about:blank', '_blank');
+    if (tab) tab.opener = null;
+    try {
+      const url = await getPrintPdfPublicUrl(path);
+      if (!scope.isCurrent()) throw new Error('Account changed');
+      if (tab) tab.location.replace(url);
+      else window.location.assign(url);
+    } catch {
+      tab?.close();
+      alert('저장된 PDF를 열 수 없습니다. 로그인과 파일 접근 권한을 확인해주세요.');
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -92,7 +109,7 @@ export default function PrintHistorySheet({
                     </div>
                     {log.pdf_path && (
                       <IconButton
-                        onClick={() => window.open(getPrintPdfPublicUrl(log.pdf_path as string), '_blank')}
+                        onClick={() => void openPdf(log.pdf_path as string)}
                         className="w-8 h-8 rounded-full bg-surface text-foreground/60 hover:bg-surface-border/60 border border-surface-border/50 shrink-0"
                         aria-label="저장된 PDF 다시 열기"
                       >

@@ -1,0 +1,32 @@
+name: Account isolation security checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  database-isolation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: careroute_security_test
+          POSTGRES_PASSWORD: local-test-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Test synthetic account, RPC and file isolation
+        env:
+          PGPASSWORD: local-test-only
+        run: python3 scripts/test-account-isolation.py --host 127.0.0.1 --user postgres

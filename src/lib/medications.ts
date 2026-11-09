@@ -51,7 +51,7 @@ export async function addMedication(params: {
 
 export async function deleteMedication(id: string): Promise<boolean> {
   try {
-    const { error } = await supabase.from('medications').delete().eq('id', id);
+    const { error } = await supabase.from('medications').delete().eq('id', id).select('id').single();
     if (error) throw error;
     return true;
   } catch (e) {

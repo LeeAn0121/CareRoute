@@ -2,6 +2,7 @@
 
 import { forwardRef, useState } from 'react';
 import { IconUser } from '@tabler/icons-react';
+import PrivateImage from './PrivateImage';
 import { parseVisitTime } from '@/lib/visitTime';
 
 interface SheetRecipient {
@@ -172,8 +173,7 @@ const PrintSheet = forwardRef<HTMLDivElement, PrintSheetProps>(function PrintShe
       <div className="bg-[#f7f7f8] p-5 rounded-[26px] border border-[#e5e5ea] flex items-center gap-4">
         <div className="w-24 h-24 rounded-[22px] overflow-hidden bg-[#f4f4f5] border border-[#e5e5ea] flex items-center justify-center shrink-0">
           {recipient.photo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={recipient.photo_url} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
+            <PrivateImage src={recipient.photo_url} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" fallback={<IconUser size={36} className="text-[#bcbcc0]" />} />
           ) : (
             <IconUser size={36} className="text-[#bcbcc0]" />
           )}

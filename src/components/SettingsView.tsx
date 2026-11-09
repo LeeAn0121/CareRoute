@@ -24,7 +24,8 @@ import {
 } from '@/lib/notifications';
 import packageJson from '../../package.json';
 import { supabase } from '@/lib/supabase';
-import { buildCalendarFeedUrl } from '@/lib/calendarFeed';
+import { captureAccountStorage } from '@/lib/accountStorage';
+import { buildCalendarFeedUrl, revokeCalendarFeedToken } from '@/lib/calendarFeed';
 
 const APP_VERSION = packageJson.version;
 
@@ -94,6 +95,8 @@ function buildRecipientsCsv(rows: Record<string, any>[]): string {
 }
 
 export interface SettingsViewProps {
+  accountEmail?: string;
+  onSignOut?: () => void | Promise<void>;
   onReplayTutorial: () => void;
   onBack: () => void;
   onSyncCalendar?: () => void;
@@ -117,6 +120,8 @@ const colorThemes = [
 ];
 
 export default function SettingsView({ 
+  accountEmail,
+  onSignOut,
   onReplayTutorial, 
   onBack, 
   onSyncCalendar, 
@@ -268,9 +273,12 @@ export default function SettingsView({
   // 백업 JSON 파일을 다시 업로드해 recipients 테이블에 복원(id 기준 upsert)한다.
   // 기존 어르신은 백업 시점 내용으로 덮어써지므로, 적용 전 반드시 확인을 받는다.
   const handleRestoreFile = async (file: File) => {
+    const scope = captureAccountStorage();
     setIsRestoringBackup(true);
     try {
+      if (!scope.isCurrent()) throw new Error('로그인이 필요합니다.');
       const text = await file.text();
+      if (!scope.isCurrent()) throw new Error('계정이 변경되었습니다.');
       const parsed = JSON.parse(text);
       const rows: unknown[] = Array.isArray(parsed?.recipients) ? parsed.recipients : [];
       if (rows.length === 0) {
@@ -293,8 +301,11 @@ export default function SettingsView({
         return;
       }
 
-      const { error } = await supabase.from('recipients').upsert(payload, { onConflict: 'id' });
+      if (!scope.isCurrent()) throw new Error('계정이 변경되었습니다.');
+      const { data, error } = await supabase.from('recipients').upsert(payload, { onConflict: 'id' }).select('id');
       if (error) throw error;
+      if (!scope.isCurrent()) throw new Error('계정이 변경되었습니다.');
+      if (!data || data.length !== payload.length) throw new Error('일부 수급자 데이터의 복원 권한을 확인할 수 없습니다.');
 
       setFeedbackMessage({ type: 'success', text: `${payload.length}명의 수급자 데이터를 복원했습니다.` });
       onDataRestored?.();
@@ -443,6 +454,16 @@ export default function SettingsView({
       </div>
 
       <div className="space-y-4 max-w-xl mx-auto">
+
+        {onSignOut && (
+          <section aria-labelledby="settings-account-title" className="rounded-[24px] border border-surface-border bg-surface p-4 text-foreground shadow-xs">
+            <h2 id="settings-account-title" className="text-base font-bold">로그인 계정</h2>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+              <p className="min-w-0 flex-1 break-all text-sm leading-relaxed">{accountEmail || 'Google 계정으로 로그인됨'}</p>
+              <button type="button" onClick={() => { void onSignOut(); }} className="min-h-11 shrink-0 rounded-xl border border-surface-border bg-surface-muted px-4 text-sm font-bold text-foreground hover:bg-surface-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">로그아웃</button>
+            </div>
+          </section>
+        )}
 
         {/* CareRoute Caregiver Profile Card */}
         <div className="bg-white dark:bg-[#1C1C1E] rounded-[24px] p-4 shadow-xs border border-black/[0.04] dark:border-white/[0.08] flex items-center justify-between">
@@ -631,8 +652,8 @@ export default function SettingsView({
                 </div>
 
                 {/* iCal 구독 링크: "밀어넣기"와 달리 캘린더 앱이 주기적으로 알아서 다시 불러온다 */}
-                <div className="px-4 py-3.5 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
+                <div className="px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto sm:flex-1">
                     <div className="w-[32px] h-[32px] rounded-[10px] bg-violet-500 text-white flex items-center justify-center shrink-0 shadow-2xs">
                       <IconCalendarEvent size={18} strokeWidth={2.5} />
                     </div>
@@ -640,25 +661,52 @@ export default function SettingsView({
                       <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
                         일정 구독 링크 (iCal)
                       </span>
-                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
-                        캘린더 앱에 "URL로 캘린더 구독"으로 등록하면 자동 갱신
+                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block">
+                        새 링크를 복사하면 이전 링크는 무효화됩니다. 캘린더 앱에 다시 등록해주세요.
                       </span>
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={async () => {
+                    onClick={async (event) => {
+                      if (!window.confirm('새 구독 링크를 발급하면 기존 링크가 즉시 무효화되고 기존 캘린더 구독의 갱신이 중단됩니다. 새 링크를 발급하고 복사할까요?')) return;
+                      const button = event.currentTarget;
+                      const buttons = button.parentElement?.querySelectorAll('button');
+                      buttons?.forEach((action) => { action.disabled = true; });
                       try {
-                        await navigator.clipboard.writeText(buildCalendarFeedUrl());
+                        await navigator.clipboard.writeText(await buildCalendarFeedUrl());
                         setFeedUrlCopied(true);
                         setTimeout(() => setFeedUrlCopied(false), 2000);
                       } catch {
-                        setFeedbackMessage({ type: 'error', text: '복사에 실패했습니다. 권한을 확인해주세요.' });
+                        setFeedbackMessage({ type: 'error', text: '발급 또는 복사에 실패했습니다. Google 로그인과 클립보드 권한을 확인해주세요. 발급됐다면 이전 링크는 무효화됩니다.' });
+                      } finally {
+                        buttons?.forEach((action) => { action.disabled = false; });
                       }
                     }}
                     className="px-3.5 py-1.5 rounded-full bg-violet-500/10 hover:bg-violet-500/20 text-violet-600 dark:text-violet-400 font-black text-[13px] active:scale-95 transition-all shrink-0 whitespace-nowrap"
                   >
-                    {feedUrlCopied ? '복사됨!' : '링크 복사'}
+                    {feedUrlCopied ? '복사됨!' : '새 구독 링크 발급·복사'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async (event) => {
+                      if (!window.confirm('일정 구독 링크를 해제하면 기존 링크가 즉시 무효화되고 캘린더 구독의 갱신이 중단됩니다. 구독 링크를 해제할까요?')) return;
+                      const button = event.currentTarget;
+                      const buttons = button.parentElement?.querySelectorAll('button');
+                      buttons?.forEach((action) => { action.disabled = true; });
+                      try {
+                        await revokeCalendarFeedToken();
+                        setFeedUrlCopied(false);
+                        setFeedbackMessage({ type: 'success', text: '일정 구독 링크를 해제했습니다. 기존 링크로는 더 이상 일정을 볼 수 없습니다.' });
+                      } catch {
+                        setFeedbackMessage({ type: 'error', text: '구독 해제에 실패했습니다. Google 로그인을 확인해주세요.' });
+                      } finally {
+                        buttons?.forEach((action) => { action.disabled = false; });
+                      }
+                    }}
+                    className="px-3.5 py-1.5 rounded-full bg-violet-500/10 hover:bg-violet-500/20 text-violet-600 dark:text-violet-400 font-black text-[13px] active:scale-95 transition-all shrink-0 whitespace-nowrap"
+                  >
+                    구독 해제
                   </button>
                 </div>
 

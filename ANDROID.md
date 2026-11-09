@@ -83,6 +83,18 @@ Android 인증 코드에는 OAuth 클라이언트 비밀키나 Firebase 설정�
 
 현재 APK/AAB 생성과 실제 기기 기능 검증·Play 게시 완료는 별개입니다.
 
+## v1.39.0 Google 로그인·계정 격리
+
+- Android 버전 코드 15. 로컬 서명 번들: `android/app/build/outputs/bundle/release/CareRoute-v1.39.0-code15.aab`. AAB는 GitHub에 업로드하지 않습니다.
+- 구버전의 비로그인 API 접근은 차단됩니다. 새 번들로 업데이트한 뒤 Google 계정으로 로그인해야 명단·일정·방문 기능을 사용할 수 있습니다. 앱 로그인과 선택 기능인 Google 캘린더 권한 승인은 별개입니다.
+- Android는 Play 서비스 계정 선택으로 ID 토큰을 발급하고, 웹은 Google Identity Services를 사용합니다. 매번 생성한 nonce를 SHA-256 해시해 Google에 전달하고 원문을 Supabase의 ID 토큰 검증에 전달합니다. Firebase는 사용하지 않습니다.
+- Supabase Google Provider의 Web Client ID는 `NEXT_PUBLIC_GOOGLE_CLIENT_ID`와 일치해야 합니다. Client Secret은 Supabase 서버 설정에만 보관합니다. Google Cloud의 Android OAuth 클라이언트에는 패키지 이름과 Play 앱 서명 SHA-1을 등록합니다. 직접 설치 APK의 서명과 Play 서명이 다르면 해당 인증서를 별도로 등록해야 합니다.
+- 기존 데이터는 `public.legacy_data_access`의 활성 이메일에 공유됩니다. 관리자만 Table Editor/SQL Editor에서 허용 이메일과 `enabled`를 바꿀 수 있습니다. 새 어르신은 로그인한 사용자의 `owner_id`를 가지며, 관련 이력은 서버가 소유권을 결정합니다. 관리자 화면은 전체 계정의 행을 볼 수 있으므로 `owner_id`로 구분합니다.
+- 앱은 서버 사용자 검증 전에는 데이터를 표시하지 않습니다. 세션은 갱신되며, 로그아웃·계정 변경 시 이전 요청과 방문 알림을 정리합니다. 명단 캐시·출력 초안·전송 대기 기록·방문 순서·캘린더 토큰은 계정별로 구분합니다. 계정 없는 옛 캐시는 자동으로 읽지 않습니다.
+- 사진·PDF 버킷은 비공개이며 권한을 확인한 5분 만료 링크를 사용합니다. 기존 공개 캘린더 링크는 폐기하고 설정에서 계정별 링크를 새로 발급·회수합니다. 새 링크 발급 시 이전 링크는 무효가 됩니다.
+- 서버 자동 방문 알림은 보안 복구 중 정지합니다. 재개하려면 소유권을 확인한 새 구독만 사용하고 수신 대상을 검토한 뒤 관리자가 활성화해야 합니다. 과거 비로그인 구독은 수신 대상에서 제외됩니다. 앱의 기기 알림과 서버 자동 발송은 별개입니다.
+- `python3 scripts/test-account-isolation.py --host 127.0.0.1 --user postgres`로 빈 로컬 `careroute_security_test` DB에서 합성 계정 격리를 검사합니다. 스크립트는 원격 호스트와 운영 DB 이름을 거부하고 모든 fixture를 롤백합니다. GitHub Actions의 보안 검사도 운영 인증 정보를 사용하지 않습니다.
+
 ## v1.38.2 안내 내용 일치
 
 - Android 버전 코드 14. 서명된 로컬 파일: `android/app/build/outputs/bundle/release/CareRoute-v1.38.2-code14.aab`. GitHub에는 업로드하지 않습니다.
