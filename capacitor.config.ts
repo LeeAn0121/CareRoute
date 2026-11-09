@@ -6,7 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'mobile-www',
   server: { androidScheme: 'https', appStartPath: '/CareRoute/', errorPath: 'CareRoute/webview-update.html' },
   android: { allowMixedContent: false, minWebViewVersion: 111, zoomEnabled: true },
-  plugins: { LocalNotifications: { smallIcon: 'ic_careroute_notification', iconColor: '#2563EB' } },
+  plugins: {
+    // One inset owner: native margins on old WebViews, CSS safe areas on new ones.
+    SystemBars: { insetsHandling: 'css', initialViewportFitValueHint: 'cover' },
+    LocalNotifications: { smallIcon: 'ic_careroute_notification', iconColor: '#2563EB' },
+  },
 };
 
 export default config;

@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.Manifest;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.provider.Settings;
 import androidx.core.content.ContextCompat;
@@ -21,6 +23,22 @@ import java.util.ArrayList;
 
 @CapacitorPlugin(name = "CareRouteDevice")
 public class CareRouteDevicePlugin extends Plugin {
+    @PluginMethod
+    public void setWindowBackground(PluginCall call) {
+        final boolean dark = Boolean.TRUE.equals(call.getBoolean("dark", false));
+        getActivity().runOnUiThread(() -> {
+            // Paint behind transparent system bars; do not use deprecated bar colors
+            // or install a second inset listener alongside Capacitor SystemBars.
+            getActivity().getTheme().applyStyle(dark ? R.style.CareRouteWindowDark : R.style.CareRouteWindowLight, true);
+            int color = dark ? Color.BLACK : Color.rgb(242, 242, 247);
+            getActivity().getWindow().setBackgroundDrawable(new ColorDrawable(color));
+            getActivity().getWindow().getDecorView().setBackgroundColor(color);
+            getActivity().findViewById(android.R.id.content).setBackgroundColor(color);
+            getActivity().getWindow().getDecorView().invalidate();
+            call.resolve();
+        });
+    }
+
     @PluginMethod
     public void getLocationPermission(PluginCall call) {
         boolean precise = ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;

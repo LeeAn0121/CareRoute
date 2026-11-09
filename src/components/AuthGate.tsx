@@ -174,7 +174,7 @@ export default function AuthGate({ children }: { children: (user: User, signOut:
   };
 
   if (user && !checking) return children(user, signOut);
-  return <main className="min-h-dvh flex items-center justify-center bg-background text-foreground px-5 py-12">
+  return <main className="auth-shell min-h-dvh flex items-center justify-center bg-background text-foreground px-5 py-12">
     <section className="w-full max-w-sm rounded-3xl border border-surface-border bg-surface p-6 space-y-4" aria-labelledby="auth-title">
       <h1 id="auth-title" className="text-2xl font-bold">케어루트 로그인</h1>
       <p className="text-sm leading-relaxed text-foreground/80">Google 계정으로 로그인해 내 계정에 허용된 수급자와 방문 기록을 확인하세요.</p>

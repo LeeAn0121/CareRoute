@@ -112,6 +112,12 @@ body {
 }
 
 @media screen {
+  .auth-shell {
+    padding-top: calc(3rem + var(--app-safe-top));
+    padding-bottom: calc(3rem + var(--app-safe-bottom));
+    padding-left: calc(1.25rem + var(--app-safe-left));
+    padding-right: calc(1.25rem + var(--app-safe-right));
+  }
   /* Keep the saved reading preference effective for pixel-sized utility text, too. */
   .large-font-mode :is(.text-\[10px\], .text-\[11px\]) { font-size: 13px; }
   .large-font-mode :is(.text-xs, .text-\[12px\]) { font-size: 15px; }

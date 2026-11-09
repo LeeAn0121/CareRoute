@@ -7,6 +7,16 @@ Capacitor 8로 Next.js 정적 산출물을 앱에 포함합니다. 기존 GitHub
 - Android 최소 API 24, 대상 API 36
 - 앱 버전은 `package.json`의 `version`, Android 버전 코드는 `androidVersionCode`를 사용합니다. `CAREROUTE_VERSION_CODE`로 일시 재정의할 수 있습니다.
 
+## Android 15 이상 전체 화면 대응 (1.39.1 / 코드 16)
+
+`MainActivity`에서 AndroidX `EdgeToEdge.enable()`을 호출합니다. 인셋은 Capacitor 8 SystemBars가 단독 처리합니다. 구형 WebView는 네이티브 영역을 확보하고, 최신 WebView는 `viewport-fit=cover`와 CSS 안전 영역을 사용합니다. 별도 인셋 리스너·중복 패딩을 추가하지 않습니다. 로그인 화면에도 네 방향 안전 영역을 적용합니다.
+
+앱의 다크·라이트·시스템 테마는 시스템 표시줄 아이콘과 창 배경에 함께 반영합니다. SystemBars가 스타일 갱신 시 읽는 `windowBackground`도 테마 오버레이로 맞춥니다. 폐기된 상태 표시줄 색상 API는 추가하지 않습니다.
+
+검증: Android 15(API 35)·16(API 36) 에뮬레이터에서 세로·가로 화면, 제스처·3버튼 탐색 영역, 라이트·다크 테마를 확인했습니다. 최종 빌드의 두 버전에서 3버튼 탐색 상태의 로그인·테마·회전·키보드 표시와 닫기 검사를 수행했습니다. 운영 데이터 요청은 모두 모의 응답으로 차단했습니다. 에뮬레이터의 구형 WebView는 네이티브 인셋 경로로 동작했습니다. 최신 WebView와 삼성 실기기는 별도 확인이 필요합니다. 소프트웨어 GPU에서 카드의 합성 잔상이 관찰되어 모든 화면의 시각적 완성을 보증하는 검증은 아닙니다.
+
+Play Console 경고의 해소 여부는 새 AAB를 업로드한 뒤 Google의 재분석 결과에서 확인해야 합니다. 로컬 검증만으로 Console 경고가 사라졌다고 판단하지 않습니다.
+
 ## 빌드
 
 Node 22 이상, JDK 21, Android SDK 36이 필요합니다. 기존 `.env.local`의 Supabase 공개 설정을 사용합니다. 서비스 역할 키를 앱에 포함하지 않습니다.

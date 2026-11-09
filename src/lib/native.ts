@@ -3,6 +3,7 @@ import type { jsPDF } from 'jspdf';
 import { captureAccountStorage } from '@/lib/accountStorage';
 
 export const CareRouteDevice = registerPlugin<{
+  setWindowBackground(options: { dark: boolean }): Promise<void>;
   print(): Promise<void>;
   recognizeSpeech(): Promise<{ text: string }>;
   authorizeCalendar(): Promise<{ accessToken: string }>;

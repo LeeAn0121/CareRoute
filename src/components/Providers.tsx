@@ -2,13 +2,28 @@
 
 import { useEffect, useState } from 'react';
 import { NavermapsProvider } from 'react-naver-maps';
-import { ThemeProvider } from 'next-themes';
-import { installNativeSharing } from '@/lib/native';
+import { ThemeProvider, useTheme } from 'next-themes';
+import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
+import { CareRouteDevice, installNativeSharing } from '@/lib/native';
 
 const navermapsOptions = {
   ncpKeyId: process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || 'f9sp6e02ix',
   submodules: ['geocoder'],
 };
+
+function NativeSystemBarTheme() {
+  const { resolvedTheme } = useTheme();
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !resolvedTheme) return;
+    let active = true;
+    const dark = resolvedTheme === 'dark';
+    void CareRouteDevice.setWindowBackground({ dark })
+      .then(() => { if (active) return SystemBars.setStyle({ style: dark ? SystemBarsStyle.Dark : SystemBarsStyle.Light }); })
+      .catch(() => { console.warn('시스템 표시줄 스타일을 적용하지 못했습니다.'); });
+    return () => { active = false; };
+  }, [resolvedTheme]);
+  return null;
+}
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -83,6 +98,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <NativeSystemBarTheme />
       <NavermapsProvider {...navermapsOptions}>
         {children}
       </NavermapsProvider>
