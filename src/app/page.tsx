@@ -3257,30 +3257,24 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               <Button variant="ghost" disabled={visitSaving || visits.loading || Boolean(visits.error)} onClick={() => void restoreScheduleDate(removedSchedule.recipient, removedSchedule.dateKey, removedSchedule.version)} className="min-h-11">되돌리기</Button>
               <IconButton aria-label="일정 제거 알림 닫기" onClick={() => setRemovedSchedule(null)}><IconX size={18} /></IconButton>
             </div>}
-            {scheduleDate && <section className="mb-3 rounded-2xl border border-surface-border bg-surface p-3 text-foreground">
-              <button type="button" aria-expanded={showRemovedSchedules} aria-controls="removed-schedules" onClick={() => setShowRemovedSchedules(value => !value)} className="min-h-11 w-full text-left text-sm font-bold">제거한 일정 {markers.filter(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled').length}건 {showRemovedSchedules ? '접기' : '보기'}</button>
-              {showRemovedSchedules && <div id="removed-schedules" className="space-y-2">
-                <p className="text-sm leading-relaxed text-foreground/60">선택한 날짜에서만 제거됩니다. 반복 요일과 방문 기록은 유지됩니다.</p>
-                {markers.filter(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled').map(r => <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-surface-border pt-2"><span className="min-w-0 flex-1 break-words text-sm font-bold">{r.name}</span><Button variant="ghost" disabled={visitSaving || visits.loading || Boolean(visits.error)} onClick={() => void restoreScheduleDate(r, selectedDateKey, getVisit(r, selectedDateKey).version)} className="min-h-11">일정 복원</Button></div>)}
-                {!markers.some(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled') && <p className="py-2 text-sm text-foreground/60">제거한 일정이 없습니다.</p>}
-              </div>}
-            </section>}
-            <div className="mb-2.5 flex items-center justify-between gap-3">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               {scheduleDate && (
                 <div>
                   <p className="text-xl font-black text-foreground tracking-tight">
                     {scheduleDate.toDateString() === new Date().toDateString() ? '오늘의 ' : `${scheduleDate.getMonth() + 1}월 ${scheduleDate.getDate()}일 `}
                     방문 일정
                   </p>
-                  <p className="text-xs text-foreground/50 font-semibold">
+                  <p className="text-sm text-foreground/60 font-semibold">
                     방문 일정 {scheduleRoute.length}건 · 제거한 일정 {markers.filter(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled').length}건
                   </p>
                 </div>
               )}
 
+              {scheduleDate && <Button onClick={() => setIsScheduleAddOpen(true)} startIcon={<IconPlus size={18} />} className="min-h-11 shrink-0 text-sm px-3">일정 추가</Button>}
+
               {/* 순서 편집 및 최적화 리셋 버튼 */}
               {scheduleDate && scheduleRoute.length > 1 && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex w-full flex-wrap items-center gap-1.5">
                   {scheduleDateKey && customOrderMap[scheduleDateKey] && (
                     <button
                       type="button"
@@ -3332,7 +3326,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                   <button
                     type="button"
                     onClick={() => setIsBatchPrintOpen(true)}
-                    className="self-start flex items-center gap-1.5 px-3.5 py-2 rounded-[16px] text-[12px] font-black bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 transition-colors active:scale-95 border border-surface-border/40"
+                    className="self-start min-h-11 flex items-center gap-1.5 px-3.5 py-2 rounded-[16px] text-sm font-bold bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 transition-colors active:scale-95 border border-surface-border/40"
                   >
                     <IconPrinter size={14} />
                     오늘 일정 일괄 출력 ({scheduleRoute.length}명)
@@ -3341,7 +3335,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                 <button
                   type="button"
                   onClick={() => setIsWeeklyPrintOpen(true)}
-                  className="self-start flex items-center gap-1.5 px-3.5 py-2 rounded-[16px] text-[12px] font-black bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 transition-colors active:scale-95 border border-surface-border/40"
+                  className="self-start min-h-11 flex items-center gap-1.5 px-3.5 py-2 rounded-[16px] text-sm font-bold bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 transition-colors active:scale-95 border border-surface-border/40"
                 >
                   <IconCalendarEvent size={14} />
                   이번 주 전체 출력
@@ -3403,12 +3397,22 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
             {/* Month Grid Calendar */}
             <MonthCalendar
+              defaultCollapsed
               selectedDate={scheduleDate}
               onSelectDate={setScheduleDate}
               hasSchedule={(d) => markers.some(r => getScheduledForDate(r, d))}
               showPrintHistory
               onPrintedDateClick={setPrintHistoryDateKey}
             />
+
+            {scheduleDate && (showRemovedSchedules || markers.some(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled')) && <section className="mb-3 rounded-2xl border border-surface-border bg-surface p-3 text-foreground">
+              <button type="button" aria-expanded={showRemovedSchedules} aria-controls="removed-schedules" onClick={() => setShowRemovedSchedules(value => !value)} className="min-h-11 w-full text-left text-sm font-bold">제거한 일정 {markers.filter(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled').length}건 {showRemovedSchedules ? '접기' : '보기'}</button>
+              {showRemovedSchedules && <div id="removed-schedules" className="space-y-2">
+                <p className="text-sm leading-relaxed text-foreground/60">선택한 날짜에서만 제거됩니다. 반복 요일과 방문 기록은 유지됩니다.</p>
+                {markers.filter(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled').map(r => <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-surface-border pt-2"><span className="min-w-0 flex-1 break-words text-sm font-bold">{r.name}</span><Button variant="ghost" disabled={visitSaving || visits.loading || Boolean(visits.error)} onClick={() => void restoreScheduleDate(r, selectedDateKey, getVisit(r, selectedDateKey).version)} className="min-h-11">일정 복원</Button></div>)}
+                {!markers.some(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled') && <p className="py-2 text-sm text-foreground/60">제거한 일정이 없습니다.</p>}
+              </div>}
+            </section>}
 
             {scheduleDate && (
               scheduleRoute.length === 0 ? (
@@ -3443,7 +3447,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       whileTap={{ scale: 0.99 }}
                       onClick={() => setSelectedRecipient(marker)}
-                      className={`relative flex gap-3.5 items-start cursor-pointer transition-all ${completed ? 'opacity-60' : 'opacity-100'}`}
+                      className="relative flex gap-3.5 items-start cursor-pointer transition-all"
                     >
                       {/* One UI Timeline Node Squircle */}
                       <div className={`absolute -left-[25px] top-1.5 w-[26px] h-[26px] rounded-[10px] flex items-center justify-center z-10 transition-transform ${
@@ -3469,11 +3473,11 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                           
                           <div className="flex-1 min-w-0 pt-0.5">
                             <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <button type="button" aria-label={`${marker.name} 어르신 상세 보기`} onClick={(e) => { e.stopPropagation(); setSelectedRecipient(marker); setIsDetailModalOpen(true); }} className={`text-left w-full min-h-11 font-black text-[18px] text-foreground tracking-tight [overflow-wrap:anywhere] ${completed ? 'opacity-80' : ''}`} >{marker.name} 어르신</button>
+                              <button type="button" aria-label={`${marker.name} 어르신 상세 보기`} onClick={(e) => { e.stopPropagation(); setSelectedRecipient(marker); setIsDetailModalOpen(true); }} className={`text-left w-full min-h-11 font-black text-[18px] text-foreground tracking-tight [overflow-wrap:anywhere] `} >{marker.name} 어르신</button>
                               <span className="text-xs whitespace-nowrap font-bold text-foreground/65">{VISIT_STATUS_LABEL[getVisit(marker, selectedDateKey).status]}</span>
                               {isNext && (
-                                <span className="px-2.5 py-0.5 bg-accent text-accent-foreground text-[10px] font-black rounded-full animate-pulse shadow-xs">
-                                  NEXT
+                                <span className="whitespace-nowrap px-2.5 py-0.5 bg-accent text-accent-foreground text-[10px] font-black rounded-full animate-pulse shadow-xs">
+                                  다음 방문
                                 </span>
                               )}
                               {printedRecipientIds.has(marker.id) && (
@@ -3525,7 +3529,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                                 type="button"
                                 disabled={i === 0}
                                 onClick={(e) => { e.stopPropagation(); moveRouteItem(i, 'up'); }}
-                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                                className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
                                   i === 0 
                                     ? 'opacity-25 text-foreground/30 cursor-not-allowed' 
                                     : 'bg-surface-muted hover:bg-surface-border text-foreground/70 active:scale-90 border border-surface-border/40 shadow-2xs'
@@ -3539,7 +3543,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                                 type="button"
                                 disabled={i === scheduleRoute.length - 1}
                                 onClick={(e) => { e.stopPropagation(); moveRouteItem(i, 'down'); }}
-                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                                className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
                                   i === scheduleRoute.length - 1 
                                     ? 'opacity-25 text-foreground/30 cursor-not-allowed' 
                                     : 'bg-surface-muted hover:bg-surface-border text-foreground/70 active:scale-90 border border-surface-border/40 shadow-2xs'
@@ -3553,86 +3557,24 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                           )}
                         </div>
 
-                        {/* Timeline Action Buttons */}
-                        <div className="flex flex-wrap items-center gap-2 mt-3.5 pt-3 border-t border-surface-border/40" onClick={(e) => e.stopPropagation()}>
-                          <div className="schedule-actions flex flex-1 flex-wrap gap-1.5 min-w-0">
-                            {!completed ? (
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }}
-                                className="flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 hover:opacity-90 transition-opacity whitespace-nowrap active:scale-95 shadow-xs"
-                              >
-                                <IconNavigation size={15} />
-                                <span>길안내</span>
-                              </button>
-                            ) : null}
-
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); toggleCompleted(marker, selectedDateKey); }}
-                              aria-label={`${marker.name} ${['completed', 'missed'].includes(getVisit(marker, selectedDateKey).status) ? '방문 기록' : '방문 상태 변경'}`}
-                              disabled={visitSaving || visits.loading}
-                              className={`flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black transition-all whitespace-nowrap active:scale-95 ${
-                                completed 
-                                  ? 'bg-surface-muted text-foreground/60 hover:bg-surface-border border border-surface-border/40' 
-                                  : 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 border border-emerald-500/25'
-                              }`}
-                            >
-                              <IconCheck size={15} strokeWidth={2.5} />
-                              <span>{visitPrimaryLabel(marker, selectedDateKey)}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); openCompletionForm(marker, selectedDateKey); }}
-                              className="flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black bg-primary/10 hover:bg-primary/20 text-primary transition-colors whitespace-nowrap active:scale-95 border border-primary/20"
-                            >
-                              <IconMessageCircle size={15} />
-                              <span>{['completed', 'missed', 'cancelled'].includes(getVisit(marker, selectedDateKey).status) ? '방문 기록' : '일지·완료'}</span>
-                            </button>
-
-                            {completed && (
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); handleShareReport(marker); }}
-                                className="flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black bg-amber-400 hover:bg-amber-500 text-stone-900 transition-colors whitespace-nowrap active:scale-95 shadow-xs"
-                              >
-                                <IconShare size={15} strokeWidth={2.5} />
-                                <span>공유</span>
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 ml-auto">
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); openPrintRecipient(marker, selectedDateKey); }}
-                              className="w-9 h-9 flex items-center justify-center rounded-[16px] bg-surface-muted text-foreground/75 hover:bg-surface-border transition-colors active:scale-95 border border-surface-border/40 shrink-0"
-                              aria-label="출력"
-                              title="이 어르신의 출력 미리보기 열기"
-                            >
-                              <IconPrinter size={15} />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setManagingScheduleRecipient(marker); }}
-                              className="px-3 py-2.5 rounded-[16px] text-[12px] font-black bg-surface-muted text-foreground/75 hover:bg-surface-border transition-colors whitespace-nowrap active:scale-95 border border-surface-border/40"
-                              title="일정 상세 관리"
-                            >
-                              관리
-                            </button>
-
-                            {!['completed', 'missed'].includes(getVisit(marker, selectedDateKey).status) && <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); handleRemoveFromSchedule(marker, scheduleDate); }}
-                              className="min-h-11 inline-flex items-center justify-center gap-1 rounded-2xl bg-red-500/10 px-3 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-colors border border-red-500/20 shrink-0 disabled:opacity-40"
+                        <div className="mt-4 space-y-3 border-t border-surface-border pt-3" onClick={(e) => e.stopPropagation()}>
+                          <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
+                            <Button
+                              onClick={() => toggleCompleted(marker, selectedDateKey)}
                               disabled={visitSaving || visits.loading || Boolean(visits.error)}
-                              aria-label={`${marker.name} 일정 제거`}
-                              title="선택한 날짜의 일정만 제거"
+                              startIcon={visitActionIcon(marker, selectedDateKey)}
+                              className={`min-h-11 whitespace-normal text-sm px-3 ${getVisit(marker, selectedDateKey).status === 'missed' ? 'min-[360px]:col-span-2' : ''}`}
+                              variant={completed ? 'plain' : 'primary'}
                             >
-                              <IconTrash size={16} strokeWidth={2.5} /> 일정 제거
-                            </button>}
+                              <span aria-label={`${marker.name} ${['completed', 'missed'].includes(getVisit(marker, selectedDateKey).status) ? '방문 기록' : visitPrimaryLabel(marker, selectedDateKey)}`}>{['completed', 'missed'].includes(getVisit(marker, selectedDateKey).status) ? '방문 기록' : visitPrimaryLabel(marker, selectedDateKey)}</span>
+                            </Button>
+                            {['planned', 'in_progress'].includes(getVisit(marker, selectedDateKey).status) && <Button variant="ghost" onClick={() => handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address)} startIcon={<IconNavigation size={18} />} className="min-h-11 whitespace-normal text-sm px-3">길안내</Button>}
+                            {completed && <Button variant="ghost" onClick={() => handleShareReport(marker)} startIcon={<IconShare size={18} />} className="min-h-11 whitespace-normal text-sm px-3">기록 공유</Button>}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="ghost" onClick={() => openPrintRecipient(marker, selectedDateKey)} startIcon={<IconPrinter size={16} />} className="min-h-11 flex-1 whitespace-normal text-sm px-3">출력</Button>
+                            <Button variant="ghost" onClick={() => setManagingScheduleRecipient(marker)} startIcon={<IconPencil size={16} />} className="min-h-11 flex-1 whitespace-normal text-sm px-3">일정 수정</Button>
+                            {!['completed', 'missed'].includes(getVisit(marker, selectedDateKey).status) && <Button variant="danger-ghost" onClick={() => handleRemoveFromSchedule(marker, scheduleDate)} disabled={visitSaving || visits.loading || Boolean(visits.error)} startIcon={<IconTrash size={16} />} className="min-h-11 flex-1 whitespace-normal text-sm px-3"><span aria-label={`${marker.name} 일정 제거`}>일정 제거</span></Button>}
                           </div>
                         </div>
                       </div>
@@ -3642,17 +3584,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               </div>
             ))}
             
-            {/* FAB for adding to schedule */}
-            {scheduleDate && (
-              <button
-                onClick={() => setIsScheduleAddOpen(true)}
-                className="app-fab fixed bottom-[84px] right-5 z-40 w-[58px] h-[58px] flex items-center justify-center rounded-[22px] shadow-[0_12px_28px_rgba(var(--primary),0.35)] bg-primary text-primary-foreground border border-white/20 transition-transform active:scale-90 backdrop-blur-[40px] saturate-200 animate-fade-in-up"
-                aria-label="일정에 어르신 추가"
-                title="방문 일정 추가"
-              >
-                <IconPlus size={30} strokeWidth={2.5} />
-              </button>
-            )}
+
           </div>
         )}
       </div>

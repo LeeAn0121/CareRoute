@@ -12,7 +12,7 @@ import {
   IconMapPin, IconSparkles,
   IconHelp, IconDownload, IconUpload, IconDatabase, IconFileSpreadsheet,
   IconExternalLink, IconAlertCircle,
-  IconSearch, IconX, IconTypography, IconShieldCheck
+  IconSearch, IconX, IconTypography, IconShieldCheck, IconSwitchHorizontal, IconLogout
 } from '@tabler/icons-react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'motion/react';
@@ -151,7 +151,7 @@ export default function SettingsView({
   
   // 설정 검색어
   const [searchQuery, setSearchQuery] = useState('');
-  const [accountExpanded, setAccountExpanded] = useState(false);
+  const [accountExpanded, setAccountExpanded] = useState(true);
   const [accountAction, setAccountAction] = useState<'switch' | 'logout' | null>(null);
   const [accountBusy, setAccountBusy] = useState<'manage' | 'signout' | null>(null);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -527,27 +527,47 @@ export default function SettingsView({
               >
                 <IconBrandGoogle size={20} className="shrink-0 text-primary" aria-hidden="true" />
                 <span className="min-w-0 flex-1 break-words">Google 계정 관리</span>
+                <span aria-hidden="true" className="shrink-0 text-xs font-medium text-foreground/60">{accountExpanded ? '접기' : '펼치기'}</span>
                 <IconChevronDown size={18} className={`shrink-0 transition-transform ${accountExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
               </button>
             </h2>
-            <div id="section-account-login" tabIndex={-1} className="mt-2 flex min-w-0 flex-col items-start gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
-                <IconCheck size={14} aria-hidden="true" /> 로그인됨
-              </span>
-              <p className="w-full min-w-0 text-sm leading-relaxed [overflow-wrap:anywhere]">{accountEmail || 'Google 계정으로 로그인됨'}</p>
+            <div id="section-account-login" tabIndex={-1} className="mt-2 min-w-0 space-y-2 rounded-[20px] border border-surface-border bg-surface-muted p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-bold text-foreground/60">현재 로그인 계정</p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
+                  <IconCheck size={14} aria-hidden="true" /> 로그인됨
+                </span>
+              </div>
+              <p className="w-full min-w-0 text-sm font-bold leading-relaxed [overflow-wrap:anywhere]">{accountEmail || 'Google 계정으로 로그인됨'}</p>
             </div>
             <div id="settings-account-actions" hidden={!accountExpanded} className="mt-4 space-y-2 border-t border-surface-border pt-4">
-              <div id="section-account-manage" tabIndex={-1}>
-                <Button variant="ghost" fullWidth disabled={accountBusy !== null} loading={accountBusy === 'manage'} onClick={() => void openGoogleAccount()} startIcon={<IconExternalLink size={18} aria-hidden="true" />} className="min-h-11 whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                  Google 계정 설정 열기
+              <p className="pb-1 text-xs font-bold text-foreground/60">계정 메뉴</p>
+              <div id="section-account-manage" tabIndex={-1} className="min-w-0">
+                <Button variant="plain" fullWidth disabled={accountBusy !== null} loading={accountBusy === 'manage'} onClick={() => void openGoogleAccount()} startIcon={<IconSettings size={20} className="shrink-0 text-primary" aria-hidden="true" />} className="min-h-11 justify-start gap-3 whitespace-normal text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                    <span className="block text-sm font-bold leading-relaxed">Google 계정 설정 열기</span>
+                    <span className="mt-0.5 block text-xs font-medium leading-relaxed text-foreground/60">Google에서 계정 정보 확인</span>
+                  </span>
+                  <IconExternalLink size={16} className="shrink-0 text-foreground/50" aria-hidden="true" />
                 </Button>
               </div>
-              <p className="text-xs leading-relaxed text-foreground/60">Google에서 계정 정보를 확인합니다.</p>
-              <div id="section-account-switch" tabIndex={-1}>
-                <Button variant="plain" fullWidth disabled={accountBusy !== null} onClick={() => { setAccountError(null); setAccountAction('switch'); }} className="min-h-11 whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">다른 계정으로 전환</Button>
+              <div id="section-account-switch" tabIndex={-1} className="min-w-0">
+                <Button variant="plain" fullWidth disabled={accountBusy !== null} onClick={() => { setAccountError(null); setAccountAction('switch'); }} startIcon={<IconSwitchHorizontal size={20} className="shrink-0 text-primary" aria-hidden="true" />} className="min-h-11 justify-start gap-3 whitespace-normal text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                    <span className="block text-sm font-bold leading-relaxed">다른 계정으로 전환</span>
+                    <span className="mt-0.5 block text-xs font-medium leading-relaxed text-foreground/60">로그아웃 후 사용할 계정 선택</span>
+                  </span>
+                  <IconChevronRight size={16} className="shrink-0 text-foreground/50" aria-hidden="true" />
+                </Button>
               </div>
-              <div id="section-account-logout" tabIndex={-1}>
-                <Button variant="ghost" fullWidth disabled={accountBusy !== null} onClick={() => { setAccountError(null); setAccountAction('logout'); }} className="min-h-11 whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">로그아웃</Button>
+              <div id="section-account-logout" tabIndex={-1} className="min-w-0">
+                <Button variant="ghost" fullWidth disabled={accountBusy !== null} onClick={() => { setAccountError(null); setAccountAction('logout'); }} startIcon={<IconLogout size={20} className="shrink-0 text-foreground/70" aria-hidden="true" />} className="min-h-11 justify-start gap-3 whitespace-normal text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                    <span className="block text-sm font-bold leading-relaxed">로그아웃</span>
+                    <span className="mt-0.5 block text-xs font-medium leading-relaxed text-foreground/60">이 기기의 CareRoute 이용 종료</span>
+                  </span>
+                  <IconChevronRight size={16} className="shrink-0 text-foreground/50" aria-hidden="true" />
+                </Button>
               </div>
             </div>
             {accountError && !accountAction && <p role="alert" className="mt-3 text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">{accountError}</p>}

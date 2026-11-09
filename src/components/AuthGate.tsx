@@ -225,32 +225,23 @@ export default function AuthGate({ children }: { children: (user: User, signOut:
       : !native && !googleReady && !error ? 'Google 로그인 버튼을 준비하고 있어요.' : '';
 
   return <main className="auth-shell min-h-dvh flex items-center justify-center bg-background text-foreground px-4 py-8 sm:px-6 sm:py-12">
-    <div className="w-full max-w-md space-y-6">
+    <div className="w-full min-w-0 max-w-sm space-y-5">
       <div className="flex items-center justify-center gap-3">
-        <img src="/CareRoute/logo.svg" width={48} height={48} alt="" className="h-12 w-12 rounded-2xl" />
-        <div><p className="text-lg font-black tracking-tight">CareRoute</p><p className="text-sm text-foreground/70">어르신 방문 케어를 한곳에서</p></div>
+        <img src="/CareRoute/logo.svg" width={44} height={44} alt="" className="h-11 w-11 shrink-0 rounded-2xl" />
+        <div className="min-w-0"><p className="text-lg font-black tracking-tight">CareRoute</p><p className="text-sm text-foreground/70">방문 케어를 한곳에서</p></div>
       </div>
 
-      <section className="rounded-3xl border border-surface-border bg-surface p-5 shadow-sm sm:p-8" aria-labelledby="auth-title" aria-describedby="auth-description">
-        <header className="mb-6 space-y-2">
+      <section className="min-w-0 rounded-3xl border border-surface-border bg-surface p-4 shadow-sm sm:p-7" aria-labelledby="auth-title" aria-describedby="auth-description">
+        <header className="mb-5 space-y-2">
           <h1 id="auth-title" className="text-2xl font-black tracking-tight">케어루트 로그인</h1>
-          <p id="auth-description" className="text-sm leading-relaxed text-foreground/75">Google 계정으로 방문 일정과 케어 기록을 이어가세요.</p>
+          <p id="auth-description" className="text-sm leading-relaxed text-foreground/75">Google 계정으로 일정과 기록을 이어가세요.</p>
         </header>
-
-        <div className="rounded-2xl border border-surface-border bg-surface-muted p-4 mb-6 flex items-start gap-3">
-          <IconShieldCheck size={22} className="shrink-0 text-primary mt-0.5" aria-hidden="true" />
-          <div className="space-y-1">
-            <h2 className="text-sm font-bold">내 계정에 허용된 기록만</h2>
-            <p className="text-sm leading-relaxed text-foreground/75">다른 계정의 비공개 기록은 표시되지 않아요. 함께 관리하는 기록은 접근 권한이 있는 계정에서만 확인할 수 있어요.</p>
-          </div>
-        </div>
 
         <div className="space-y-3" aria-busy={checking || busy || (!native && !googleReady && !error)}>
           {!checking && (native
             ? <button type="button" disabled={busy} onClick={() => void nativeSignIn()} className="w-full min-h-11 rounded-xl bg-primary text-primary-foreground px-4 py-3 text-sm font-bold transition-opacity hover:opacity-90 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">{busy ? 'Google 로그인 진행 중…' : 'Google 계정으로 로그인'}</button>
             : <div ref={buttonRef} aria-label="Google 계정 로그인" inert={busy || !googleReady} className={`min-h-11 flex justify-center overflow-x-auto ${busy ? 'pointer-events-none opacity-50' : ''}`} />)}
           {statusLabel && <div role="status" aria-live="polite" className="flex items-start gap-2.5 rounded-xl bg-surface-muted p-3 text-sm leading-relaxed text-foreground/80"><Spinner size={18} className="shrink-0 mt-0.5 text-primary motion-reduce:animate-none" /><span>{statusLabel}</span></div>}
-          {!checking && !busy && !error && (native || googleReady) && <p className="text-center text-sm leading-relaxed text-foreground/70">Google 화면에서 사용할 계정을 선택하세요.</p>}
           {busy && loginPhase === 'selecting' && <p className="text-sm leading-relaxed text-foreground/70">취소하려면 Google 화면을 닫거나 기기의 뒤로 가기를 사용하세요.</p>}
         </div>
 
@@ -260,10 +251,11 @@ export default function AuthGate({ children }: { children: (user: User, signOut:
           <button type="button" disabled={busy || checking} className="min-h-11 w-full rounded-xl border border-surface-border bg-surface px-4 py-2 text-sm font-bold hover:bg-surface-border disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" onClick={() => { if (signingOut.current) { void signOut(); return; } setError(''); setNotice(''); setAttempt(value => value + 1); setChecking(true); void validate(); }}>다시 시도</button>
         </div>}
 
-        <p className="mt-6 border-t border-surface-border pt-4 text-sm leading-relaxed text-foreground/70">로그인 상태는 유지됩니다. 공용 기기에서는 사용 후 설정에서 로그아웃해주세요.</p>
+        <p className="mt-4 flex items-start gap-2 text-sm leading-relaxed text-foreground/70">
+          <IconShieldCheck size={18} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+          <span className="min-w-0">내 계정에 허용된 기록만 표시됩니다.</span>
+        </p>
       </section>
-
-      <p className="px-2 text-center text-sm leading-relaxed text-foreground/70">다른 계정으로 이용하려면 설정에서 로그아웃한 뒤<br className="hidden sm:block" /> Google 로그인 화면에서 계정을 다시 선택하세요.</p>
     </div>
   </main>;
 }

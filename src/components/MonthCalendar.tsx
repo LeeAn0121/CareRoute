@@ -5,6 +5,7 @@ import { LoadingOverlay } from './ui';
 import { fetchPrintedDateKeysInRange } from '@/lib/printLogs';
 
 interface MonthCalendarProps {
+  defaultCollapsed?: boolean;
   selectedDate: Date | null;
   onSelectDate: (date: Date) => void;
   hasSchedule?: (date: Date) => boolean;
@@ -16,10 +17,10 @@ interface MonthCalendarProps {
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule, showPrintHistory, onPrintedDateClick }: MonthCalendarProps) {
+export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule, showPrintHistory, onPrintedDateClick, defaultCollapsed = false }: MonthCalendarProps) {
   const initialDate = selectedDate || new Date();
   const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [printedDateKeys, setPrintedDateKeys] = useState<Set<string>>(new Set());
   const [loadingPrintHistory, setLoadingPrintHistory] = useState(false);
 
