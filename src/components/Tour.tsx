@@ -45,6 +45,7 @@ const CustomTooltip = ({
           {index > 0 ? (
             <button
               {...backProps}
+              aria-label="이전"
               className="px-4 py-2.5 rounded-xl text-sm font-bold text-foreground/60 bg-surface hover:bg-surface-muted border border-surface-border transition-colors active:scale-95"
             >
               이전
@@ -56,6 +57,7 @@ const CustomTooltip = ({
           <div className="flex gap-2 items-center">
             <button
               {...skipProps}
+              aria-label="건너뛰기"
               className="px-3 py-2.5 rounded-xl text-sm font-bold text-foreground/40 hover:text-foreground/70 transition-colors active:scale-95"
             >
               건너뛰기
@@ -63,6 +65,7 @@ const CustomTooltip = ({
             
             <button
               {...primaryProps}
+              aria-label={isLastStep ? '시작하기' : '다음'}
               className="px-5 py-2.5 rounded-xl text-sm font-black text-primary-foreground bg-primary shadow-lg shadow-primary/25 hover:bg-primary/90 transition-all active:scale-95 flex items-center gap-1"
             >
               {isLastStep ? '시작하기 🚀' : '다음'}
@@ -85,32 +88,32 @@ export default function Tour({ onComplete }: TourProps) {
     },
     {
       target: '#tour-header',
-      title: <><IconTarget className="text-primary" /> 실시간 위치 및 검색</>,
-      content: '이곳에서 현재 접속 중인 GPS 주소를 확인하거나, 다른 지역 및 어르신을 바로 검색할 수 있습니다.',
+      title: <><IconTarget className="text-primary" /> 탐색 위치 및 검색</>,
+      content: '지도에서 탐색할 지역을 선택하거나 등록된 어르신을 검색할 수 있습니다. 표시된 지역은 현재 GPS 위치와 다를 수 있습니다.',
       disableBeacon: true,
     },
     {
       target: '#tour-map-controls',
       title: <><IconMap className="text-primary" /> 맵 컨트롤 툴바</>,
-      content: '행정구역 표시, 지도 확대/축소, 그리고 내 위치로 돌아가기 기능이 하나의 세련된 툴바로 통합되었습니다.',
+      content: '지도 레이어에서 행정구역·기상 표시를 선택하고, 내 위치 버튼으로 현재 위치를 확인할 수 있습니다. 지도는 손가락이나 마우스로 확대·축소하세요.',
       disableBeacon: true,
     },
     {
       target: '#tour-add-button',
       title: <><IconUserPlus className="text-primary" /> 어르신 등록</>,
-      content: '플러스 버튼을 눌러 새로운 어르신을 등록해 보세요! (이름, 주소, 방문 일정 등)',
+      content: '어르신 추가 버튼을 눌러 이름, 주소, 방문 일정 등을 등록하세요. 수급자 메뉴에서도 어르신 등록 버튼을 사용할 수 있습니다.',
       disableBeacon: true,
     },
     {
       target: '#tour-bottom-nav',
       title: <><IconCategory className="text-primary" /> 4대 주요 메뉴</>,
-      content: '하단 탭을 통해 [지도], [수급자], [일정], [케어허브]로 언제든 원터치로 이동할 수 있습니다.',
+      content: '하단 메뉴의 [지도], [수급자], [일정], [설정]으로 이동할 수 있습니다. 수급자에서는 명단을, 일정에서는 날짜별 방문 상태를 확인하세요.',
       disableBeacon: true,
     },
     {
       target: 'body',
       title: <><IconMapPin className="text-primary" /> 시작 준비 완료!</>,
-      content: '마지막으로, 현재 위치 표시와 방문 시간 알림을 위해 권한을 허용해 주시면 모든 준비가 끝납니다!',
+      content: '위치와 알림은 선택 권한입니다. 허용하면 현재 위치와 방문 알림을 사용할 수 있으며, 허용하지 않아도 명단·일정 관리는 가능합니다. 알림은 설정에서 확인하세요.',
       placement: 'center' as const,
       disableBeacon: true,
     }

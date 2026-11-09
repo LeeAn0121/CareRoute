@@ -8,7 +8,7 @@ import {
   IconMoonStars, IconSun, IconDeviceDesktop, IconBrandGithub, 
   IconBug, IconRefresh, IconBell, IconBellRinging, IconCheck, 
   IconAlertTriangle, IconInfoCircle, IconDeviceMobile,
-  IconClock, IconBrandGoogle, IconCalendarEvent,
+  IconBrandGoogle, IconCalendarEvent,
   IconMapPin, IconSparkles,
   IconHelp, IconDownload, IconUpload, IconDatabase, IconFileSpreadsheet,
   IconExternalLink, IconAlertCircle,
@@ -146,10 +146,6 @@ export default function SettingsView({
   // 설정 검색어
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 방문 일정 기본 설정
-  const [defaultDuration, setDefaultDuration] = useState('60');
-  const [dimCompleted, setDimCompleted] = useState(true);
-
   // 알림 리드타임
   const [notifLeadTime, setNotifLeadTime] = useState('15');
   const [showUnblockGuide, setShowUnblockGuide] = useState(false);
@@ -167,12 +163,6 @@ export default function SettingsView({
     setNativeAndroid(Capacitor.getPlatform() === 'android');
     const savedColor = localStorage.getItem('careroute_color_theme') || 'theme-navy';
     setColorTheme(savedColor);
-
-    const savedDuration = localStorage.getItem('careroute_default_duration') || '60';
-    setDefaultDuration(savedDuration);
-
-    const savedDim = localStorage.getItem('careroute_dim_completed');
-    if (savedDim !== null) setDimCompleted(savedDim === 'true');
 
     const savedLead = localStorage.getItem('careroute_notif_lead_time') || '15';
     setNotifLeadTime(savedLead);
@@ -206,17 +196,6 @@ export default function SettingsView({
     document.documentElement.classList.add(newTheme);
     localStorage.setItem('careroute_color_theme', newTheme);
     setColorTheme(newTheme);
-  };
-
-  const handleDurationChange = (duration: string) => {
-    setDefaultDuration(duration);
-    localStorage.setItem('careroute_default_duration', duration);
-  };
-
-  const handleDimToggle = () => {
-    const next = !dimCompleted;
-    setDimCompleted(next);
-    localStorage.setItem('careroute_dim_completed', String(next));
   };
 
   const handleLeadTimeChange = (time: string) => {
@@ -335,7 +314,7 @@ export default function SettingsView({
       await refreshNotifStatus();
 
       if (res.success) {
-        setFeedbackMessage({ type: 'success', text: '알림 권한이 허용되었습니다! 방문 알림을 정상 수신합니다.' });
+        setFeedbackMessage({ type: 'success', text: '알림 권한이 허용되었습니다. 테스트 알림을 요청합니다.' });
         await sendTestNotification();
       } else {
         if (res.permission === 'denied') {
@@ -371,7 +350,7 @@ export default function SettingsView({
       }
       const res = await sendTestNotification();
       if (res.success) {
-        setFeedbackMessage({ type: 'success', text: '테스트 알림을 발송했습니다! 기기 상단/잠금화면 알림을 확인해보세요.' });
+        setFeedbackMessage({ type: 'success', text: '테스트 알림 발송을 요청했습니다. 기기·브라우저의 알림을 확인해주세요.' });
       } else {
         setFeedbackMessage({ type: 'error', text: res.error || '알림 발송에 실패했습니다.' });
       }
@@ -383,7 +362,7 @@ export default function SettingsView({
   };
 
   const handleResetCache = async () => {
-    if (!window.confirm('앱 캐시와 오프라인 데이터를 초기화하고 새로고침하시겠습니까?\n(등록된 수급자 데이터는 삭제되지 않습니다.)')) {
+    if (!window.confirm('서비스 워커와 임시 캐시를 삭제하고 새로고침하시겠습니까?\n(등록된 수급자 데이터는 삭제되지 않습니다.)')) {
       return;
     }
     if ('caches' in window) {
@@ -402,20 +381,18 @@ export default function SettingsView({
 
   // 검색 가능한 설정 항목들
   const searchableSettings = useMemo(() => [
-    { id: 'permission', category: '권한 상태', title: '위치 서비스 (GPS) 상태', desc: '내 위치 중심 지도 및 거리 계산 권한' },
-    { id: 'calendar', category: '구글 캘린더 동기화', title: '구글 캘린더 방문 일정 동기화', desc: '스마트폰 캘린더로 당일 방문 일정 내보내기' },
-    { id: 'duration', category: '구글 캘린더 동기화', title: '기본 방문 권장 시간', desc: '방문당 기본 일정 시간(30분~120분)' },
-    { id: 'dim', category: '구글 캘린더 동기화', title: '완료된 일정 시각적 구분', desc: '오늘 완료된 어르신 카드 흐리게 처리' },
-    { id: 'push', category: '알림 권한 상태', title: '알림 권한 상태', desc: '방문 예정 시간 시스템 푸시 알림 수신 상태' },
-    { id: 'test-notif', category: '테스트 알림 발송', title: '테스트 알림 발송', desc: '실제 기기 상단/잠금화면 푸시 알림 즉시 시험 발송' },
-    { id: 'lead', category: '알림 권한 상태', title: '사전 리마인더 알림 시점', desc: '방문 10분/15분/30분 전 알림' },
+    { id: 'permission', category: '권한 상태', title: '위치 서비스 (GPS) 상태', desc: '현재 위치 표시 및 내 위치로 지도 이동' },
+    { id: 'calendar', category: '구글 캘린더 동기화', title: '구글 캘린더 방문 일정 동기화', desc: '선택 날짜(미선택 시 오늘)를 구글 캘린더에 반영' },
+    { id: 'push', category: '알림 권한 상태', title: '알림 권한 상태', desc: '앱 기기 알림·웹 브라우저 알림 권한 상태' },
+    { id: 'test-notif', category: '테스트 알림 발송', title: '테스트 알림 발송', desc: '기기·브라우저 알림 시험 발송' },
+    { id: 'lead', category: '알림 권한 상태', title: '사전 리마인더 알림 시점', desc: '앱 기기 알림만 적용 · 방문 10/15/30분 전' },
     { id: 'theme', category: '화면 및 디스플레이', title: '화면 모드 (테마)', desc: '라이트, 다크, 시스템 자동 모드' },
     { id: 'color', category: '화면 및 디스플레이', title: '강조 컬러 선택', desc: '포인트 컬러 스타일 변경' },
     { id: 'font', category: '화면 및 디스플레이', title: '큰 글씨 가독성 모드', desc: '가독성을 높이는 폰트 확대' },
-    { id: 'backup', category: '데이터 및 저장공간', title: '수급자 데이터 백업 다운로드', desc: 'JSON 파일로 안전하게 보관' },
+    { id: 'backup', category: '데이터 및 저장공간', title: '수급자 데이터 백업 다운로드', desc: '수급자 정보 JSON 백업 · 전체 방문 이력 제외' },
     { id: 'cache', category: '데이터 및 저장공간', title: '오프라인 캐시 초기화 및 강력 새로고침', desc: '오프라인 캐시 및 앱 새로고침' },
     { id: 'tutorial', category: '앱 정보 및 고객지원', title: '앱 사용법 가이드 튜토리얼', desc: '핵심 사용법 튜토리얼 다시 보기' },
-    { id: 'version', category: '앱 정보 및 고객지원', title: '버전 정보', desc: `최신 정식 빌드 v${APP_VERSION}` },
+    { id: 'version', category: '앱 정보 및 고객지원', title: '버전 정보', desc: `현재 앱 버전 v${APP_VERSION}` },
     { id: 'support', category: '앱 정보 및 고객지원', title: '현장 개선 건의 및 버그 제보', desc: '기능 제안 및 버그 제보' },
   ], []);
 
@@ -477,7 +454,7 @@ export default function SettingsView({
               <div className="flex items-center gap-2">
                 <h2 className="text-[17px] font-black text-black dark:text-white tracking-tight">케어루트 현장 관리</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                  정상 가동
+                  현장 도구
                 </span>
               </div>
               <p className="text-[12px] text-[#8E8E93] dark:text-[#98989D] mt-0.5 font-medium">
@@ -595,7 +572,7 @@ export default function SettingsView({
                         위치 서비스 (GPS) 상태
                       </span>
                       <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
-                        내 위치 중심 지도 및 거리 계산 권한
+                        현재 위치 표시 및 내 위치로 지도 이동
                       </span>
                     </div>
                   </div>
@@ -631,7 +608,7 @@ export default function SettingsView({
                         구글 캘린더 방문 일정 동기화
                       </span>
                       <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
-                        스마트폰 캘린더로 당일 방문 일정 내보내기
+                        선택 날짜(미선택 시 오늘)를 구글 캘린더에 반영
                       </span>
                     </div>
                   </div>
@@ -685,71 +662,6 @@ export default function SettingsView({
                   </button>
                 </div>
 
-                {/* 기본 방문 소요 시간 (30분 / 60분 / 90분 / 120분) */}
-                <div id="section-duration" className="px-4 py-3.5 flex flex-col gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-[32px] h-[32px] rounded-[10px] bg-[#FF9500] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                      <IconClock size={18} strokeWidth={2.5} />
-                    </div>
-                    <div>
-                      <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
-                        기본 방문 권장 시간
-                      </span>
-                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
-                        방문 일정 생성 시 기본 종료 시각 산정 기준
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex p-1 bg-[#E3E3E8] dark:bg-[#2C2C2E] rounded-[14px] mt-1">
-                    {[
-                      { val: '30', label: '30분' },
-                      { val: '60', label: '60분' },
-                      { val: '90', label: '90분' },
-                      { val: '120', label: '120분' },
-                    ].map(d => (
-                      <button
-                        key={d.val}
-                        type="button"
-                        onClick={() => handleDurationChange(d.val)}
-                        className={`flex-1 py-1.5 rounded-[11px] font-black text-[12px] transition-all ${
-                          defaultDuration === d.val
-                            ? 'bg-white dark:bg-[#636366] text-black dark:text-white shadow-xs'
-                            : 'text-[#6D6D72] dark:text-[#AEAEB2] hover:text-black dark:hover:text-white'
-                        }`}
-                      >
-                        {d.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 당일 완료된 방문 흐리게 보기 */}
-                <div id="section-dim" className="px-4 py-3.5 flex items-center justify-between">
-                  <div>
-                    <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
-                      완료된 일정 시각적 구분
-                    </span>
-                    <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
-                      오늘 방문 완료된 어르신 카드 흐리게 처리
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleDimToggle}
-                    role="switch"
-                    aria-checked={dimCompleted}
-                    aria-label="완료한 어르신 흐리게 표시"
-                    className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${
-                      dimCompleted ? 'bg-[#34C759]' : 'bg-[#E5E5EA] dark:bg-[#3A3A3C]'
-                    }`}
-                  >
-                    <div className={`w-6 h-6 rounded-full bg-white shadow-xs transition-transform duration-200 ease-in-out ${
-                      dimCompleted ? 'translate-x-5' : 'translate-x-0'
-                    }`} />
-                  </button>
-                </div>
               </div>
             </div>
 
@@ -772,7 +684,7 @@ export default function SettingsView({
                           알림 권한 상태
                         </span>
                         <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
-                          방문 예정 시간 시스템 푸시 알림 권한
+                          앱 기기 알림·웹 브라우저 알림 권한
                         </span>
                       </div>
                     </div>
@@ -780,7 +692,7 @@ export default function SettingsView({
                     <div className="shrink-0 whitespace-nowrap">
                       {currentNotifPerm === 'granted' && (
                         <span className="text-[12px] font-black text-[#34C759] bg-[#34C759]/15 px-3 py-1 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap">
-                          <IconCheck size={13} strokeWidth={3} className="shrink-0" /> 정상 작동
+                          <IconCheck size={13} strokeWidth={3} className="shrink-0" /> 권한 허용
                         </span>
                       )}
                       {currentNotifPerm === 'denied' && (
@@ -817,7 +729,7 @@ export default function SettingsView({
                           <span>🔔 알림 차단 해제 방법</span>
                           <button onClick={() => setShowUnblockGuide(false)} className="text-xs hover:opacity-70">닫기</button>
                         </div>
-                        {nativeAndroid ? <><p>Android 설정 &gt; 앱 &gt; 케어루트 &gt; 알림에서 허용해 주세요.</p><button type="button" onClick={() => { void CareRouteDevice.openPermissionSettings().catch(() => setFeedbackMessage({ type: 'error', text: 'Android 앱 설정을 열지 못했습니다.' })); }} className="text-[14px] font-bold text-[#007AFF] py-2">Android 설정 열기</button></> : <><p>• <strong>스마트폰 (Safari/Chrome):</strong> 주소창 좌측 자물쇠 또는 사이트 설정 &gt; 알림 &gt; &apos;허용&apos;으로 변경</p><p>• <strong>PC 브라우저:</strong> 브라우저 설정 &gt; 개인정보 보호 및 보안 &gt; 사이트 설정 &gt; 알림 &gt; &apos;허용&apos; 추가</p></>}
+                        {nativeAndroid ? <><p>Android 설정 &gt; 앱 &gt; 케어루트 &gt; 알림에서 허용해 주세요.</p><button type="button" onClick={() => { void CareRouteDevice.openPermissionSettings().catch(() => setFeedbackMessage({ type: 'error', text: 'Android 앱 설정을 열지 못했습니다.' })); }} className="text-[14px] font-bold text-[#007AFF] py-2">Android 설정 열기</button></> : <><p>• <strong>스마트폰:</strong> 사용 중인 브라우저의 사이트 알림 권한과 기기 알림 설정을 확인하세요. 알림 지원 여부는 브라우저와 실행 환경에 따라 다릅니다.</p><p>• <strong>PC 브라우저:</strong> 브라우저 설정 &gt; 개인정보 보호 및 보안 &gt; 사이트 설정 &gt; 알림 &gt; &apos;허용&apos; 추가</p></>}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -834,7 +746,7 @@ export default function SettingsView({
                         테스트 알림 발송
                       </span>
                       <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
-                        실제 기기 상단/잠금화면 푸시 알림 즉시 시험 발송
+                        기기·브라우저 알림 시험 발송
                       </span>
                     </div>
                   </div>
@@ -864,7 +776,7 @@ export default function SettingsView({
                         사전 리마인더 알림 시점
                       </span>
                       <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
-                        방문 시작 전 알림을 미리 보낼 시간
+                        앱 기기 알림에 적용 · 웹은 방문 시작 시각 알림
                       </span>
                     </div>
                   </div>
@@ -1019,7 +931,7 @@ export default function SettingsView({
                         수급자 명단 데이터 백업 (JSON)
                       </span>
                       <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
-                        등록된 {totalRecipientsCount}명의 명단을 파일로 안전하게 다운로드
+                        수급자 정보 백업 · 전체 방문 이력·앱 설정 제외
                       </span>
                     </div>
                   </div>
@@ -1066,10 +978,10 @@ export default function SettingsView({
                     </div>
                     <div className="min-w-0">
                       <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
-                        백업 파일로 데이터 복원 (JSON)
+                        백업 파일로 수급자 복원 (JSON)
                       </span>
                       <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
-                        내보낸 백업 파일을 불러와 수급자 명단을 복원
+                        수급자 정보 복원 · 같은 ID는 백업 내용으로 덮어쓰기
                       </span>
                     </div>
                   </div>
@@ -1105,7 +1017,7 @@ export default function SettingsView({
                         오프라인 캐시 초기화 및 강력 새로고침
                       </span>
                       <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
-                        서비스 워커 및 임시 캐시 데이터 완전 갱신
+                        서비스 워커·임시 캐시 삭제 후 새로고침
                       </span>
                     </div>
                   </div>
@@ -1152,7 +1064,7 @@ export default function SettingsView({
                     </div>
                     <div>
                       <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">버전 정보</span>
-                      <span className="text-[12px] text-[#8E8E93]">최신 정식 빌드</span>
+                      <span className="text-[12px] text-[#8E8E93]">현재 앱 버전</span>
                     </div>
                   </div>
                   <span className="text-[14px] font-black text-[#007AFF]">v{APP_VERSION}</span>

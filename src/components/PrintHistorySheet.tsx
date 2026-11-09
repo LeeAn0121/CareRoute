@@ -6,10 +6,10 @@ import { Modal, LoadingOverlay, IconButton } from './ui';
 import { fetchRecentPrintLogs, fetchRecentPrintLogsForRecipient, fetchRecentPrintLogsForDate, getPrintPdfPublicUrl, type PrintLogRow } from '@/lib/printLogs';
 
 const METHOD_LABEL: Record<PrintLogRow['method'], string> = {
-  print: '인쇄',
+  print: '인쇄 요청',
   pdf: 'PDF 저장',
-  share: '공유',
-  save: '저장(서버 보관)',
+  share: '공유 요청',
+  save: 'PDF 저장',
 };
 const METHOD_ICON: Record<PrintLogRow['method'], typeof IconPrinter> = {
   print: IconPrinter,
@@ -64,6 +64,7 @@ export default function PrintHistorySheet({
             {recipientName ? `${recipientName} 어르신 출력 이력` : dateLabel ? `${dateLabel} 출력 이력` : '최근 출력 이력'}
           </h3>
         </div>
+        <p className="mb-3 text-sm leading-relaxed text-foreground/70">문서 작업을 수행한 날짜 기준입니다. 인쇄·공유 요청은 실제 출력·전달 완료를 뜻하지 않으며, 서버에 보관된 PDF만 다시 열 수 있습니다.</p>
         <div className="relative min-w-0 -mx-1 px-1">
           {loading && <LoadingOverlay />}
           {logs.length === 0 && !loading ? (
@@ -85,7 +86,7 @@ export default function PrintHistorySheet({
                         {log.batch_count && log.batch_count > 1 ? ` 외 ${log.batch_count - 1}명 (일괄)` : ''}
                       </p>
                       <p className="text-[11px] font-bold text-foreground/45">
-                        {METHOD_LABEL[log.method]} · {formatDateTime(log.created_at)}
+                        {METHOD_LABEL[log.method]}{log.method === 'save' ? (log.pdf_path ? ' · 서버 보관됨' : ' · 서버 보관 확인 안 됨') : ''} · {formatDateTime(log.created_at)}
                         {log.author_name ? ` · ${log.author_name}` : ''}
                       </p>
                     </div>

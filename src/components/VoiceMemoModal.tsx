@@ -220,7 +220,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
         <div className="min-w-0 break-words">
           <h2 className="text-xl font-black text-primary tracking-tight">{recipientName} 어르신 방문 일지</h2>
           {visitDateLabel && <p className="mt-1 text-base font-bold text-primary break-words">{visitDateLabel}</p>}
-          <p className="text-xs font-semibold text-foreground/50 mt-0.5">실시간 음성 인식으로 방문 내용을 기록합니다.</p>
+          <p className="text-xs font-semibold text-foreground/50 mt-0.5">음성 또는 키보드로 일지를 작성하고 방문을 완료합니다.</p>
         </div>
         <IconButton onClick={close} disabled={busy} className="shrink-0 rounded-[18px] bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="닫기">
           <IconX size={20} />
@@ -233,7 +233,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
           <div className="flex items-center gap-2">
             <span className={`w-2.5 h-2.5 rounded-full ${isRecording ? 'bg-red-500 animate-ping' : 'bg-foreground/30'}`} />
             <span className="text-xs font-black tracking-tight text-foreground/70">
-              {isRecording ? '음성을 실시간으로 받아적는 중...' : '마이크를 눌러 음성 입력을 시작하세요'}
+              {isRecording ? (Capacitor.isNativePlatform() ? '기기 음성 입력을 진행하는 중...' : '음성을 받아적는 중...') : '마이크로 음성 입력하거나 아래에 직접 작성하세요'}
             </span>
           </div>
           {transcript && (
@@ -373,7 +373,7 @@ export default function VoiceMemoModal({ isOpen, onClose, onSave, onSaveAndShare
               setTranscript(e.target.value);
               finalTranscriptRef.current = e.target.value;
             }}
-            placeholder={isRecording ? '말씀하시면 실시간으로 작성됩니다...' : '여기에 일지가 작성됩니다. 직접 타이핑하셔도 됩니다.'}
+            placeholder={isRecording ? '음성 인식 결과가 여기에 추가됩니다...' : '방문 내용을 직접 작성하거나 음성으로 입력하세요.'}
             className="w-full h-full min-h-[120px] pb-20 bg-transparent resize-none outline-none text-[15px] font-medium leading-relaxed text-foreground placeholder:text-foreground/30"
           />
           

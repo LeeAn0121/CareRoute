@@ -219,7 +219,7 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
                         role="button"
                         tabIndex={0}
                         aria-label="이 날짜 출력 이력 보기"
-                        title="이 날짜에 출력 기록이 있습니다 · 눌러서 보기"
+                        title="이 날짜에 수행한 문서 작업 이력입니다 · 방문일 기준이 아닙니다 · 눌러서 보기"
                         onClick={(e) => {
                           e.stopPropagation();
                           onPrintedDateClick?.(dateKey);

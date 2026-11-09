@@ -157,7 +157,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       return;
     }
     if (!bcode) {
-      alert('구형 데이터입니다. [주소 검색] 버튼을 눌러 주소를 다시 한 번만 선택해주세요!');
+      alert('주소의 위치 정보가 없습니다. 주소 옆 [검색] 버튼으로 주소를 다시 선택해주세요.');
       return;
     }
 

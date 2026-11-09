@@ -15,6 +15,7 @@ import {
   IconHistory,
 } from '@tabler/icons-react';
 import { logShareEvent, fetchRecentShareLogsForRecipient, type ShareLogRow } from '@/lib/shareLogs';
+import { VISIT_STATUS_LABEL, type VisitSession } from '@/lib/visitSessions';
 
 interface Recipient {
   id: string;
@@ -33,6 +34,7 @@ interface ShareReportModalProps {
   onClose: () => void;
   recipient: Recipient | null;
   selectedDate?: Date | null;
+  visitSession?: Pick<VisitSession, 'status' | 'completed_at'> | null;
 }
 
 const CARE_TAG_PRESETS = [
@@ -49,10 +51,11 @@ export default function ShareReportModal({
   isOpen,
   onClose,
   recipient,
-  selectedDate
+  selectedDate,
+  visitSession,
 }: ShareReportModalProps) {
-  const [selectedTags, setSelectedTags] = useState<string[]>(['식사 지원 완료', '투약 확인 완료']);
-  const [customMemo, setCustomMemo] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [customMemo, setCustomMemo] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyLogs, setHistoryLogs] = useState<ShareLogRow[]>([]);
@@ -61,7 +64,10 @@ export default function ShareReportModal({
   // 날짜 및 시간 계산
   const targetDate = selectedDate || new Date();
   const dateStr = `${targetDate.getFullYear()}년 ${targetDate.getMonth() + 1}월 ${targetDate.getDate()}일`;
-  const timeNow = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`;
+  const completedDate = visitSession?.status === 'completed' && visitSession.completed_at ? new Date(visitSession.completed_at) : null;
+  const completedLabel = completedDate && !Number.isNaN(completedDate.getTime())
+    ? completedDate.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+    : '완료 시각 기록 없음';
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
@@ -70,28 +76,30 @@ export default function ShareReportModal({
   };
 
   // 모달 열릴 때 초기 메모 설정
-  const memoText = customMemo !== '' ? customMemo : (recipient?.last_completed_memo || '');
+  const memoText = customMemo ?? recipient?.last_completed_memo ?? '';
 
   // 안심 알림 공유용 서식 텍스트 생성
   const shareText = useMemo(() => {
     if (!recipient) return '';
     const lines = [
       `[케어루트 안심 알림 💙]`,
-      `안녕하세요! 오늘 ${recipient.name} 어르신 댁 방문 요양 케어를 안전하게 마쳤습니다.`,
+      `안녕하세요! ${recipient.name} 어르신의 방문 정보를 전달드립니다.`,
       ``,
-      `📅 방문 일시: ${dateStr} (${timeNow} 완료)`,
+      `📅 방문 날짜: ${dateStr}`,
+      `방문 상태: ${visitSession ? VISIT_STATUS_LABEL[visitSession.status] : '방문 상태 확인 필요'}`,
+      ...(visitSession?.status === 'completed' ? [`완료 시각: ${completedLabel}`] : []),
       `📍 방문 장소: ${recipient.address}${recipient.detail_address ? ` ${recipient.detail_address}` : ''}`,
       ``,
-      `✨ 케어 완료 항목:`,
-      selectedTags.length > 0 ? selectedTags.map(t => ` • ${t}`).join('\n') : ' • 기본 케어 및 안부 확인',
+      `✨ 작성자가 선택한 케어 항목:`,
+      selectedTags.length > 0 ? selectedTags.map(t => ` • ${t}`).join('\n') : ' • 선택한 항목 없음',
       ``,
       `📝 요양보호사 방문 일지:`,
-      `${memoText.trim() ? memoText.trim() : '특이사항 없이 평온하게 일과를 보내셨습니다.'}`,
+      `${memoText.trim() || '입력된 방문 일지가 없습니다.'}`,
       ``,
       `어르신의 편안한 하루를 위해 늘 정성을 다하겠습니다. 감사합니다 🙏`
     ];
     return lines.join('\n');
-  }, [recipient, dateStr, timeNow, selectedTags, memoText]);
+  }, [recipient, dateStr, visitSession, completedLabel, selectedTags, memoText]);
 
   // 클립보드 복사
   const handleCopy = async () => {
@@ -100,9 +108,11 @@ export default function ShareReportModal({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       if (recipient) logShareEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'copy', messageText: shareText });
+      return true;
     } catch (e) {
       console.error(e);
       alert('복사에 실패했습니다. 권한을 확인해주세요.');
+      return false;
     }
   };
 
@@ -123,8 +133,7 @@ export default function ShareReportModal({
         }
       }
     } else {
-      handleCopy();
-      alert('공유 기능이 지원되지 않는 브라우저입니다. 리포트 내용이 클립보드에 복사되었으니 카카오톡에 붙여넣어 주세요!');
+      if (await handleCopy()) alert('이 환경은 공유 기능을 지원하지 않아 리포트를 복사했습니다. 원하는 앱에 붙여넣어 주세요.');
     }
   };
 
@@ -181,7 +190,7 @@ export default function ShareReportModal({
         <div className="relative px-6 py-4 border-b border-surface-border/60 min-h-[100px] max-h-[220px] overflow-y-auto">
           {isHistoryLoading && <LoadingOverlay />}
           {!isHistoryLoading && historyLogs.length === 0 && (
-            <p className="text-[13px] font-bold text-foreground/40 text-center py-4">이 어르신에게 보낸 공유 이력이 없습니다</p>
+            <p className="text-[13px] font-bold text-foreground/40 text-center py-4">이 어르신의 공유 작업 이력이 없습니다</p>
           )}
           {!isHistoryLoading && historyLogs.length > 0 && (
             <div className="flex flex-col gap-2">
@@ -191,7 +200,7 @@ export default function ShareReportModal({
                     {new Date(log.created_at).getMonth() + 1}월 {new Date(log.created_at).getDate()}일{' '}
                     {String(new Date(log.created_at).getHours()).padStart(2, '0')}:{String(new Date(log.created_at).getMinutes()).padStart(2, '0')}
                     {' · '}
-                    {log.method === 'sms' ? '문자' : log.method === 'share' ? '카카오톡/공유' : '복사'}
+                    {log.method === 'sms' ? '문자 앱 열기' : log.method === 'share' ? '공유 요청' : '복사'}
                   </p>
                   {log.message_text && (
                     <p className="text-[12px] font-semibold text-foreground/70 whitespace-pre-wrap line-clamp-3">{log.message_text}</p>
@@ -207,7 +216,7 @@ export default function ShareReportModal({
         {/* 케어 항목 원터치 체크 태그 */}
         <div>
           <span className="block text-xs font-black text-foreground/70 uppercase tracking-wider mb-2 pl-0.5">
-            케어 항목 선택 (리포트에 자동 포함)
+            실제 진행한 케어 항목 선택 (리포트에 포함)
           </span>
           <div className="flex flex-wrap gap-1.5">
             {CARE_TAG_PRESETS.map((tag) => {
@@ -236,8 +245,8 @@ export default function ShareReportModal({
             요양보호사 일지 / 전할 말씀
           </span>
           <textarea
-            value={customMemo}
-            placeholder={recipient.last_completed_memo || '어르신 특이사항이나 상태를 입력해주세요...'}
+            value={memoText}
+            placeholder="어르신 특이사항이나 상태를 입력해주세요..."
             onChange={(e) => setCustomMemo(e.target.value)}
             className="w-full h-20 p-3 bg-foreground/[0.03] dark:bg-white/[0.04] rounded-[18px] border border-surface-border/60 text-sm font-semibold leading-relaxed outline-none focus:border-primary transition-all resize-none placeholder:text-foreground/30 text-foreground"
           />
@@ -264,6 +273,7 @@ export default function ShareReportModal({
           </div>
         </div>
 
+        <p className="text-sm leading-relaxed text-foreground/70">공유용 내용이며 저장된 방문 기록은 바뀌지 않습니다. 문자 작성·공유·복사 이력은 상대방의 수신 완료를 뜻하지 않습니다.</p>
         {/* 빠른 전송 액션 버튼 */}
         <div className="grid grid-cols-2 gap-2 pt-2">
           <Button
@@ -272,7 +282,7 @@ export default function ShareReportModal({
             onClick={handleSmsShare}
             className="py-3.5 rounded-[20px] font-black text-foreground/80 border border-surface-border/60"
           >
-            문자메시지 전송
+            문자 작성
           </Button>
 
           <Button
@@ -281,7 +291,7 @@ export default function ShareReportModal({
             className="py-3.5 rounded-[20px] font-black shadow-md bg-amber-400 hover:bg-amber-500 text-stone-900 border-none"
             startIcon={<IconShare size={18} strokeWidth={2.5} />}
           >
-            카카오톡 / 안심 공유
+            앱으로 공유
           </Button>
         </div>
       </div>

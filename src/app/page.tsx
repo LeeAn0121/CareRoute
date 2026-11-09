@@ -3093,7 +3093,7 @@ function MainApp() {
                             className="min-h-11 py-2.5 rounded-[16px] bg-primary/10 hover:bg-primary/15 text-primary text-sm font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
                           >
                             <IconMessageCircle size={15} />
-                            <span>음성 일지</span>
+                            <span>{['completed', 'missed', 'cancelled'].includes(getVisit(marker).status) ? '방문 기록' : '일지·완료'}</span>
                           </button>
                           <button 
                             type="button"
@@ -3226,10 +3226,10 @@ function MainApp() {
                       type="button"
                       onClick={resetToOptimizedOrder}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-black bg-surface-muted text-foreground/80 hover:bg-surface-border transition-colors shadow-2xs active:scale-95 border border-surface-border/40"
-                      title="거리/시간 기준 최적 순서로 복구"
+                      title="방문 시간과 직선거리 기준 추천 순서로 복구"
                     >
                       <IconRotate2 size={13} />
-                      최적 순서
+                      추천 순서
                     </button>
                   )}
                   <span className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-black bg-primary/10 text-primary border border-primary/20">
@@ -3419,10 +3419,10 @@ function MainApp() {
                               {printedRecipientIds.has(marker.id) && (
                                 <span
                                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-black border border-primary/20 shrink-0"
-                                  title="오늘 날짜로 이미 출력/공유한 기록이 있습니다"
+                                  title={`${selectedDateKey}에 수행한 인쇄·PDF 저장·공유 작업 이력입니다. 방문 날짜나 실제 전달·출력 완료를 뜻하지는 않습니다.`}
                                 >
                                   <IconFileCheck size={11} strokeWidth={2.5} />
-                                  출력됨
+                                  문서 작업
                                 </span>
                               )}
                             </div>
@@ -3527,7 +3527,7 @@ function MainApp() {
                               className="flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black bg-primary/10 hover:bg-primary/20 text-primary transition-colors whitespace-nowrap active:scale-95 border border-primary/20"
                             >
                               <IconMessageCircle size={15} />
-                              <span>일지</span>
+                              <span>{['completed', 'missed', 'cancelled'].includes(getVisit(marker, selectedDateKey).status) ? '방문 기록' : '일지·완료'}</span>
                             </button>
 
                             {completed && (
@@ -3548,7 +3548,7 @@ function MainApp() {
                               onClick={(e) => { e.stopPropagation(); openPrintRecipient(marker, selectedDateKey); }}
                               className="w-9 h-9 flex items-center justify-center rounded-[16px] bg-surface-muted text-foreground/75 hover:bg-surface-border transition-colors active:scale-95 border border-surface-border/40 shrink-0"
                               aria-label="출력"
-                              title="이 어르신만 바로 출력"
+                              title="이 어르신의 출력 미리보기 열기"
                             >
                               <IconPrinter size={15} />
                             </button>
@@ -4260,7 +4260,7 @@ function MainApp() {
                   className="py-3 px-1 rounded-[20px] bg-primary/10 hover:bg-primary/15 text-primary flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
                 >
                   <IconMessageCircle size={20} />
-                  <span className="text-[12px] font-black">음성 일지</span>
+                  <span className="text-[12px] font-black">{['completed', 'missed', 'cancelled'].includes(getVisit(selectedRecipient, detailDateKey).status) ? '방문 기록' : '일지·완료'}</span>
                 </button>
 
                 <button
@@ -4504,9 +4504,11 @@ function MainApp() {
         onTransition={async (status, reason, expectedVersion) => { await saveVisitTransition(recordVisit.recipient, recordVisit.dateKey, status, undefined, reason, expectedVersion); }} />}
 
       <ShareReportModal
+        key={sharingRecipient ? `${sharingRecipient.id}:${sharingDateKey}` : 'closed'}
         isOpen={Boolean(sharingRecipient)}
         onClose={() => setSharingRecipient(null)}
-        recipient={sharingRecipient}
+        recipient={sharingRecipient ? { ...sharingRecipient, last_completed_memo: getVisit(sharingRecipient, sharingDateKey || todayKey).memo } : null}
+        visitSession={sharingRecipient ? getVisit(sharingRecipient, sharingDateKey || todayKey) : null}
         selectedDate={sharingDateKey ? new Date(`${sharingDateKey}T12:00:00`) : new Date()}
       />
 
