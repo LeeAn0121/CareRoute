@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, IconButton } from '@/components/ui';
-import { IconX, IconCheck, IconCalendarEvent, IconClock, IconArrowRight } from '@tabler/icons-react';
+import { Modal, IconButton, Button } from '@/components/ui';
+import { IconX, IconCalendarEvent, IconClock } from '@tabler/icons-react';
 import { supabase } from '@/lib/supabase';
-import { motion } from 'motion/react';
 import { parseVisitTime, composeNotesWithTime, extractNotesWithoutTime } from '@/lib/visitTime';
-
-const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 interface Props {
   isOpen: boolean;
@@ -13,12 +10,13 @@ interface Props {
   recipient: any;
   currentDate: Date;
   onSuccess: () => void;
+  onRemove: () => void;
+  removeDisabled?: boolean;
 }
 
-export default function ScheduleManageModal({ isOpen, onClose, recipient, currentDate, onSuccess }: Props) {
+export default function ScheduleManageModal({ isOpen, onClose, recipient, currentDate, onSuccess, onRemove, removeDisabled = false }: Props) {
   const [visitTime, setVisitTime] = useState('');
   const [visitEndTime, setVisitEndTime] = useState('');
-  const [isOnCurrentDate, setIsOnCurrentDate] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const ymd = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
@@ -28,10 +26,6 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
       const parsed = parseVisitTime(recipient.visit_time, recipient.notes);
       setVisitTime(parsed.startTime);
       setVisitEndTime(parsed.endTime);
-      // 기존에 해당 날짜가 명시적으로 등록되어 있거나 신규 일정 지정 시 기본 true
-      const cleanDates = extractNotesWithoutTime(recipient.notes);
-      const hasDate = cleanDates ? cleanDates.includes(ymd) : false;
-      setIsOnCurrentDate(hasDate || true);
     }
   }, [recipient, currentDate]);
 
@@ -41,11 +35,8 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
       const cleanDates = extractNotesWithoutTime(recipient.notes);
       const existingDates = cleanDates ? cleanDates.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
       
-      if (isOnCurrentDate && !existingDates.includes(ymd)) {
+      if (!existingDates.includes(ymd)) {
         existingDates.push(ymd);
-      } else if (!isOnCurrentDate && existingDates.includes(ymd)) {
-        const idx = existingDates.indexOf(ymd);
-        if (idx > -1) existingDates.splice(idx, 1);
       }
 
       const finalNotes = composeNotesWithTime(existingDates.join(','), visitTime, visitEndTime);
@@ -78,7 +69,7 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
       <div className="flex items-center justify-between p-6 border-b border-surface-border/60">
         <div>
           <h2 className="text-xl font-black text-primary tracking-tight">{recipient.name} 어르신 일정</h2>
-          <p className="text-xs font-semibold text-foreground/50 mt-0.5">방문 예정 시간을 설정하고 일정을 관리하세요.</p>
+          <p className="text-sm font-semibold text-foreground/60 mt-0.5">방문 예정 시간을 설정하고 일정을 관리하세요.</p>
         </div>
         <IconButton onClick={onClose} aria-label="닫기" className="rounded-[18px] bg-foreground/[0.04] hover:bg-foreground/[0.08]">
           <IconX size={20} />
@@ -86,41 +77,30 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
       </div>
 
       <div className="p-6 space-y-5">
-        {/* Specific Date Confirmation Pill (기본 선택된 옵션) */}
-        <div className="flex items-center justify-between p-4 bg-primary/5 rounded-[24px] border border-primary/10 shadow-sm">
-          <div className="flex items-center gap-3.5">
+        {/* 선택한 날짜의 일정과 제거 동작 */}
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-primary/5 rounded-[24px] border border-primary/10 shadow-sm">
+          <div className="flex min-w-0 flex-1 items-center gap-3.5">
             <div className="w-11 h-11 rounded-[18px] bg-primary/10 flex items-center justify-center text-primary shadow-xs">
               <IconCalendarEvent size={22} />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <p className="font-bold text-foreground text-sm">선택한 날짜에 방문</p>
+                <p className="font-bold text-foreground text-sm">선택한 방문 일정</p>
                 <span className="text-[10px] font-black bg-primary text-primary-foreground px-2 py-0.5 rounded-full shadow-2xs">
-                  기본 선택
+                  선택 날짜
                 </span>
               </div>
-              <p className="text-xs text-foreground/50 mt-0.5">
+              <p className="text-sm text-foreground/60 mt-0.5">
                 {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월 {currentDate.getDate()}일 방문 일정에 포함합니다.
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsOnCurrentDate(!isOnCurrentDate)}
-            className={`w-13 h-7 rounded-full transition-colors relative p-1 ${isOnCurrentDate ? 'bg-primary' : 'bg-surface-border'}`}
-            title="일정 포함 여부"
-          >
-            <motion.div
-              layout
-              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              className={`w-5 h-5 rounded-full bg-white shadow-md ${isOnCurrentDate ? 'ml-auto' : 'mr-auto'}`}
-            />
-          </button>
+          <button type="button" disabled={isSubmitting || removeDisabled} onClick={onRemove} className="min-h-11 shrink-0 rounded-xl border border-red-500/20 bg-red-500/10 px-3 text-sm font-bold text-red-600 dark:text-red-400 disabled:opacity-40">일정 제거</button>
         </div>
 
         {/* Visit Time Range Card - Enhanced UI */}
         <div className="bg-foreground/[0.03] dark:bg-white/[0.03] p-4.5 rounded-[24px] border border-surface-border/40 space-y-3.5">
-          <p className="text-xs text-foreground/60 leading-relaxed">방문 시간은 이 어르신의 모든 방문 일정에 공통으로 적용됩니다.</p>
+          <p className="text-sm text-foreground/60 leading-relaxed">방문 시간은 이 어르신의 모든 방문 일정에 공통으로 적용됩니다.</p>
           <div className="flex items-center justify-between">
             <span className="block text-xs font-bold text-foreground/70 uppercase tracking-wider">방문 예정 시간 범위</span>
             {(visitTime || visitEndTime) && (
@@ -208,14 +188,13 @@ export default function ScheduleManageModal({ isOpen, onClose, recipient, curren
           </div>
         </div>
 
-        <motion.button
-          whileTap={{ scale: 0.97 }}
+        <Button
           onClick={handleSave}
-          disabled={isSubmitting}
+          loading={isSubmitting}
           className="w-full py-4 rounded-[22px] bg-primary text-primary-foreground font-black text-base shadow-md hover:shadow-lg transition-all disabled:opacity-50"
         >
           {isSubmitting ? '저장 중...' : '일정 저장하기'}
-        </motion.button>
+        </Button>
       </div>
     </Modal>
   );

@@ -224,6 +224,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   const [recordVisit, setRecordVisit] = useState<{ recipient: Recipient; dateKey: string } | null>(null);
   const [visitSaving, setVisitSaving] = useState(false);
   const [visitActionError, setVisitActionError] = useState('');
+  const [removedSchedule, setRemovedSchedule] = useState<{ recipient: Recipient; dateKey: string; version: number } | null>(null);
+  const [removingActiveVisit, setRemovingActiveVisit] = useState<{ recipient: Recipient; dateKey: string; version: number } | null>(null);
+  const [showRemovedSchedules, setShowRemovedSchedules] = useState(false);
   const visitBusy = useRef(false);
   const visitRequestIds = useRef(new Map<string, string>());
   const [sharingRecipient, setSharingRecipient] = useState<Recipient | null>(null);
@@ -1480,10 +1483,33 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     }
   }, [selectedSigungu]);
 
+  const removeScheduleDate = async (r: Recipient, dateKey: string, version: number) => {
+    try {
+      const saved = await saveVisitTransition(r, dateKey, 'cancelled', undefined, '일정 목록에서 제거', version);
+      setRemovingActiveVisit(null);
+      setRemovedSchedule({ recipient: r, dateKey, version: saved.version });
+    } catch { /* The existing error banner explains the failure; keep the item. */ }
+  };
+
   const handleRemoveFromSchedule = (r: Recipient, date: Date) => {
-    // Cancel this date through the audited state flow. Do not silently remove
-    // every future occurrence of the weekday or leave a persisted session active.
-    openVisitRecord(r, localDateKey(date));
+    const dateKey = localDateKey(date);
+    const session = getVisit(r, dateKey);
+    if (session.status === 'completed' || session.status === 'missed') {
+      openVisitRecord(r, dateKey);
+      return;
+    }
+    if (session.status === 'in_progress') {
+      setRemovingActiveVisit({ recipient: r, dateKey, version: session.version });
+      return;
+    }
+    void removeScheduleDate(r, dateKey, session.version);
+  };
+
+  const restoreScheduleDate = async (r: Recipient, dateKey: string, version: number) => {
+    try {
+      await saveVisitTransition(r, dateKey, 'planned', undefined, '제거한 일정을 복원', version);
+      setRemovedSchedule(null);
+    } catch { /* Keep the restore action available for retry. */ }
   };
 
   const handleDelete = async (id: string) => {
@@ -1712,7 +1738,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
   const getScheduledForDate = (r: Recipient, date: Date) => {
     const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    if (visits.sessions[sessionKey(r.id, ymd)]) return true;
+    if (visits.sessions[sessionKey(r.id, ymd)]) return visits.sessions[sessionKey(r.id, ymd)].status !== 'cancelled';
     if (r.notes && r.notes.includes(ymd)) return true;
     if (r.recurring_weekdays) {
       return r.recurring_weekdays.split(',').map(Number).includes(date.getDay());
@@ -1871,7 +1897,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   // 없을 경우 기본 알고리즘(시간 지정 일정 뼈대 + 최근접 삽입 휴리스틱)으로 정렬한다.
   const scheduleRoute = useMemo(() => {
     if (!scheduleDate) return [];
-    const todays = markers.filter(r => getScheduledForDate(r, scheduleDate) || Boolean(visits.sessions[sessionKey(r.id, localDateKey(scheduleDate))]));
+    const todays = markers.filter(r => getVisit(r, localDateKey(scheduleDate)).status !== 'cancelled' && getScheduledForDate(r, scheduleDate));
     if (todays.length === 0) return [];
 
     // 자동 최적화 기본 경로 계산
@@ -1968,7 +1994,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const dateLabel = `${d.getMonth() + 1}월 ${d.getDate()}일 (${weekdayLabels[d.getDay()]})`;
       const recipients = markers
-        .filter((r) => getScheduledForDate(r, d) || Boolean(visits.sessions[sessionKey(r.id, localDateKey(d))]))
+        .filter((r) => getScheduledForDate(r, d))
         .sort((a, b) => {
           const ta = parseVisitTime(a.visit_time, a.notes);
           const tb = parseVisitTime(b.visit_time, b.notes);
@@ -3226,6 +3252,19 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
             최근접 삽입 휴리스틱으로 방문 순서를 매겨 보여준다. */}
         {activeTab === 'route' && (
           <div className="app-scroll-view absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background flex flex-col">
+            {removedSchedule && <div role="status" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-surface-border bg-surface p-3 text-sm text-foreground">
+              <p className="min-w-0 flex-1 break-words">{removedSchedule.recipient.name} · {removedSchedule.dateKey} 일정을 제거했습니다.</p>
+              <Button variant="ghost" disabled={visitSaving || visits.loading || Boolean(visits.error)} onClick={() => void restoreScheduleDate(removedSchedule.recipient, removedSchedule.dateKey, removedSchedule.version)} className="min-h-11">되돌리기</Button>
+              <IconButton aria-label="일정 제거 알림 닫기" onClick={() => setRemovedSchedule(null)}><IconX size={18} /></IconButton>
+            </div>}
+            {scheduleDate && <section className="mb-3 rounded-2xl border border-surface-border bg-surface p-3 text-foreground">
+              <button type="button" aria-expanded={showRemovedSchedules} aria-controls="removed-schedules" onClick={() => setShowRemovedSchedules(value => !value)} className="min-h-11 w-full text-left text-sm font-bold">제거한 일정 {markers.filter(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled').length}건 {showRemovedSchedules ? '접기' : '보기'}</button>
+              {showRemovedSchedules && <div id="removed-schedules" className="space-y-2">
+                <p className="text-sm leading-relaxed text-foreground/60">선택한 날짜에서만 제거됩니다. 반복 요일과 방문 기록은 유지됩니다.</p>
+                {markers.filter(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled').map(r => <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-surface-border pt-2"><span className="min-w-0 flex-1 break-words text-sm font-bold">{r.name}</span><Button variant="ghost" disabled={visitSaving || visits.loading || Boolean(visits.error)} onClick={() => void restoreScheduleDate(r, selectedDateKey, getVisit(r, selectedDateKey).version)} className="min-h-11">일정 복원</Button></div>)}
+                {!markers.some(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled') && <p className="py-2 text-sm text-foreground/60">제거한 일정이 없습니다.</p>}
+              </div>}
+            </section>}
             <div className="mb-2.5 flex items-center justify-between gap-3">
               {scheduleDate && (
                 <div>
@@ -3234,7 +3273,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                     방문 일정
                   </p>
                   <p className="text-xs text-foreground/50 font-semibold">
-                    총 {scheduleRoute.length}건 · 미방문 {scheduleRoute.filter(r => getVisit(r, selectedDateKey).status === 'missed').length}건 · 취소 {scheduleRoute.filter(r => getVisit(r, selectedDateKey).status === 'cancelled').length}건
+                    방문 일정 {scheduleRoute.length}건 · 제거한 일정 {markers.filter(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled').length}건
                   </p>
                 </div>
               )}
@@ -3420,7 +3459,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                       {/* One UI 9.0 Inset Card Content */}
                       <div className={`flex-1 min-w-0 rounded-[30px] border ${isNext ? 'border-primary/60 shadow-[0_8px_25px_rgba(var(--primary),0.15)] ring-1 ring-primary/20' : 'border-white/30 dark:border-white/10 shadow-[0_6px_20px_rgba(0,0,0,0.04)]'} bg-surface/90 backdrop-blur-xl p-4.5 transition-all`}>
                         <div className="flex gap-3.5 items-start">
-                          <div className="w-13 h-13 rounded-[20px] bg-primary/5 flex items-center justify-center shrink-0 overflow-hidden border border-surface-border/40 shadow-2xs">
+                          <div className="hidden min-[360px]:flex w-13 h-13 rounded-[20px] bg-primary/5 items-center justify-center shrink-0 overflow-hidden border border-surface-border/40 shadow-2xs">
                             {marker.photo_url ? (
                               <PrivateImage src={marker.photo_url} alt="" className="w-full h-full object-cover" />
                             ) : (
@@ -3429,9 +3468,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                           </div>
                           
                           <div className="flex-1 min-w-0 pt-0.5">
-                            <div className="flex items-center gap-2 mb-1">
-                              <button type="button" aria-label={`${marker.name} 어르신 상세 보기`} onClick={(e) => { e.stopPropagation(); setSelectedRecipient(marker); setIsDetailModalOpen(true); }} className={`text-left max-w-full font-black text-[18px] text-foreground tracking-tight truncate ${completed ? 'opacity-80' : ''}`} >{marker.name} 어르신</button>
-                              <span className="text-xs font-bold text-foreground/65">{VISIT_STATUS_LABEL[getVisit(marker, selectedDateKey).status]}</span>
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <button type="button" aria-label={`${marker.name} 어르신 상세 보기`} onClick={(e) => { e.stopPropagation(); setSelectedRecipient(marker); setIsDetailModalOpen(true); }} className={`text-left w-full min-h-11 font-black text-[18px] text-foreground tracking-tight [overflow-wrap:anywhere] ${completed ? 'opacity-80' : ''}`} >{marker.name} 어르신</button>
+                              <span className="text-xs whitespace-nowrap font-bold text-foreground/65">{VISIT_STATUS_LABEL[getVisit(marker, selectedDateKey).status]}</span>
                               {isNext && (
                                 <span className="px-2.5 py-0.5 bg-accent text-accent-foreground text-[10px] font-black rounded-full animate-pulse shadow-xs">
                                   NEXT
@@ -3531,6 +3570,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); toggleCompleted(marker, selectedDateKey); }}
+                              aria-label={`${marker.name} ${['completed', 'missed'].includes(getVisit(marker, selectedDateKey).status) ? '방문 기록' : '방문 상태 변경'}`}
                               disabled={visitSaving || visits.loading}
                               className={`flex-1 flex items-center justify-center gap-1 py-2.5 px-3 rounded-[16px] text-[12px] font-black transition-all whitespace-nowrap active:scale-95 ${
                                 completed 
@@ -3583,15 +3623,16 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                               관리
                             </button>
 
-                            <button
+                            {!['completed', 'missed'].includes(getVisit(marker, selectedDateKey).status) && <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); handleRemoveFromSchedule(marker, scheduleDate); }}
-                              className="w-9 h-9 flex items-center justify-center rounded-[16px] bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors active:scale-95 border border-red-500/20 shrink-0"
-                              aria-label="방문 상태 관리"
-                              title="이 날짜의 방문 취소·정정 기록 열기"
+                              className="min-h-11 inline-flex items-center justify-center gap-1 rounded-2xl bg-red-500/10 px-3 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-colors border border-red-500/20 shrink-0 disabled:opacity-40"
+                              disabled={visitSaving || visits.loading || Boolean(visits.error)}
+                              aria-label={`${marker.name} 일정 제거`}
+                              title="선택한 날짜의 일정만 제거"
                             >
-                              <IconX size={15} strokeWidth={2.5} />
-                            </button>
+                              <IconTrash size={16} strokeWidth={2.5} /> 일정 제거
+                            </button>}
                           </div>
                         </div>
                       </div>
@@ -4600,10 +4641,20 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
           }}
         />
       )}
+      <Modal open={Boolean(removingActiveVisit)} onClose={() => { if (!visitSaving) setRemovingActiveVisit(null); }}>
+        <div className="space-y-4 p-5 text-foreground">
+          <h2 className="text-xl font-bold">진행 중인 방문을 제거할까요?</h2>
+          <p className="text-sm leading-relaxed">{removingActiveVisit?.recipient.name} 어르신의 방문을 취소하고 {removingActiveVisit?.dateKey} 일정에서 제거합니다. 다른 날짜와 방문 이력은 유지됩니다.</p>
+          <div className="flex flex-wrap gap-2"><Button variant="ghost" disabled={visitSaving} onClick={() => setRemovingActiveVisit(null)}>계속 방문</Button><Button variant="danger-ghost" loading={visitSaving} onClick={() => { if (removingActiveVisit) void removeScheduleDate(removingActiveVisit.recipient, removingActiveVisit.dateKey, removingActiveVisit.version); }}>이번 일정 제거</Button></div>
+          {visitActionError && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{visitActionError}</p>}
+        </div>
+      </Modal>
       <ScheduleManageModal
         isOpen={Boolean(managingScheduleRecipient)}
         onClose={() => setManagingScheduleRecipient(null)}
         recipient={managingScheduleRecipient}
+        removeDisabled={visitSaving || visits.loading || Boolean(visits.error)}
+        onRemove={() => { const target = managingScheduleRecipient; setManagingScheduleRecipient(null); if (target) handleRemoveFromSchedule(target, scheduleDate || new Date()); }}
         currentDate={scheduleDate || new Date()}
         onSuccess={() => {
           fetchMarkers();

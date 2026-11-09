@@ -26,6 +26,7 @@ import packageJson from '../../package.json';
 import { supabase } from '@/lib/supabase';
 import { captureAccountStorage } from '@/lib/accountStorage';
 import { buildCalendarFeedUrl, revokeCalendarFeedToken } from '@/lib/calendarFeed';
+import { Button, Modal } from './ui';
 
 const APP_VERSION = packageJson.version;
 
@@ -150,6 +151,57 @@ export default function SettingsView({
   
   // 설정 검색어
   const [searchQuery, setSearchQuery] = useState('');
+  const [accountExpanded, setAccountExpanded] = useState(false);
+  const [accountAction, setAccountAction] = useState<'switch' | 'logout' | null>(null);
+  const [accountBusy, setAccountBusy] = useState<'manage' | 'signout' | null>(null);
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const accountBusyRef = React.useRef(false);
+
+  const closeAccountConfirmation = () => {
+    if (accountBusyRef.current) return;
+    setAccountAction(null);
+    setAccountError(null);
+  };
+
+  const confirmAccountSignOut = async () => {
+    if (!onSignOut || !accountAction || accountBusyRef.current) return;
+    accountBusyRef.current = true;
+    setAccountBusy('signout');
+    setAccountError(null);
+    try {
+      await onSignOut();
+      setAccountAction(null);
+    } catch {
+      setAccountError('로그아웃하지 못했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      accountBusyRef.current = false;
+      setAccountBusy(null);
+    }
+  };
+
+  const openGoogleAccount = async () => {
+    if (accountBusyRef.current) return;
+    accountBusyRef.current = true;
+    setAccountBusy('manage');
+    setAccountError(null);
+    try {
+      const url = 'https://myaccount.google.com';
+      if (Capacitor.isNativePlatform()) {
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url });
+      } else {
+        const tab = window.open('about:blank', '_blank');
+        if (!tab) throw new Error('Popup blocked');
+        tab.opener = null;
+        tab.location.replace(url);
+      }
+    } catch {
+      setAccountError('Google 계정 설정을 열지 못했습니다. 연결 상태와 팝업 차단 설정을 확인해주세요.');
+    } finally {
+      accountBusyRef.current = false;
+      setAccountBusy(null);
+    }
+  };
 
   // 알림 리드타임
   const [notifLeadTime, setNotifLeadTime] = useState('15');
@@ -392,6 +444,13 @@ export default function SettingsView({
 
   // 검색 가능한 설정 항목들
   const searchableSettings = useMemo(() => [
+    ...(onSignOut ? [
+      { id: 'account', category: 'Google 계정 관리', title: 'Google 계정 관리', desc: '계정 정보와 로그인 상태 확인 · account' },
+      { id: 'account-login', category: 'Google 계정 관리', title: '로그인 계정 확인', desc: '현재 로그인한 Google 이메일 · login' },
+      { id: 'account-manage', category: 'Google 계정 관리', title: 'Google 계정 설정 열기', desc: 'Google에서 계정 정보 관리' },
+      { id: 'account-switch', category: 'Google 계정 관리', title: '다른 계정으로 전환', desc: '이 기기에서 로그아웃 후 Google 계정 선택 · accountswitch · 계정 전환' },
+      { id: 'account-logout', category: 'Google 계정 관리', title: '로그아웃', desc: '이 기기의 CareRoute 로그인 종료 · logout' },
+    ] : []),
     { id: 'permission', category: '권한 상태', title: '위치 서비스 (GPS) 상태', desc: '현재 위치 표시 및 내 위치로 지도 이동' },
     { id: 'calendar', category: '구글 캘린더 동기화', title: '구글 캘린더 방문 일정 동기화', desc: '선택 날짜(미선택 시 오늘)를 구글 캘린더에 반영' },
     { id: 'push', category: '알림 권한 상태', title: '알림 권한 상태', desc: '앱 기기 알림·웹 브라우저 알림 권한 상태' },
@@ -405,7 +464,7 @@ export default function SettingsView({
     { id: 'tutorial', category: '앱 정보 및 고객지원', title: '앱 사용법 가이드 튜토리얼', desc: '핵심 사용법 튜토리얼 다시 보기' },
     { id: 'version', category: '앱 정보 및 고객지원', title: '버전 정보', desc: `현재 앱 버전 v${APP_VERSION}` },
     { id: 'support', category: '앱 정보 및 고객지원', title: '현장 개선 건의 및 버그 제보', desc: '기능 제안 및 버그 제보' },
-  ], []);
+  ], [onSignOut]);
 
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -456,14 +515,62 @@ export default function SettingsView({
       <div className="space-y-4 max-w-xl mx-auto">
 
         {onSignOut && (
-          <section aria-labelledby="settings-account-title" className="rounded-[24px] border border-surface-border bg-surface p-4 text-foreground shadow-xs">
-            <h2 id="settings-account-title" className="text-base font-bold">로그인 계정</h2>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-              <p className="min-w-0 flex-1 break-all text-sm leading-relaxed">{accountEmail || 'Google 계정으로 로그인됨'}</p>
-              <button type="button" onClick={() => { void onSignOut(); }} className="min-h-11 shrink-0 rounded-xl border border-surface-border bg-surface-muted px-4 text-sm font-bold text-foreground hover:bg-surface-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">로그아웃</button>
+          <section id="section-account" tabIndex={-1} aria-labelledby="settings-account-title" className="min-w-0 rounded-[24px] border border-surface-border bg-surface p-4 text-foreground shadow-xs">
+            <h2 id="settings-account-title">
+              <button
+                type="button"
+                aria-expanded={accountExpanded}
+                aria-controls="settings-account-actions"
+                disabled={accountBusy !== null}
+                onClick={() => setAccountExpanded(value => !value)}
+                className="flex min-h-11 w-full items-center gap-2 rounded-xl text-left text-base font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+              >
+                <IconBrandGoogle size={20} className="shrink-0 text-primary" aria-hidden="true" />
+                <span className="min-w-0 flex-1 break-words">Google 계정 관리</span>
+                <IconChevronDown size={18} className={`shrink-0 transition-transform ${accountExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+              </button>
+            </h2>
+            <div id="section-account-login" tabIndex={-1} className="mt-2 flex min-w-0 flex-col items-start gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
+                <IconCheck size={14} aria-hidden="true" /> 로그인됨
+              </span>
+              <p className="w-full min-w-0 text-sm leading-relaxed [overflow-wrap:anywhere]">{accountEmail || 'Google 계정으로 로그인됨'}</p>
             </div>
+            <div id="settings-account-actions" hidden={!accountExpanded} className="mt-4 space-y-2 border-t border-surface-border pt-4">
+              <div id="section-account-manage" tabIndex={-1}>
+                <Button variant="ghost" fullWidth disabled={accountBusy !== null} loading={accountBusy === 'manage'} onClick={() => void openGoogleAccount()} startIcon={<IconExternalLink size={18} aria-hidden="true" />} className="min-h-11 whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                  Google 계정 설정 열기
+                </Button>
+              </div>
+              <p className="text-xs leading-relaxed text-foreground/60">Google에서 계정 정보를 확인합니다.</p>
+              <div id="section-account-switch" tabIndex={-1}>
+                <Button variant="plain" fullWidth disabled={accountBusy !== null} onClick={() => { setAccountError(null); setAccountAction('switch'); }} className="min-h-11 whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">다른 계정으로 전환</Button>
+              </div>
+              <div id="section-account-logout" tabIndex={-1}>
+                <Button variant="ghost" fullWidth disabled={accountBusy !== null} onClick={() => { setAccountError(null); setAccountAction('logout'); }} className="min-h-11 whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">로그아웃</Button>
+              </div>
+            </div>
+            {accountError && !accountAction && <p role="alert" className="mt-3 text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">{accountError}</p>}
           </section>
         )}
+
+        <Modal open={accountAction !== null} onClose={closeAccountConfirmation} closeOnBackdrop={accountBusy === null}>
+          <div aria-busy={accountBusy === 'signout'} className="min-w-0 space-y-4 px-5 py-5 pb-[calc(var(--app-safe-bottom)+1.25rem)] text-foreground [overflow-wrap:anywhere]">
+            <h2 className="text-lg font-bold">{accountAction === 'switch' ? '다른 계정으로 전환할까요?' : '로그아웃할까요?'}</h2>
+            <p className="text-sm leading-relaxed text-foreground/70">
+              {accountAction === 'switch'
+                ? '이 기기에서 CareRoute를 로그아웃합니다. 로그인 화면에서 Google 로그인을 눌러 사용할 계정을 선택하세요.'
+                : '이 기기에서 CareRoute를 로그아웃합니다. 다시 이용하려면 Google 로그인이 필요합니다.'}
+            </p>
+            {accountError && <p role="alert" className="text-sm leading-relaxed text-foreground">{accountError}</p>}
+            <div className="flex flex-col gap-2">
+              <Button variant="ghost" fullWidth disabled={accountBusy !== null} onClick={closeAccountConfirmation} className="min-h-11 whitespace-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">취소</Button>
+              <Button fullWidth disabled={accountBusy !== null} loading={accountBusy === 'signout'} onClick={() => void confirmAccountSignOut()} className="min-h-11 whitespace-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                {accountBusy === 'signout' ? '로그아웃 중…' : accountAction === 'switch' ? '로그아웃 후 계정 선택' : '로그아웃'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
 
         {/* CareRoute Caregiver Profile Card */}
         <div className="bg-white dark:bg-[#1C1C1E] rounded-[24px] p-4 shadow-xs border border-black/[0.04] dark:border-white/[0.08] flex items-center justify-between">
@@ -561,8 +668,11 @@ export default function SettingsView({
                   <button
                     onClick={() => {
                       setSearchQuery('');
+                      if (item.id.startsWith('account')) setAccountExpanded(true);
                       setTimeout(() => {
-                        document.getElementById(`section-${item.id}`)?.scrollIntoView({ behavior: 'smooth' });
+                        const target = document.getElementById(`section-${item.id}`);
+                        target?.scrollIntoView({ behavior: 'smooth' });
+                        if (item.id.startsWith('account')) (target?.querySelector<HTMLButtonElement>('button') || target)?.focus({ preventScroll: true });
                       }, 50);
                     }}
                     className="px-3 py-1.5 rounded-full bg-[#007AFF]/10 text-[#007AFF] text-xs font-black"
