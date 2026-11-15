@@ -3,6 +3,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Capacitor } from '@capacitor/core';
 import MapErrorBoundary from '@/components/MapErrorBoundary';
 import AuthGate from '@/components/AuthGate';
+import { loadRecipients, RecipientLoadError } from '@/lib/recipientLoader';
+import { geocodeRecipientAddress, isValidCoordinates } from '@/lib/recipientLocation';
 import PrivateImage from '@/components/PrivateImage';
 import { accountStorage, captureAccountStorage } from '@/lib/accountStorage';
 import { resolveRecipientPhotoUrl, PRIVATE_STORAGE_TTL_SECONDS } from '@/lib/privateStorage';
@@ -49,6 +51,7 @@ interface Recipient {
   name: string;
   address: string;
   detail_address?: string | null;
+  locationUnresolved?: boolean;
   sido: string;
   sigungu: string;
   dong: string;
@@ -210,6 +213,12 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   const [selectedDong, setSelectedDong] = useState('');
 
   const [markers, setMarkers] = useState<Recipient[]>([]);
+  const recipientRequest = useRef<AbortController | null>(null);
+  const recipientGeneration = useRef(0);
+  const resolvedLocations = useRef(new Map<string, { address: string; lat: number; lng: number }>());
+  const [locationRefreshVersion, setLocationRefreshVersion] = useState(0);
+  const [recipientsRefreshing, setRecipientsRefreshing] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => { const date = new Date(); return localDateKey(new Date(date.getFullYear(), date.getMonth(), 1)); });
   const [mapCenter, setMapCenter] = useState({ lat: 37.5665, lng: 126.9780 });
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -244,7 +253,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
   const todayKey = useVisitDay();
   const selectedDateKey = scheduleDate ? localDateKey(scheduleDate) : todayKey;
-  const visits = useVisitSessions(todayKey, selectedDateKey);
+  const visits = useVisitSessions(todayKey, selectedDateKey, calendarMonth);
   const previousVisitDay = useRef(todayKey);
   useEffect(() => {
     const previous = previousVisitDay.current;
@@ -364,6 +373,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   // 같은 사람을 다시 탭하면 지정을 해제하고, 둘 다 이미 지정된 상태에서 새 사람을 탭하면
   // 그 사람을 새 출발로 삼아 처음부터 다시 지정한다.
   const assignRoutePoint = (marker: Recipient) => {
+    if (!isValidCoordinates(marker)) { setDataError('위치가 확인된 수급자만 경로에 추가할 수 있습니다. 주소를 먼저 확인해 주세요.'); return; }
     if (routeOrigin?.id === marker.id) {
       setRouteOrigin(routeDestination);
       setRouteDestination(null);
@@ -547,6 +557,8 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
   // 특정 어르신을 지도 중심으로 포커싱 & 지도 탭 활성화 & 마커/프리뷰 카드 연동
   const focusRecipientOnMap = (recipient: Recipient, zoom: number = 17) => {
+    recipient = markers.find(row => row.id === recipient.id) || recipient;
+    if (!isValidCoordinates(recipient)) { setDataError('이 수급자의 위치를 확인하지 못했습니다. 명단에서 주소를 확인한 뒤 다시 불러와 주세요.'); return; }
     const lat = Number(recipient.lat);
     const lng = Number(recipient.lng);
     if (isNaN(lat) || isNaN(lng)) return;
@@ -1216,6 +1228,10 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
     const handleMapError = () => { setMapError(true); setMapLoaded(false); };
     window.addEventListener('careroute:map-error', handleMapError);
+    const handleMapReady = () => {
+      if (window.naver?.maps?.Map && window.naver.maps.LatLngBounds) { setMapLoaded(true); setMapError(false); }
+    };
+    window.addEventListener('careroute:map-ready', handleMapReady);
     // Map loading check
     let attempts = 0;
     const checkMap = setInterval(() => {
@@ -1236,6 +1252,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       document.removeEventListener('visibilitychange', handleVisibilityResume);
       clearInterval(checkMap);
       window.removeEventListener('careroute:map-error', handleMapError);
+      window.removeEventListener('careroute:map-ready', handleMapReady);
     };
   }, []);
 
@@ -1267,111 +1284,107 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
   const OFFLINE_CACHE_KEY = 'careroute_markers_cache_v1';
 
-  const fetchMarkers = () => {
+  const fetchMarkers = async () => {
     const scope = captureAccountStorage();
     if (!scope.isCurrent()) return;
-    let query = supabase.from('recipients').select('*');
-
-    // DB에 dong, sigungu 컬럼이 존재하지 않으므로 오직 address.ilike 로만 필터링합니다.
-    if (selectedDong) {
-      const dongName = dongs.find(d => d.code === selectedDong)?.name.split(' ').pop();
-      if (dongName) query = query.ilike('address', `%${dongName}%`);
-    }
-    else if (selectedSigungu) {
-      const sigName = sigungus.find(s => s.code === selectedSigungu)?.name.split(' ').pop();
-      if (sigName) query = query.ilike('address', `%${sigName}%`);
-    }
-    else if (selectedSido) {
-      const sidoName = sidos.find(s => s.code === selectedSido)?.name;
-      if (sidoName) query = query.ilike('address', `%${sidoName.substring(0, 2)}%`);
-    }
-
-    query.then(({ data, error, status }) => {
-      if (!scope.isCurrent()) return;
-      if (!error && data) {
-        setIsOffline(false);
-        setDataError('');
-        // Supabase DB 스키마 캐시에 health_tags가 없더라도 로컬 스토리지에 캐시된 건강 태그로 자동 병합(Hydration)
-        const hydratedData = data.map((marker: any) => ({
-          ...marker,
-          health_tags: marker.health_tags || scope.getItem(`careroute_health_tags_${marker.id}`),
-        }));
-
-        // 근접 마커 자동 분산 처리: 완전히 같은 좌표뿐 아니라 같은 건물/블록처럼
-        // '근처'인 경우까지 하나의 클러스터로 묶어 부챗살 모양으로 벌려서 배치한다.
-        const PROXIMITY_KM = 0.02; // 약 20m 이내는 같은 클러스터로 취급
-        const clusters: typeof hydratedData[] = [];
-
-        hydratedData.forEach((marker) => {
-          const cluster = clusters.find((c) =>
-            getDistanceFromLatLonInKm(c[0].lat, c[0].lng, marker.lat, marker.lng) < PROXIMITY_KM
-          );
-          if (cluster) cluster.push(marker);
-          else clusters.push([marker]);
-        });
-
-        const offsetData: typeof hydratedData = [];
-        clusters.forEach((cluster) => {
-          if (cluster.length === 1) {
-            offsetData.push(cluster[0]);
-            return;
-          }
-          // 인원이 많은 클러스터일수록 반경을 넓혀서 계속 겹치지 않게 함
-          const radius = 0.00015 + (cluster.length - 2) * 0.00003;
-          cluster.forEach((marker, i) => {
-            const angle = (2 * Math.PI * i) / cluster.length;
-            offsetData.push({
-              ...marker,
-              lat: cluster[0].lat + Math.sin(angle) * radius,
-              lng: cluster[0].lng + Math.cos(angle) * radius,
-            });
-          });
-        });
-
-        setMarkers(offsetData);
-
-        // 필터 없이 받은 전체 목록만 오프라인 캐시로 저장 (현장에서 신호가
-        // 약해져도 마지막으로 받은 명단/위치는 계속 보이도록).
-        if (!selectedSido && !selectedSigungu && !selectedDong) {
-          try {
-            scope.setItem(OFFLINE_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: offsetData }));
-          } catch {}
-        }
-      } else {
-        if (status !== 0 && !/Failed to fetch|NetworkError|Load failed/i.test(error?.message || '')) {
-          setMarkers([]);
-          setIsOffline(false);
-          scope.removeItem(OFFLINE_CACHE_KEY);
-          setDataError(status === 401 || status === 403 || error?.code === '42501'
-            ? '현재 계정의 데이터 접근 권한을 확인하지 못했습니다. 다시 로그인하거나 관리자에게 문의해 주세요.'
-            : '명단을 불러오지 못했습니다. 서버 연결과 계정 권한을 확인한 뒤 다시 시도해 주세요.');
-          setDataLoaded(true);
-          return;
-        }
-        // 네트워크 실패 등으로 못 받아왔으면 마지막으로 저장해둔 캐시를 대신 보여준다.
+    recipientRequest.current?.abort();
+    const controller = new AbortController();
+    recipientRequest.current = controller;
+    const generation = ++recipientGeneration.current;
+    const current = () => scope.isCurrent() && generation === recipientGeneration.current && !controller.signal.aborted;
+    setRecipientsRefreshing(true);
+    try {
+      const rows = await loadRecipients(controller.signal);
+      if (!current()) return;
+      const hydrated = rows.map(row => {
+        let coords = {};
         try {
-          const cached = scope.getItem(OFFLINE_CACHE_KEY);
-          if (cached) {
-            const { data: cachedData } = JSON.parse(cached);
-            setMarkers(cachedData);
+          const cached = JSON.parse(scope.getItem(`careroute_geocode_v1_${row.id}`) || 'null');
+          if (cached?.address === JSON.stringify([row.address || '', row.detail_address || '']) && Date.now() - cached.savedAt < 7 * 86400_000 && isValidCoordinates(cached)) coords = { lat: cached.lat, lng: cached.lng };
+        } catch {}
+        const memory = resolvedLocations.current.get(String(row.id));
+        if (memory?.address === JSON.stringify([row.address || '', row.detail_address || '']) && isValidCoordinates(memory)) coords = { lat: memory.lat, lng: memory.lng };
+        return { ...row, locationUnresolved: row.lat === 37.5665 && row.lng === 126.9780 && !isValidCoordinates(coords), ...coords, health_tags: row.health_tags || scope.getItem(`careroute_health_tags_${row.id}`) };
+      }) as unknown as Recipient[];
+      setMarkers(hydrated);
+      setLocationRefreshVersion(value => value + 1);
+      setDataError('');
+      setIsOffline(false);
+      try { scope.setItem(OFFLINE_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: hydrated })); } catch {}
+    } catch (cause) {
+      if (!current()) return;
+      const failure = cause instanceof RecipientLoadError ? cause : new RecipientLoadError('명단을 불러오지 못했습니다.', 0);
+      if (failure.denied) {
+        setMarkers([]);
+        scope.removeItem(OFFLINE_CACHE_KEY);
+        setIsOffline(false);
+        setDataError('현재 계정의 데이터 접근 권한을 확인하지 못했습니다. 다시 로그인하거나 관리자에게 문의해 주세요.');
+      } else if (failure.transient) {
+        let cached = false;
+        try {
+          const stored = JSON.parse(scope.getItem(OFFLINE_CACHE_KEY) || 'null');
+          if (Array.isArray(stored?.data) && stored.data.every((row: Recipient) => typeof row.id === 'string' && typeof row.name === 'string')) {
+            setMarkers(previous => previous.length ? previous : stored.data.map((row: Recipient) => ({ ...row, locationUnresolved: row.locationUnresolved || (row.lat === 37.5665 && row.lng === 126.9780) })));
+            cached = true;
           }
         } catch {}
-        setIsOffline(true);
+        setIsOffline(cached);
+        setDataError(cached ? '서버에 연결하지 못해 이 계정의 마지막 명단을 표시합니다. 최신 정보는 다시 불러와 주세요.' : '명단 연결이 지연되고 있습니다. 연결 상태를 확인하고 다시 불러와 주세요.');
+      } else {
+        setIsOffline(false);
+        setDataError('명단을 불러오지 못했습니다. 서버 응답을 확인한 뒤 다시 시도해 주세요.');
       }
-      setDataLoaded(true); // Always unlock loading screen
-    });
+    } finally {
+      if (current()) { setDataLoaded(true); setRecipientsRefreshing(false); }
+    }
   };
 
   useEffect(() => {
-    fetchMarkers();
-  }, [selectedSido, selectedSigungu, selectedDong]);
+    let active = true;
+    void Promise.resolve().then(() => { if (active) void fetchMarkers(); });
+    const refresh = () => { if (active && document.visibilityState === 'visible') void fetchMarkers(); };
+    window.addEventListener('online', refresh);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      active = false;
+      ++recipientGeneration.current;
+      recipientRequest.current?.abort();
+      window.removeEventListener('online', refresh);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, []);
 
-  // 네트워크가 끊겼다가 다시 연결되면 캐시 대신 최신 데이터로 자동 갱신
+  const locationSignature = JSON.stringify(markers.map(row => [row.id, row.address, row.detail_address]));
   useEffect(() => {
-    const handleOnline = () => fetchMarkers();
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [selectedSido, selectedSigungu, selectedDong]);
+    if (!mapLoaded || !window.naver?.maps?.Service) return;
+    const scope = captureAccountStorage();
+    const controller = new AbortController();
+    // Search detailed/missing/default locations in the background; list loading never waits for Maps.
+    const pending = markers.filter(row => row.address && (row.detail_address || !isValidCoordinates(row) || (row.lat === 37.5665 && row.lng === 126.9780)));
+    let index = 0;
+    const run = async () => {
+      while (index < pending.length && !controller.signal.aborted && scope.isCurrent()) {
+        const row = pending[index++];
+        const address = JSON.stringify([row.address || '', row.detail_address || '']);
+        try {
+          const cached = JSON.parse(scope.getItem(`careroute_geocode_v1_${row.id}`) || 'null');
+          const fresh = cached?.address === address && Date.now() - cached.savedAt < 7 * 86400_000 && isValidCoordinates(cached);
+          const coords = fresh ? cached : await geocodeRecipientAddress(row.address, row.detail_address || undefined, controller.signal);
+          if (!scope.isCurrent() || controller.signal.aborted) return;
+          resolvedLocations.current.set(row.id, { address, lat: coords.lat, lng: coords.lng });
+          try { if (!fresh) scope.setItem(`careroute_geocode_v1_${row.id}`, JSON.stringify({ ...coords, address, savedAt: Date.now() })); } catch { /* Cache quota must not discard the resolved position. */ }
+          setMarkers(previous => previous.map(item => item.id === row.id && JSON.stringify([item.address || '', item.detail_address || '']) === address ? { ...item, lat: coords.lat, lng: coords.lng, locationUnresolved: false } : item));
+          setSelectedRecipient(previous => previous?.id === row.id && JSON.stringify([previous.address || '', previous.detail_address || '']) === address ? { ...previous, lat: coords.lat, lng: coords.lng, locationUnresolved: false } : previous);
+        } catch { /* Retain known coordinates; never replace an unresolved location with a made-up point. */ }
+      }
+    };
+    void run(); void run();
+    return () => controller.abort();
+    // Coordinate changes do not restart the queue; address changes do.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapLoaded, locationSignature, locationRefreshVersion]);
 
   // 방문 알림을 눌렀을 때 해당 어르신 위치로 포커싱 (명단 클릭과 동일한 효과).
   // 현재 지역 필터에 안 걸릴 수도 있으니 필터를 해제하고 DB에서 직접 가져온다.
@@ -1381,7 +1394,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     setSelectedSido('');
     setSelectedSigungu('');
     setSelectedDong('');
-    focusRecipientOnMap(data);
+    focusRecipientOnMap(markers.find(row => row.id === data.id) || { ...data, locationUnresolved: data.lat === 37.5665 && data.lng === 126.9780 });
   };
 
   useEffect(() => {
@@ -1536,6 +1549,10 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   };
 
   const handleNavi = (type: 'system' | 'tmap' | 'kakao' | 'naver', lat: number, lng: number, address: string, detailAddress?: string | null) => {
+    const recipient = markers.find(row => row.address === address && (row.detail_address || '') === (detailAddress || ''));
+    if (!isValidCoordinates(recipient || { lat, lng })) { setDataError('이 주소의 위치를 확인하지 못해 길안내를 시작할 수 없습니다. 주소를 확인해 주세요.'); return; }
+    if (recipient) { lat = recipient.lat; lng = recipient.lng; }
+
     // POI 검색 실패를 방지하기 위해 도착지 명칭을 고정
     const encName = encodeURIComponent('도착지');
     const isAndroid = /Android/i.test(navigator.userAgent);
@@ -1586,6 +1603,10 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   };
 
   const handleDirections = (lat: number, lng: number, address: string, detail: string | null = null) => {
+    const recipient = markers.find(row => row.address === address && (row.detail_address || '') === (detail || ''));
+    if (!isValidCoordinates(recipient || { lat, lng })) { setDataError('이 주소의 위치를 확인하지 못해 길안내를 시작할 수 없습니다. 주소를 확인해 주세요.'); return; }
+    if (recipient) { lat = recipient.lat; lng = recipient.lng; }
+
     let prefType: 'system' | 'tmap' | 'kakao' | 'naver' = 'system';
     if (typeof window !== 'undefined') {
       const saved = accountStorage.getItem('careroute_default_navi');
@@ -2173,6 +2194,13 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     setListFilter('all');
     setSortMode('name');
   };
+  const matchesMapRegion = (marker: Recipient) => {
+    const name = selectedDong ? dongs.find(row => row.code === selectedDong)?.name.split(' ').pop()
+      : selectedSigungu ? sigungus.find(row => row.code === selectedSigungu)?.name.split(' ').pop()
+      : selectedSido ? sidos.find(row => row.code === selectedSido)?.name.slice(0, 2) : '';
+    return !name || marker.address?.includes(name);
+  };
+  const regionMarkers = markers.filter(matchesMapRegion);
   const filteredMarkers = activeTab === 'list' ? markers.filter((marker) => {
     const fields = [marker.name, marker.address, marker.detail_address, marker.assigned_caregiver_name]
       .map(value => normalizeListSearch(value || ''));
@@ -2312,9 +2340,10 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       {/* 오프라인 안내: 서버 연결에 실패하면 마지막으로 저장해둔 명단을 대신
           보여주는데, 그게 최신 데이터가 아닐 수 있다는 걸 알려준다. */}
       {dataError && (
-        <div role="alert" className="absolute top-[calc(4rem+var(--app-safe-top))] left-4 right-4 z-[60] rounded-2xl border border-red-500/30 bg-surface p-3 text-sm text-foreground shadow-lg">
+        <div role="alert" className="absolute top-[calc(4rem+var(--app-safe-top))] left-4 right-4 z-[60] rounded-2xl border border-red-500/30 bg-surface p-3 pr-14 text-sm text-foreground shadow-lg">
           <p>{dataError}</p>
-          <button type="button" onClick={fetchMarkers} className="mt-2 min-h-11 rounded-xl border border-surface-border px-3 font-bold">다시 불러오기</button>
+          <IconButton aria-label="안내 닫기" onClick={() => setDataError('')} className="absolute right-2 top-2 min-h-11 min-w-11"><IconX size={18} /></IconButton>
+          <button type="button" disabled={recipientsRefreshing} onClick={() => void fetchMarkers()} className="mt-2 min-h-11 rounded-xl border border-surface-border px-3 font-bold">다시 불러오기</button>
         </div>
       )}
       {isOffline && (
@@ -2688,7 +2717,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                 {/* 오늘의 경로 추천: 전체 동선을 점선으로 연결 (직선 기준, 실제 도로선 아님) */}
                 {scheduleRoute.length > 1 && scheduleRoute.map((stop, i) => {
                   const next = scheduleRoute[i + 1];
-                  if (!next) return null;
+                  if (!next || !isValidCoordinates(stop) || !isValidCoordinates(next)) return null;
                   return (
                     <Polyline
                       key={`schedule-leg-${stop.id}-${next.id}`}
@@ -2738,7 +2767,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                 ))}
 
                 {/* 전역 행정구역 날씨 맵 마커 (방해되지 않도록 작고 반투명하게) */}
-                {markers.map((marker) => {
+                {regionMarkers.filter(marker => isValidCoordinates(marker)).map((marker) => {
                   const isSelected = selectedRecipient?.id === marker.id;
                   const isCompleted = isCompletedToday(marker);
                   const routeBadge = routeOrigin?.id === marker.id ? '출발' : routeDestination?.id === marker.id ? '도착' : null;
@@ -2798,6 +2827,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               </div>
               <p className="font-extrabold text-xl text-foreground/70 mb-3 tracking-tight">{mapError ? '지도에 연결하지 못했습니다' : '지도를 불러오는 중입니다'}</p>
               <p className="text-[15px] leading-relaxed">{mapError ? '연결 상태 또는 지도 서비스 인증 설정을 확인해 주세요.' : '잠시만 기다려 주세요.'}<br/>수급자와 일정 메뉴는 계속 사용할 수 있습니다.</p>
+              {mapError && <Button variant="plain" onClick={() => { setMapError(false); window.dispatchEvent(new Event('careroute:map-retry')); }} className="mt-4 min-h-11">지도 다시 연결</Button>}
             </div>
           )}
           </MapErrorBoundary>
@@ -2812,6 +2842,8 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                 <h2 className="text-xl font-black text-foreground tracking-tight">
                   어르신 명단
                 </h2>
+                {markers.some(row => !isValidCoordinates(row)) && <p className="mt-1 text-sm leading-relaxed text-foreground/70">위치 미확인 {markers.filter(row => !isValidCoordinates(row)).length}명 · 주소를 확인해 주세요. 명단은 계속 사용할 수 있습니다.</p>}
+                <button type="button" disabled={recipientsRefreshing} onClick={() => void fetchMarkers()} className="mt-1 min-h-11 text-sm font-bold text-primary disabled:opacity-50">{recipientsRefreshing ? '명단 불러오는 중…' : '명단 새로고침'}</button>
               </div>
 
               <button
@@ -3397,7 +3429,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
             {/* Month Grid Calendar */}
             <MonthCalendar
-              defaultCollapsed
+              collapsible={false}
+              onMonthChange={(date) => setCalendarMonth(localDateKey(date))}
+              getDaySummary={(date) => { const rows = markers.filter(r => getScheduledForDate(r, date)); return { count: rows.length, names: rows.map(r => r.name), pending: visits.loading || Boolean(visits.error) || visits.loadedMonth !== localDateKey(date).slice(0, 7) }; }}
               selectedDate={scheduleDate}
               onSelectDate={setScheduleDate}
               hasSchedule={(d) => markers.some(r => getScheduledForDate(r, d))}

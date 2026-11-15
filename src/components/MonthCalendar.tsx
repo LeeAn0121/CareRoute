@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { IconChevronLeft, IconChevronRight, IconCalendarEvent, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LoadingOverlay } from './ui';
 import { fetchPrintedDateKeysInRange } from '@/lib/printLogs';
 
 interface MonthCalendarProps {
   defaultCollapsed?: boolean;
+  collapsible?: boolean;
+  getDaySummary?: (date: Date) => { count: number; names: string[]; pending?: boolean };
+  // Receives the first day of the visible month, including the initial month.
+  onMonthChange?: (date: Date) => void;
   selectedDate: Date | null;
   onSelectDate: (date: Date) => void;
   hasSchedule?: (date: Date) => boolean;
@@ -17,12 +20,34 @@ interface MonthCalendarProps {
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule, showPrintHistory, onPrintedDateClick, defaultCollapsed = false }: MonthCalendarProps) {
+export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule, showPrintHistory, onPrintedDateClick, defaultCollapsed = false, collapsible = true, getDaySummary, onMonthChange }: MonthCalendarProps) {
   const initialDate = selectedDate || new Date();
   const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [printedDateKeys, setPrintedDateKeys] = useState<Set<string>>(new Set());
   const [loadingPrintHistory, setLoadingPrintHistory] = useState(false);
+
+  const selectedDateKey = selectedDate
+    ? `${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}`
+    : null;
+  const [previousSelectedDateKey, setPreviousSelectedDateKey] = useState(selectedDateKey);
+  // Only a changed selection moves the month; browsing alone never snaps back.
+  if (previousSelectedDateKey !== selectedDateKey) {
+    setPreviousSelectedDateKey(selectedDateKey);
+    if (selectedDate && (selectedDate.getFullYear() !== currentMonth.getFullYear()
+      || selectedDate.getMonth() !== currentMonth.getMonth())) {
+      setCurrentMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+    }
+  }
+
+  const notifiedMonth = useRef<string | null>(null);
+  useEffect(() => {
+    if (!onMonthChange) return;
+    const monthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`;
+    if (notifiedMonth.current === monthKey) return;
+    notifiedMonth.current = monthKey;
+    onMonthChange(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1));
+  }, [currentMonth, onMonthChange]);
 
   // 화면에 보이는 달이 바뀔 때마다 그 달의 출력 기록 날짜만 다시 불러온다.
   useEffect(() => {
@@ -33,10 +58,19 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
     const nextMonth = new Date(y, m + 1, 1);
     const endKey = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
     let cancelled = false;
-    setLoadingPrintHistory(true);
-    fetchPrintedDateKeysInRange(startKey, endKey).then((keys) => {
-      if (!cancelled) {
+    Promise.resolve().then(() => {
+      if (cancelled) return null;
+      setPrintedDateKeys(new Set());
+      setLoadingPrintHistory(true);
+      return fetchPrintedDateKeysInRange(startKey, endKey);
+    }).then((keys) => {
+      if (!cancelled && keys) {
         setPrintedDateKeys(keys);
+        setLoadingPrintHistory(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setPrintedDateKeys(new Set());
         setLoadingPrintHistory(false);
       }
     });
@@ -87,7 +121,8 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
       <div className="calendar-heading flex flex-wrap items-center justify-between gap-2 mb-4 px-1">
         {/* Month Selector Capsule */}
         <div className="calendar-month-selector flex items-center bg-foreground/[0.04] dark:bg-white/[0.06] rounded-full p-1 border border-surface-border/40 shadow-xs">
-          <motion.button 
+          <motion.button
+            type="button"
             whileTap={{ scale: 0.88 }}
             onClick={prevMonth} 
             className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-foreground/[0.06] transition-colors"
@@ -114,7 +149,8 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
             </span>
           </div>
 
-          <motion.button 
+          <motion.button
+            type="button"
             whileTap={{ scale: 0.88 }}
             onClick={nextMonth} 
             className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-foreground/[0.06] transition-colors"
@@ -126,7 +162,8 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
         
         <div className="flex items-center gap-1.5 ml-auto shrink-0">
           {/* Today Action Pill */}
-          <motion.button 
+          <motion.button
+            type="button"
             whileTap={{ scale: 0.92 }}
             onClick={() => {
               const today = new Date();
@@ -140,7 +177,9 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
           </motion.button>
 
           {/* Collapse/Expand Toggle Button */}
-          <motion.button
+          {collapsible && <motion.button
+            type="button"
+            aria-expanded={!isCollapsed}
             whileTap={{ scale: 0.90 }}
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="p-1.5 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/60 transition-colors"
@@ -148,12 +187,12 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
             aria-label={isCollapsed ? '달력 펼치기' : '달력 접기'}
           >
             {isCollapsed ? <IconChevronDown size={16} /> : <IconChevronUp size={16} />}
-          </motion.button>
+          </motion.button>}
         </div>
       </div>
 
       <AnimatePresence initial={false}>
-        {!isCollapsed && (
+        {(!collapsible || !isCollapsed) && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -175,69 +214,72 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
               ))}
             </div>
 
+            {showPrintHistory && loadingPrintHistory && (
+              <p role="status" className="mb-2 text-xs text-foreground/60">출력 이력 불러오는 중…</p>
+            )}
             {/* One UI Days Grid with Squircle Pebbles */}
             <div className="relative grid grid-cols-7 gap-1">
-              {showPrintHistory && loadingPrintHistory && <LoadingOverlay label="" />}
               {days.map((d, i) => {
-                if (d === null) return <div key={`empty-${i}`} className="aspect-square max-h-[42px]" />;
+                if (d === null) return <div key={`empty-${i}`} className="min-h-16 sm:min-h-24" />;
 
                 const selected = isSelected(d);
                 const today = isToday(d);
                 const dateObj = new Date(year, month, d);
-                const scheduled = hasSchedule ? hasSchedule(dateObj) : false;
+                const summary = getDaySummary?.(dateObj);
+                const pending = summary?.pending === true;
+                const scheduled = !pending && (summary ? summary.count > 0 : Boolean(hasSchedule?.(dateObj)));
+                const count = summary?.count ?? (scheduled ? 1 : 0);
                 const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const printed = Boolean(showPrintHistory) && printedDateKeys.has(dateKey);
                 const isSunday = new Date(year, month, d).getDay() === 0;
                 const isSaturday = new Date(year, month, d).getDay() === 6;
 
                 return (
-                  <motion.button
-                    key={d}
-                    whileTap={{ scale: 0.90 }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 450 }}
-                    onClick={() => handleSelect(d)}
-                    className={`relative aspect-square max-h-[42px] w-full flex flex-col items-center justify-center rounded-[16px] transition-all
-                      ${selected
-                        ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.35)] font-black scale-[1.05] z-10'
-                        : today
-                          ? 'bg-primary/10 text-primary font-black border border-primary/30 shadow-xs'
-                          : `hover:bg-foreground/[0.04] font-bold ${
-                              isSunday ? 'text-red-500/90' : isSaturday ? 'text-blue-500/90' : 'text-foreground/80'
-                            }`
-                      }`
-                    }
-                  >
-                    <span className="text-[14px] tracking-tight">{d}</span>
-                    {/* Glowing Indicator Dot for Scheduled Visits */}
-                    {scheduled && !selected && (
-                      <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(var(--accent),0.8)]" />
-                    )}
-                    {/* 해당 날짜에 출력/공유 기록이 있음을 표시하는 작은 점. 날짜 선택(상위 버튼)과는
+                  <div key={d} className="relative min-w-0">
+                    <motion.button
+                      type="button"
+                      aria-label={`${year}년 ${month + 1}월 ${d}일 ${WEEKDAYS[dateObj.getDay()]}요일, ${pending ? '일정 확인 중' : `일정 ${count}건`}`}
+                      aria-pressed={selected}
+                      whileTap={{ scale: 0.90 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 450 }}
+                      onClick={() => handleSelect(d)}
+                      className={`relative min-h-16 sm:min-h-24 w-full min-w-0 flex flex-col items-center justify-start gap-0.5 p-1 sm:p-2 rounded-[16px] transition-all
+                        ${selected
+                          ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.35)] font-black'
+                          : today
+                            ? 'bg-primary/10 text-primary font-black border border-primary/30 shadow-xs'
+                            : `hover:bg-foreground/[0.04] font-bold ${
+                                isSunday ? 'text-red-500/90' : isSaturday ? 'text-blue-500/90' : 'text-foreground/80'
+                              }`
+                        }`
+                      }
+                    >
+                      <span className="text-[14px] tracking-tight">{d}</span>
+                      {!pending && <span className={`text-[11px] sm:text-xs ${selected ? 'text-primary-foreground' : 'text-foreground/60'}`}>{count}건</span>}
+                      {!pending && summary && <span className="hidden sm:flex w-full min-w-0 flex-col text-[11px] leading-4">
+                        {summary.names.slice(0, 2).map((name, index) => (
+                          <span key={`${name}-${index}`} className="block truncate">{name}</span>
+                        ))}
+                      </span>}
+                    </motion.button>
+                    {/* 해당 날짜에 출력/공유 기록이 있음을 표시하는 작은 점. 날짜 선택 버튼과는
                         별개로 누르면 그 날짜의 출력 이력을 바로 열어볼 수 있다. 선택된(primary 배경)
                         칸에서도 묻히지 않게 색을 바꿔 항상 보이게 한다. */}
                     {printed && (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        aria-label="이 날짜 출력 이력 보기"
+                      <button
+                        type="button"
+                        aria-label={`${year}년 ${month + 1}월 ${d}일 출력 이력 보기`}
                         title="이 날짜에 수행한 문서 작업 이력입니다 · 방문일 기준이 아닙니다 · 눌러서 보기"
                         onClick={(e) => {
                           e.stopPropagation();
                           onPrintedDateClick?.(dateKey);
                         }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            onPrintedDateClick?.(dateKey);
-                          }
-                        }}
-                        className="absolute top-0 right-0 w-5 h-5 flex items-center justify-center cursor-pointer"
+                        className="absolute top-0 right-0 w-6 h-6 flex items-center justify-center cursor-pointer"
                       >
                         <span className={`w-[5px] h-[5px] rounded-full ${selected ? 'bg-primary-foreground' : 'bg-primary'}`} />
-                      </span>
+                      </button>
                     )}
-                  </motion.button>
+                  </div>
                 );
               })}
             </div>

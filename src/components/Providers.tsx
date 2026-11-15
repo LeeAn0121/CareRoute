@@ -63,30 +63,42 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     installNativeSharing();
-    const reportFailure = () => window.dispatchEvent(new Event('careroute:map-error'));
+    let timer: ReturnType<typeof setTimeout>;
+    let authRejected = false;
+    let script: HTMLScriptElement | null = null;
+    const reportFailure = () => { clearTimeout(timer); window.dispatchEvent(new Event('careroute:map-error')); };
     const globals = window as Window & { navermap_authFailure?: () => void; careRouteNaverReady?: () => void };
     const previousAuthFailure = globals.navermap_authFailure;
     const previousReady = globals.careRouteNaverReady;
-    globals.navermap_authFailure = reportFailure;
-    // The SDK sets jsContentLoaded only when its completion callback exists.
-    // Without callback=..., polling that flag before mounting the map deadlocks.
-    globals.careRouteNaverReady = () => window.dispatchEvent(new Event('careroute:map-ready'));
-    let script = document.querySelector<HTMLScriptElement>('script[data-careroute-map]');
-    if (!script && !window.naver?.maps?.Map) {
+    globals.navermap_authFailure = () => { authRejected = true; reportFailure(); };
+    globals.careRouteNaverReady = () => { clearTimeout(timer); window.dispatchEvent(new Event('careroute:map-ready')); };
+    const loadMap = () => {
+      if (authRejected) { reportFailure(); return; }
+      if (window.naver?.maps?.Map && window.naver.maps.LatLngBounds) { globals.careRouteNaverReady?.(); return; }
+      clearTimeout(timer);
+      script?.remove();
+      document.querySelector('script[data-careroute-map]')?.remove();
       script = document.createElement('script');
       script.dataset.carerouteMap = 'true';
       script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(navermapsOptions.ncpKeyId)}&submodules=geocoder&callback=careRouteNaverReady`;
       script.async = true;
+      script.addEventListener('error', reportFailure);
+      timer = setTimeout(reportFailure, 20000);
       document.head.appendChild(script);
-    }
-    script?.addEventListener('error', reportFailure);
+    };
+    loadMap();
+    window.addEventListener('careroute:map-retry', loadMap);
+    window.addEventListener('online', loadMap);
     // Load saved color theme
     const savedColorTheme = localStorage.getItem('careroute_color_theme') || 'theme-navy';
     document.documentElement.classList.add(savedColorTheme);
     document.documentElement.classList.toggle('large-font-mode', localStorage.getItem('careroute_large_font') === 'true');
     setMounted(true);
     return () => {
+      clearTimeout(timer);
       script?.removeEventListener('error', reportFailure);
+      window.removeEventListener('careroute:map-retry', loadMap);
+      window.removeEventListener('online', loadMap);
       globals.navermap_authFailure = previousAuthFailure;
       globals.careRouteNaverReady = previousReady;
     };

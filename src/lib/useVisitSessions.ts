@@ -20,16 +20,20 @@ export function useVisitDay() {
   return today;
 }
 
-export function useVisitSessions(today: string, selected: string) {
+export function useVisitSessions(today: string, selected: string, month = selected) {
   const [sessions, setSessions] = useState<Record<string, VisitSession>>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadedMonth, setLoadedMonth] = useState<string | null>(null);
   const generation = useRef(0);
   const refresh = useCallback(async () => {
     const request = ++generation.current;
     setLoading(true);
     try {
       const dates = new Set([today, selected]);
+      const monthStart = new Date(`${month.slice(0, 7)}-01T12:00:00`);
+      const monthDays = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+      for (let day = 1; day <= monthDays; day++) dates.add(localDateKey(new Date(monthStart.getFullYear(), monthStart.getMonth(), day)));
       for (const anchor of [today, selected]) {
         for (let offset = -6; offset <= 7; offset++) {
           const date = new Date(`${anchor}T12:00:00`); date.setDate(date.getDate() + offset);
@@ -43,10 +47,11 @@ export function useVisitSessions(today: string, selected: string) {
         for (const row of rows) next[sessionKey(row.recipient_id, row.visit_date)] = row;
         return next;
       });
+      setLoadedMonth(month.slice(0, 7));
       setError('');
     } catch { if (request === generation.current) setError('방문 기록을 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요.'); }
     finally { if (request === generation.current) setLoading(false); }
-  }, [today, selected]);
+  }, [today, selected, month]);
   useEffect(() => {
     void refresh();
     const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
@@ -61,5 +66,5 @@ export function useVisitSessions(today: string, selected: string) {
     setLoading(false);
     setSessions(previous => ({ ...previous, [sessionKey(row.recipient_id, row.visit_date)]: row }));
   };
-  return { sessions, error, loading, refresh, apply };
+  return { sessions, error, loading, loadedMonth, refresh, apply };
 }

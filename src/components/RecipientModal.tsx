@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { captureAccountStorage } from '@/lib/accountStorage';
+import { geocodeRecipientAddress, isValidCoordinates } from '@/lib/recipientLocation';
 import { getRecipientPhotoCanonicalUrl, requireVerifiedStorageAccount } from '@/lib/privateStorage';
 import PrivateImage from './PrivateImage';
 import { DaumPostcodeEmbed } from 'react-daum-postcode';
@@ -91,7 +92,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         setName(recipientToEdit.name);
         setAddress(recipientToEdit.address);
         setDetailAddress(recipientToEdit.detail_address || '');
-        setBcode(recipientToEdit.dong);
+        setBcode(recipientToEdit.dong || '');
         setVisitDate(recipientToEdit.notes || '');
         setAge(recipientToEdit.age != null ? String(recipientToEdit.age) : '');
         setCareGrade(recipientToEdit.care_grade || '');
@@ -160,7 +161,7 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       alert('이름과 주소를 입력해주세요.');
       return;
     }
-    if (!bcode) {
+    if (!bcode && (!recipientToEdit || recipientToEdit.address !== address)) {
       alert('주소의 위치 정보가 없습니다. 주소 옆 [검색] 버튼으로 주소를 다시 선택해주세요.');
       return;
     }
@@ -171,63 +172,12 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
       if (!accountScope.isCurrent()) throw new Error('로그인 계정을 다시 확인해주세요.');
       const verified = await requireVerifiedStorageAccount();
       if (!accountScope.isCurrent() || verified.accountId !== accountScope.accountId) throw new Error('계정이 변경되었습니다.');
-      const getLatLng = async (): Promise<{ lat: number; lng: number }> => {
-        try {
-          return await new Promise((resolve, reject) => {
-            if (!window.naver || !window.naver.maps || !window.naver.maps.Service) {
-              reject(new Error('Naver Map API failed'));
-              return;
-            }
-            // @ts-ignore
-            window.naver.maps.Service.geocode({ query: address }, function(status, response) {
-              // @ts-ignore
-              if (status === window.naver.maps.Service.Status.OK && response.v2.addresses.length > 0) {
-                const item = response.v2.addresses[0];
-                resolve({ lat: parseFloat(item.y), lng: parseFloat(item.x) });
-              } else {
-                reject(new Error('Address not found'));
-              }
-            });
-          });
-        } catch (error) {
-          console.warn('Fallback to OSM:', error);
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
-          const data = await res.json();
-          if (data && data.length > 0) {
-            return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-          }
-          throw new Error('주소를 찾을 수 없습니다.');
-        }
-      };
-
-      let coords = { lat: 37.5665, lng: 126.9780 }; // Default fallback
-
-      // If editing and address is identical to the original base address, keep old coords
-      const isAddressUnchanged = recipientToEdit && recipientToEdit.address.startsWith(address);
-
-      if (isAddressUnchanged) {
-        coords = { lat: recipientToEdit!.lat, lng: recipientToEdit!.lng };
-      } else {
-        try {
-          coords = await getLatLng();
-        } catch (e) {
-          console.warn('Geocoding completely failed. Using OSM fallback...', e);
-          try {
-            const shortAddress = address.split(' ').slice(0, 3).join(' ');
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(shortAddress)}`);
-            const data = await res.json();
-            if (data && data.length > 0) {
-              coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-            } else if (recipientToEdit) {
-              coords = { lat: recipientToEdit.lat, lng: recipientToEdit.lng };
-            }
-          } catch (osmError) {
-             if (recipientToEdit) {
-               coords = { lat: recipientToEdit.lat, lng: recipientToEdit.lng };
-             }
-          }
-        }
-      }
+      const isAddressUnchanged = recipientToEdit != null
+        && recipientToEdit.address === address
+        && (recipientToEdit.detail_address ?? '') === detailAddress;
+      const coords = isAddressUnchanged && isValidCoordinates(recipientToEdit)
+        ? { lat: recipientToEdit.lat, lng: recipientToEdit.lng }
+        : await geocodeRecipientAddress(address, detailAddress);
 
       if (!accountScope.isCurrent()) throw new Error('계정이 변경되었습니다.');
       let photoUrl = existingPhotoUrl ? getRecipientPhotoCanonicalUrl(existingPhotoUrl) : null;
@@ -249,9 +199,11 @@ export default function RecipientModal({ isOpen, onClose, onSuccess, recipientTo
         name,
         address,
         detail_address: detailAddress || null,
-        sido: bcode.substring(0, 2) + '00000000',
-        sigungu: bcode.substring(0, 5) + '00000',
-        dong: bcode,
+        ...(bcode ? {
+          sido: bcode.substring(0, 2) + '00000000',
+          sigungu: bcode.substring(0, 5) + '00000',
+          dong: bcode,
+        } : {}),
         lat: coords.lat,
         lng: coords.lng,
         visit_time: recipientToEdit?.visit_time || '00:00:00',
