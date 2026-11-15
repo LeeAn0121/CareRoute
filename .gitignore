@@ -49,3 +49,4 @@ next-env.d.ts
 
 # Temporary script files
 *.py
+!scripts/update-regions.py

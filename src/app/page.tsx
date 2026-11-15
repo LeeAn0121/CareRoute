@@ -5,6 +5,8 @@ import MapErrorBoundary from '@/components/MapErrorBoundary';
 import AuthGate from '@/components/AuthGate';
 import { loadRecipients, RecipientLoadError } from '@/lib/recipientLoader';
 import { geocodeRecipientAddress, isValidCoordinates } from '@/lib/recipientLocation';
+import { useCurrentLocation } from '@/lib/useCurrentLocation';
+import { PROVINCES, getDistricts, getNeighborhoods, getProvinceCode, addressMatchesRegion } from '@/lib/regions';
 import PrivateImage from '@/components/PrivateImage';
 import { accountStorage, captureAccountStorage } from '@/lib/accountStorage';
 import { resolveRecipientPhotoUrl, PRIVATE_STORAGE_TTL_SECONDS } from '@/lib/privateStorage';
@@ -41,10 +43,7 @@ import { parseVisitTime } from '@/lib/visitTime';
 import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey, getHeatColdWarning, type WeatherData } from '@/lib/weather';
 import { fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode, RouteStep, WalkSearchOption, WALK_SEARCH_OPTION_LABEL, buildRouteArrows } from '@/lib/directions';
 
-interface RegCode {
-  code: string;
-  name: string;
-}
+
 
 interface Recipient {
   id: string;
@@ -141,76 +140,26 @@ function escapeMarkerText(value: string): string {
 
 function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut: () => Promise<void> }) {
 
-  // 내 위치 추적용 ID
-  const watchIdRef = useRef<number | null>(null);
-
+  const location = useCurrentLocation();
+  const autoCenterLocation = useRef(true);
   const handleMyLocation = () => {
-    if (!navigator.geolocation) {
-      alert("GPS를 지원하지 않는 기기입니다.");
-      return;
-    }
-    setIsLocating(true);
-
-    const onSuccess = (position: GeolocationPosition) => {
-      setIsLocating(false);
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      setMapCenter({ lat, lng });
-      setMyLocation({ lat, lng });
+    autoCenterLocation.current = true;
+    setSelectedSido('');
+    setSelectedSigungu('');
+    setSelectedDong('');
+    if (location.position) {
+      setMapCenter({ lat: location.position.lat, lng: location.position.lng });
       setMapZoom(17);
-
-      // 한 번 버튼을 누른 이후부터는 위치를 계속 추적해서 파란 점을 이동시킴
-      if (watchIdRef.current === null) {
-        watchIdRef.current = navigator.geolocation.watchPosition(
-          (pos) => setMyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, heading: pos.coords.heading }),
-          (err) => console.warn("Watch position error:", err),
-          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
-        );
-      }
-    };
-
-    const describeError = (error: GeolocationPositionError) => {
-      if (error.code === error.PERMISSION_DENIED) {
-        return '위치 권한이 거부되어 있습니다. 브라우저(또는 기기 설정)에서 케어루트의 위치 접근을 허용해주세요.';
-      }
-      if (error.code === error.POSITION_UNAVAILABLE) {
-        return '현재 위치를 확인할 수 없습니다. GPS/Wi-Fi가 켜져 있는지, 실외인지 확인해주세요.';
-      }
-      return '위치 확인이 너무 오래 걸려 실패했습니다. 신호가 약한 곳일 수 있어요. 다시 시도해주세요.';
-    };
-
-    // 정확도 우선으로 먼저 시도하고, 실패/타임아웃되면 더 관대한 조건으로
-    // 한 번 더 재시도한다. (실내/건물 사이 등 GPS 신호가 약할 때 5초
-    // 타임아웃 한 번에 바로 포기해서 '안 될 때가 많다'는 문제가 있었음)
-    // 단, 권한 거부는 재시도해도 절대 성공하지 않으므로 바로 안내하고 끝낸다.
-    navigator.geolocation.getCurrentPosition(
-      onSuccess,
-      (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          setIsLocating(false);
-          alert(describeError(error));
-          return;
-        }
-        navigator.geolocation.getCurrentPosition(
-          onSuccess,
-          (error2) => {
-            setIsLocating(false);
-            alert(describeError(error2));
-          },
-          { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 },
-        );
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 },
-    );
+    }
+    location.refresh();
   };
-
-  const [sidos, setSidos] = useState<RegCode[]>([]);
-  const [sigungus, setSigungus] = useState<RegCode[]>([]);
-  const [dongs, setDongs] = useState<RegCode[]>([]);
 
   const [selectedSido, setSelectedSido] = useState('');
   const [selectedSigungu, setSelectedSigungu] = useState('');
   const [selectedDong, setSelectedDong] = useState('');
+  const sidos = PROVINCES;
+  const sigungus = useMemo(() => getDistricts(selectedSido), [selectedSido]);
+  const dongs = useMemo(() => getNeighborhoods(selectedSigungu), [selectedSigungu]);
 
   const [markers, setMarkers] = useState<Recipient[]>([]);
   const recipientRequest = useRef<AbortController | null>(null);
@@ -305,8 +254,17 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     }
   }, [dataLoaded]);
   const [mapZoom, setMapZoom] = useState(15);
-  const [isLocating, setIsLocating] = useState(false);
-  const [myLocation, setMyLocation] = useState<{lat: number, lng: number, heading?: number | null} | null>(null);
+  const isLocating = location.locating;
+  const myLocation = location.position;
+  useEffect(() => {
+    if (!myLocation || !autoCenterLocation.current || selectedSido || selectedSigungu || selectedDong) return;
+    const timer = window.setTimeout(() => {
+      setMapCenter({ lat: myLocation.lat, lng: myLocation.lng });
+      setMapZoom(16);
+      if (myLocation.accuracy <= 100 && myLocation.source !== 'quick') autoCenterLocation.current = false;
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [myLocation, selectedSido, selectedSigungu, selectedDong]);
   const [isOffline, setIsOffline] = useState(false);
   const [dataError, setDataError] = useState('');
   const [markerPhotoUrls, setMarkerPhotoUrls] = useState<Record<string, string>>({});
@@ -523,7 +481,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       });
     }
     return () => { isMounted = false; };
-  }, [mapCenter]);
+  }, [mapCenter, mapLoaded]);
   const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring' | 'missed' | 'cancelled'>('all');
   // 지도 상단 헤더 팝업들의 상호 배타적 단일 상태 (지역 선택 | 실시간 날씨 | 어르신 검색)
   // 하나의 상태로 관리하여 어떤 순서로 누르더라도 레이어가 겹치는 문제를 원천 차단합니다.
@@ -557,6 +515,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
   // 특정 어르신을 지도 중심으로 포커싱 & 지도 탭 활성화 & 마커/프리뷰 카드 연동
   const focusRecipientOnMap = (recipient: Recipient, zoom: number = 17) => {
+    autoCenterLocation.current = false;
     recipient = markers.find(row => row.id === recipient.id) || recipient;
     if (!isValidCoordinates(recipient)) { setDataError('이 수급자의 위치를 확인하지 못했습니다. 명단에서 주소를 확인한 뒤 다시 불러와 주세요.'); return; }
     const lat = Number(recipient.lat);
@@ -623,15 +582,6 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   // 경로선 위에 출발→도착 진행 방향을 보여줄 화살표 위치(일정 간격)
   const routeArrows = useMemo(() => (routePath ? buildRouteArrows(routePath) : []), [routePath]);
 
-  // 컴포넌트 언마운트 시 위치 추적 해제
-  useEffect(() => {
-    return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-    };
-  }, []);
-
   // Programmatic Pan & Zoom (React State -> Map API)
   useEffect(() => {
     if (!mapRef.current || !window.naver?.maps) return;
@@ -685,6 +635,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
   // 폴리곤/라벨 클릭 시 공통으로 쓰는 로직 (중복 제거)
   const handleRegionSelect = (lat: number, lng: number, lvl: string) => {
+    autoCenterLocation.current = false;
     if (!window.naver?.maps?.Service) return;
     // @ts-ignore
     window.naver.maps.Service.reverseGeocode({
@@ -694,21 +645,27 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       if (status === 200 && response.v2.results.length > 0) {
         const bcode = response.v2.results[0].code.id; // 10자리 법정동 코드
         if (bcode && bcode.length === 10) {
-          const sido = bcode.substring(0, 2) + '00000000';
-          const sigungu = bcode.substring(0, 5) + '00000';
-          const dong = bcode;
+          const sido = getProvinceCode(bcode);
+          const result = response.v2.results[0];
+          const districts = getDistricts(sido);
+          const district = districts.find(row => row.code === bcode.substring(0, 5) + '00000')
+            || districts.find(row => row.name === result.region?.area2?.name);
+          const sigungu = district?.code || '';
+          const neighborhood = getNeighborhoods(sigungu).find(row => row.code === bcode
+            || row.name === result.region?.area3?.name);
+          const dong = neighborhood?.code || '';
           if (lvl === 'sido') {
             setSelectedSido(sido);
             setSelectedSigungu('');
             setSelectedDong('');
           } else if (lvl === 'sigungu') {
             setSelectedSido(sido);
-            setTimeout(() => setSelectedSigungu(sigungu), 100);
+            setSelectedSigungu(sigungu);
             setSelectedDong('');
           } else {
             setSelectedSido(sido);
-            setTimeout(() => setSelectedSigungu(sigungu), 100);
-            setTimeout(() => setSelectedDong(dong), 200);
+            setSelectedSigungu(sigungu);
+            setSelectedDong(dong);
           }
         }
       }
@@ -982,12 +939,12 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     
     // 선택된 행정구역 이름 조합
     let query = '';
-    const sidoName = sidos.find(s => s.code === selectedSido)?.name || '';
-    const sigunguName = sigungus.find(s => s.code === selectedSigungu)?.name || '';
-    const dongName = dongs.find(s => s.code === selectedDong)?.name || '';
+    const sidoName = sidos.find(s => s.code === selectedSido)?.fullName || '';
+    const sigunguName = sigungus.find(s => s.code === selectedSigungu)?.fullName || '';
+    const dongName = dongs.find(s => s.code === selectedDong)?.fullName || '';
     
-    if (dongName) query = `${sidoName} ${sigunguName} ${dongName}`.trim();
-    else if (sigunguName) query = `${sidoName} ${sigunguName}`.trim();
+    if (dongName) query = dongName;
+    else if (sigunguName) query = sigunguName;
     else if (sidoName) query = sidoName;
     
     if (!query) return;
@@ -1011,7 +968,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
         else setMapZoom(11); // 11부터 시군구가 보임
       }
     });
-  }, [selectedSido, selectedSigungu, selectedDong, sidos, sigungus, dongs]);
+  }, [mapLoaded, selectedSido, selectedSigungu, selectedDong, sidos, sigungus, dongs]);
 
 
 
@@ -1413,88 +1370,6 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
   }, []);
-
-  const gpsInitRef = useRef(false);
-  // 앱 실행 시 즉시 현재 위치로 이동 (초기 1회)
-  useEffect(() => {
-    if (showOnboarding) return;
-    if (mapLoaded && navigator.geolocation && !gpsInitRef.current) {
-      gpsInitRef.current = true;
-      
-      let firstAccuratePanDone = false;
-
-      // 1. 즉시 캐시된 마지막 위치나 기지국 위치로 화면을 바로 이동 (체감 속도 0.1초)
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          if (selectedSido || selectedSigungu || selectedDong) return;
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setMyLocation({ lat, lng });
-          
-          if (!firstAccuratePanDone) {
-            setMapCenter({ lat, lng });
-            setMapZoom(16);
-          }
-        },
-        () => {},
-        { enableHighAccuracy: false, maximumAge: 600000, timeout: 3000 } // 최대 10분 전 캐시 허용
-      );
-
-      // 2. 동시에 고정밀 GPS 센서 추적 시작 (센서 예열 후 정확한 좌표로 보정)
-      if (watchIdRef.current === null) {
-        watchIdRef.current = navigator.geolocation.watchPosition(
-          (pos) => {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            setMyLocation({ lat, lng, heading: pos.coords.heading });
-
-            // 최초 1회, 정확한 GPS가 잡히면 화면을 정교하게 다시 맞춰줌.
-            if (!firstAccuratePanDone && !(selectedSido || selectedSigungu || selectedDong)) {
-              firstAccuratePanDone = true;
-              setMapCenter({ lat, lng });
-              setMapZoom(16);
-            }
-          },
-          (err) => console.warn("Watch position error:", err),
-          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
-        );
-      }
-    }
-  }, [mapLoaded]);
-
-  useEffect(() => {
-    fetch('https://grpc-proxy-server-mkvo6j4wsq-du.a.run.app/v1/regcodes?regcode_pattern=*00000000')
-      .then(res => res.json())
-      .then(data => {
-        setSidos(data.regcodes || []);
-      }).catch(() => setSidos([]));
-  }, []);
-
-  useEffect(() => {
-    if (selectedSido) {
-      const pattern = selectedSido.substring(0, 2) + '*00000';
-      fetch(`https://grpc-proxy-server-mkvo6j4wsq-du.a.run.app/v1/regcodes?regcode_pattern=${pattern}&is_ignore_zero=true`)
-        .then(res => res.json())
-        .then(data => {
-          setSigungus(data.regcodes || []);
-          setSelectedSigungu('');
-          setDongs([]);
-          setSelectedDong('');
-        }).catch(() => setSigungus([]));
-    }
-  }, [selectedSido]);
-
-  useEffect(() => {
-    if (selectedSigungu) {
-      const pattern = selectedSigungu.substring(0, 5) + '*';
-      fetch(`https://grpc-proxy-server-mkvo6j4wsq-du.a.run.app/v1/regcodes?regcode_pattern=${pattern}&is_ignore_zero=true`)
-        .then(res => res.json())
-        .then(data => {
-          setDongs(data.regcodes || []);
-          setSelectedDong('');
-        }).catch(() => setDongs([]));
-    }
-  }, [selectedSigungu]);
 
   const removeScheduleDate = async (r: Recipient, dateKey: string, version: number) => {
     try {
@@ -2194,12 +2069,8 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     setListFilter('all');
     setSortMode('name');
   };
-  const matchesMapRegion = (marker: Recipient) => {
-    const name = selectedDong ? dongs.find(row => row.code === selectedDong)?.name.split(' ').pop()
-      : selectedSigungu ? sigungus.find(row => row.code === selectedSigungu)?.name.split(' ').pop()
-      : selectedSido ? sidos.find(row => row.code === selectedSido)?.name.slice(0, 2) : '';
-    return !name || marker.address?.includes(name);
-  };
+  const matchesMapRegion = (marker: Recipient) => addressMatchesRegion(marker.address || '',
+    dongs.find(row => row.code === selectedDong) || sigungus.find(row => row.code === selectedSigungu) || sidos.find(row => row.code === selectedSido), marker.dong);
   const regionMarkers = markers.filter(matchesMapRegion);
   const filteredMarkers = activeTab === 'list' ? markers.filter((marker) => {
     const fields = [marker.name, marker.address, marker.detail_address, marker.assigned_caregiver_name]
@@ -2427,6 +2298,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
           {/* Location Button */}
           <button
             onClick={toggleRegionFilter}
+            aria-label="지역 선택"
+            aria-expanded={isRegionFilterOpen}
+            aria-controls="region-filter"
             className="h-16 sm:h-[72px] flex-1 min-w-0 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[36px] saturate-200 rounded-[28px] sm:rounded-[32px] px-4 shadow-[0_12px_36px_rgba(0,0,0,0.1)] border border-white/40 dark:border-white/10 flex items-center justify-between hover:bg-surface active:scale-[0.98] transition-all text-left"
           >
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -2436,7 +2310,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               <div className="min-w-0 flex-1">
                 <span className="text-[10px] font-black uppercase tracking-wider text-primary/70 block leading-none">탐색 위치</span>
                 <span className="text-[15px] font-extrabold text-foreground truncate block leading-tight mt-1">
-                  {currentAddress}
+                  {(dongs.find(row => row.code === selectedDong) || sigungus.find(row => row.code === selectedSigungu) || sidos.find(row => row.code === selectedSido))?.fullName || (currentAddress === '위치 파악 중...' ? (myLocation ? '현재 위치 확인됨' : location.error ? '위치 권한·GPS 확인 필요' : '현재 위치 확인 중…') : currentAddress)}
                 </span>
               </div>
             </div>
@@ -2607,7 +2481,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
         {/* Region Filter Dropdown - Inset Card */}
         {isRegionFilterOpen && (
-        <div className="app-map-popup relative z-20 mt-1 p-5 bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/30 dark:border-white/10 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[340px]">
+        <div id="region-filter" className="app-map-popup relative z-20 mt-1 p-5 bg-surface/90 supports-[backdrop-filter]:bg-surface/75 backdrop-blur-[40px] saturate-200 rounded-[34px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/30 dark:border-white/10 pointer-events-auto animate-in fade-in slide-in-from-top-4 w-full max-w-[340px]">
           <div className="flex items-center justify-between pb-3.5 border-b border-surface-border/40 mb-4">
             <div>
               <span className="text-[17px] font-black text-foreground tracking-tight block">지역 직접 선택</span>
@@ -2625,8 +2499,10 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
           <div className="flex flex-col gap-3">
             <NativeSelect
               className="w-full !bg-foreground/[0.04] !border-0 !rounded-[20px] !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
+              aria-label="시/도 선택"
               value={selectedSido}
               onChange={(e) => {
+                autoCenterLocation.current = false;
                 setSelectedSido(e.target.value);
                 setSelectedSigungu('');
                 setSelectedDong('');
@@ -2638,8 +2514,10 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
             <NativeSelect
               className="w-full !bg-foreground/[0.04] !border-0 !rounded-[20px] !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
+              aria-label="시/군/구 선택"
               value={selectedSigungu}
               onChange={(e) => {
+                autoCenterLocation.current = false;
                 setSelectedSigungu(e.target.value);
                 setSelectedDong('');
               }}
@@ -2651,8 +2529,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
             <NativeSelect
               className="w-full !bg-foreground/[0.04] !border-0 !rounded-[20px] !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
+              aria-label="읍/면/동 선택"
               value={selectedDong}
-              onChange={(e) => setSelectedDong(e.target.value)}
+              onChange={(e) => { autoCenterLocation.current = false; setSelectedDong(e.target.value); }}
               disabled={!selectedSigungu}
             >
               <option value="">읍/면/동 선택</option>
@@ -2666,6 +2545,8 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
       {/* Main Content Area */}
       <div className="flex-1 relative w-full h-full bg-surface-muted">
+        {activeTab === 'map' && mapLoaded && (location.locating || location.error) && <div role="status" className="absolute left-4 right-20 bottom-[calc(6rem+var(--app-safe-bottom))] z-40 rounded-2xl border border-surface-border bg-surface p-3 text-sm leading-relaxed text-foreground shadow-lg">{location.error || '현재 위치 확인 중…'}{location.error && <button type="button" onClick={handleMyLocation} className="mt-2 min-h-11 font-bold text-primary">위치 다시 확인</button>}</div>}
+
         
         {/* Map View */}
         <div className={`absolute inset-0 top-0 transition-opacity duration-300 ${activeTab === 'map' ? 'z-0 opacity-100' : 'opacity-0 pointer-events-none'}`} style={{ zIndex: activeTab === 'map' ? 0 : -10 }}>
@@ -2674,6 +2555,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
             <Container id="react-naver-map" className="w-full h-full bg-surface-muted transition-all duration-500">
               <NaverMap
                 ref={mapRef}
+                onDragstart={() => { autoCenterLocation.current = false; }}
                 defaultCenter={mapCenter}
                 defaultZoom={mapZoom}
                 onIdle={() => {
@@ -2780,6 +2662,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                           assignRoutePoint(marker);
                           return;
                         }
+                        autoCenterLocation.current = false;
                         setSelectedRecipient(marker);
                         setMapCenter({ lat: marker.lat, lng: marker.lng });
                       }}
@@ -2827,6 +2710,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               </div>
               <p className="font-extrabold text-xl text-foreground/70 mb-3 tracking-tight">{mapError ? '지도에 연결하지 못했습니다' : '지도를 불러오는 중입니다'}</p>
               <p className="text-[15px] leading-relaxed">{mapError ? '연결 상태 또는 지도 서비스 인증 설정을 확인해 주세요.' : '잠시만 기다려 주세요.'}<br/>수급자와 일정 메뉴는 계속 사용할 수 있습니다.</p>
+              <p role="status" className="mt-3 text-sm text-foreground/70">{location.error || (isLocating ? '현재 위치 확인 중… 지도 연결과 별도로 위치를 찾고 있습니다.' : myLocation ? '현재 위치를 확인했습니다. 지도 연결 후 표시합니다.' : '')}</p>
               {mapError && <Button variant="plain" onClick={() => { setMapError(false); window.dispatchEvent(new Event('careroute:map-retry')); }} className="mt-4 min-h-11">지도 다시 연결</Button>}
             </div>
           )}
@@ -3714,6 +3598,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               onClick={handleMyLocation}
               disabled={isLocating}
               className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors disabled:opacity-60 ${myLocation ? 'text-primary bg-primary/10' : 'text-foreground/80 hover:bg-foreground/[0.04]'}`}
+              aria-label="내 위치로 이동"
               title="내 위치로 이동"
             >
               {isLocating ? (

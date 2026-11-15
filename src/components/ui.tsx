@@ -200,12 +200,14 @@ export function TextField({
 
 export function NativeSelect({
   value,
+  'aria-label': ariaLabel,
   onChange,
   disabled = false,
   children,
   className = '',
 }: {
   value: string;
+  'aria-label'?: string;
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   disabled?: boolean;
   children: ReactNode;
@@ -213,6 +215,7 @@ export function NativeSelect({
 }) {
   return (
     <select
+      aria-label={ariaLabel}
       value={value}
       onChange={onChange}
       disabled={disabled}
