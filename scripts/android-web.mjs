@@ -1,5 +1,6 @@
 import { cp, mkdir, access } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
+import './write-version.mjs';
 
 const result = spawnSync(process.execPath, ['node_modules/next/dist/bin/next', 'build'], { stdio: 'inherit' });
 if (result.status !== 0) process.exit(result.status ?? 1);

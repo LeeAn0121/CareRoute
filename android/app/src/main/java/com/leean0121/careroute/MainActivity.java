@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(android.os.Bundle savedInstanceState) {
         registerPlugin(CareRouteDevicePlugin.class);
+        registerPlugin(CareRouteUpdatesPlugin.class);
         super.onCreate(savedInstanceState);
         // Android 15+ enforces this; explicitly enable it on older releases too.
         // Capacitor SystemBars remains the sole owner of WebView inset handling.

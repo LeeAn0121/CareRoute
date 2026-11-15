@@ -11,7 +11,7 @@ self.addEventListener('message', (event) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+      Promise.all(keys.filter((key) => key.startsWith('careroute-') && key !== CACHE_NAME).map((key) => caches.delete(key))),
     ),
   );
   self.clients.claim();
@@ -32,17 +32,12 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 데이터베이스 API 및 외부 API 요청은 절대 캐시하지 않음 (네트워크 직행)
-  if (
-    request.url.includes('supabase.co') ||
-    request.url.includes('api.open-meteo.com') ||
-    request.url.includes('apihub.kma.go.kr') ||
-    request.url.includes('api.allorigins.win') ||
-    request.url.includes('openapi.map.naver.com')
-  ) {
-    e.respondWith(fetch(request));
+  // Release checks must never fall back to an old cached manifest.
+  if (requestedUrl.pathname === '/CareRoute/version.json') {
+    e.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
+  if (!requestedUrl.pathname.startsWith('/CareRoute/')) return;
 
   if (request.mode === 'navigate') {
     e.respondWith(

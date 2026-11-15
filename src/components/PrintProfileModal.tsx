@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconDeviceFloppy } from '@tabler/icons-react';
+import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { Modal, IconButton, Button } from './ui';
 import PrintSheet from './PrintSheet';
 import { usePrintDraft, usePrintSetting } from './usePrintDraft';
-import PrintHistorySheet from './PrintHistorySheet';
 import { captureSheetCanvas, createA4Pdf, addCanvasAsA4Page } from '@/lib/pdfExport';
-import { logPrintEvent, uploadPrintPdf } from '@/lib/printLogs';
 import { savePdf } from '@/lib/native';
 
 interface Recipient {
@@ -50,10 +48,8 @@ export default function PrintProfileModal({ isOpen, onClose, recipient, dateKey 
   const [orgName, setOrgName] = usePrintSetting('careroute_print_org_name', isOpen);
   const [orgContact, setOrgContact] = usePrintSetting('careroute_print_org_contact', isOpen);
   const [isExporting, setIsExporting] = useState(false);
-  const [isSavingBackup, setIsSavingBackup] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   // 작성일은 실제 오늘 날짜로, 방문일과 별도로 초기화한다.
@@ -80,33 +76,11 @@ export default function PrintProfileModal({ isOpen, onClose, recipient, dateKey 
       const pdf = await buildPdf();
       if (!pdf) return;
       await savePdf(pdf, `${recipient.name}_어르신_정보.pdf`);
-      logPrintEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'pdf', authorName });
     } catch (e) {
       console.error(e);
       alert('PDF 생성에 실패했습니다. 인쇄 버튼으로 다시 시도해주세요.');
     } finally {
       setIsExporting(false);
-    }
-  };
-
-  // PDF를 기기에 저장하면서 동시에 서버(print-pdfs 버킷)에도 올려, 나중에 출력 이력에서
-  // 다시 열어볼 수 있게 보관한다. 서버 업로드가 실패해도 기기 저장은 이미 끝난 뒤라 무시한다.
-  const handleSaveWithBackup = async () => {
-    if (!recipient) return;
-    setIsSavingBackup(true);
-    try {
-      const pdf = await buildPdf();
-      if (!pdf) return;
-      const fileNameBase = `${recipient.name}_어르신_정보`;
-      await savePdf(pdf, `${fileNameBase}.pdf`);
-      const blob = pdf.output('blob') as Blob;
-      const pdfPath = await uploadPrintPdf(blob, recipient.id, fileNameBase);
-      logPrintEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'save', authorName, pdfPath });
-    } catch (e) {
-      console.error(e);
-      alert('저장에 실패했습니다. PDF 아이콘으로 다시 시도해주세요.');
-    } finally {
-      setIsSavingBackup(false);
     }
   };
 
@@ -127,7 +101,6 @@ export default function PrintProfileModal({ isOpen, onClose, recipient, dateKey 
         return;
       }
       await navigator.share({ files: [file], title: `${recipient.name} 어르신 정보` });
-      logPrintEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'share', authorName });
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error(e);
@@ -139,7 +112,6 @@ export default function PrintProfileModal({ isOpen, onClose, recipient, dateKey 
 
   const handlePrint = () => {
     if (!recipient) return;
-    logPrintEvent({ recipientId: recipient.id, recipientName: recipient.name, method: 'print', authorName });
     window.print();
   };
 
@@ -153,9 +125,6 @@ export default function PrintProfileModal({ isOpen, onClose, recipient, dateKey 
           <p className="text-[12px] font-bold text-foreground/50">내용을 채운 뒤 인쇄하거나 PDF로 저장하세요</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <IconButton onClick={() => setIsHistoryOpen(true)} className="w-9 h-9 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="출력 이력">
-            <IconHistory size={17} />
-          </IconButton>
           <IconButton
             onClick={() => setIsPreview((v) => !v)}
             className={`w-9 h-9 rounded-full ${isPreview ? 'bg-primary/15 text-primary' : 'bg-foreground/[0.04] hover:bg-foreground/[0.08]'}`}
@@ -210,17 +179,6 @@ export default function PrintProfileModal({ isOpen, onClose, recipient, dateKey 
         </IconButton>
         <Button
           type="button"
-          variant="ghost"
-          fullWidth
-          loading={isSavingBackup}
-          startIcon={<IconDeviceFloppy size={19} />}
-          onClick={handleSaveWithBackup}
-          className="whitespace-nowrap py-3.5 text-[15px] font-black rounded-[22px]"
-        >
-          {isSavingBackup ? '저장 중...' : '저장'}
-        </Button>
-        <Button
-          type="button"
           fullWidth
           startIcon={<IconPrinter size={19} />}
           onClick={handlePrint}
@@ -230,12 +188,6 @@ export default function PrintProfileModal({ isOpen, onClose, recipient, dateKey 
         </Button>
       </div>
 
-      <PrintHistorySheet
-        open={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-        recipientId={recipient.id}
-        recipientName={recipient.name}
-      />
     </Modal>
   );
 }

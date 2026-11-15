@@ -1,49 +1,39 @@
 'use client';
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { Capacitor } from '@capacitor/core';
-import MapErrorBoundary from '@/components/MapErrorBoundary';
 import AuthGate from '@/components/AuthGate';
-import { loadRecipients, RecipientLoadError } from '@/lib/recipientLoader';
-import { geocodeRecipientAddress, isValidCoordinates } from '@/lib/recipientLocation';
-import { useCurrentLocation } from '@/lib/useCurrentLocation';
-import { PROVINCES, getDistricts, getNeighborhoods, getProvinceCode, addressMatchesRegion } from '@/lib/regions';
+import BatchPrintModal from '@/components/BatchPrintModal';
+import MapErrorBoundary from '@/components/MapErrorBoundary';
+import MedicationModal from '@/components/MedicationModal';
+import MonthCalendar from '@/components/MonthCalendar';
+import PrintProfileModal from '@/components/PrintProfileModal';
 import PrivateImage from '@/components/PrivateImage';
-import { accountStorage, captureAccountStorage } from '@/lib/accountStorage';
-import { resolveRecipientPhotoUrl, PRIVATE_STORAGE_TTL_SECONDS } from '@/lib/privateStorage';
-import { CareRouteDevice, scheduleVisitNotifications } from '@/lib/native';
-import { retryPendingVisitLogs } from '@/lib/pendingVisitLogs';
-import { Container, NaverMap, Marker, Polyline } from 'react-naver-maps';
-import { IconPlayerPlay, IconLayoutGrid, IconListDetails, IconSettings, IconMapPin, IconList, IconPlus, IconNavigation, IconClock, IconCalendarEvent, IconUser, IconUsers, IconMenu2, IconMap, IconCurrentLocation, IconUserPlus, IconDownload, IconShare, IconX, IconSearch, IconChevronRight, IconCheck, IconPencil, IconTrash, IconCar, IconMessageCircle, IconBellRinging, IconChevronUp, IconChevronDown, IconArrowsSort, IconRotate2, IconKey, IconLock, IconEye, IconPhone, IconCloud, IconRoute2, IconWalk, IconBus, IconPrinter, IconFileCheck, IconActivity, IconPill } from '@tabler/icons-react';
-import { supabase } from '@/lib/supabase';
-import { registerPushSubscription } from '@/lib/notifications';
 import RecipientModal from '@/components/RecipientModal';
 import ScheduleAddModal from '@/components/ScheduleAddModal';
 import ScheduleManageModal from '@/components/ScheduleManageModal';
-import MonthCalendar from '@/components/MonthCalendar';
-import VoiceMemoModal from '@/components/VoiceMemoModal';
-import ShareReportModal from '@/components/ShareReportModal';
-import PrintProfileModal from '@/components/PrintProfileModal';
-import BatchPrintModal from '@/components/BatchPrintModal';
-import WeeklyPrintModal from '@/components/WeeklyPrintModal';
-import PrintHistorySheet from '@/components/PrintHistorySheet';
-import VitalsHistorySheet from '@/components/VitalsHistorySheet';
-import MedicationModal from '@/components/MedicationModal';
-import { fetchPrintedRecipientIdsForDate } from '@/lib/printLogs';
-import { logVisitDuration } from '@/lib/visitLogs';
-import VisitRecordModal from '@/components/VisitRecordModal';
-import { localDateKey, sessionKey, transitionVisitSession, VISIT_STATUS_LABEL, type VisitSession, type VisitStatus } from '@/lib/visitSessions';
-import { useVisitDay, useVisitSessions } from '@/lib/useVisitSessions';
-import { logVitals, type VitalsInput } from '@/lib/vitalsLogs';
-import Tour from '@/components/Tour';
 import SettingsView from '@/components/SettingsView';
-import WeatherWidget from '@/components/WeatherWidget';
-import { Button, IconButton, NativeSelect, Chip, Modal, Spinner } from '@/components/ui';
-import { motion, AnimatePresence } from 'motion/react';
+import Tour from '@/components/Tour';
+import { Button, Chip, IconButton, Modal, NativeSelect, Spinner } from '@/components/ui';
+import VisitCompletionModal from '@/components/VisitCompletionModal';
+import VitalsHistorySheet from '@/components/VitalsHistorySheet';
+import WeeklyPrintModal from '@/components/WeeklyPrintModal';
+import { accountStorage, captureAccountStorage } from '@/lib/accountStorage';
+import { CareRouteDevice, scheduleVisitNotifications } from '@/lib/native';
+import { registerPushSubscription } from '@/lib/notifications';
+import { retryPendingVisitLogs } from '@/lib/pendingVisitLogs';
+import { PRIVATE_STORAGE_TTL_SECONDS, resolveRecipientPhotoUrl } from '@/lib/privateStorage';
+import { loadRecipients, RecipientLoadError } from '@/lib/recipientLoader';
+import { geocodeRecipientAddress, isValidCoordinates } from '@/lib/recipientLocation';
+import { addressMatchesRegion, getDistricts, getNeighborhoods, PROVINCES } from '@/lib/regions';
+import { supabase } from '@/lib/supabase';
+import { useCurrentLocation } from '@/lib/useCurrentLocation';
+import { useVisitDay, useVisitSessions } from '@/lib/useVisitSessions';
+import { localDateKey, sessionKey, transitionVisitSession, VISIT_STATUS_LABEL, type VisitSession, type VisitStatus } from '@/lib/visitSessions';
 import { parseVisitTime } from '@/lib/visitTime';
-import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey, getHeatColdWarning, type WeatherData } from '@/lib/weather';
-import { fetchWalkingRoute, recommendTravelMode, TRAVEL_MODE_LABEL, TravelMode, RouteStep, WalkSearchOption, WALK_SEARCH_OPTION_LABEL, buildRouteArrows } from '@/lib/directions';
-
-
+import { logVitals, type VitalsInput } from '@/lib/vitalsLogs';
+import { Capacitor } from '@capacitor/core';
+import { IconActivity, IconArrowsSort, IconBellRinging, IconCalendarEvent, IconCar, IconCheck, IconChevronDown, IconChevronUp, IconClock, IconCurrentLocation, IconDownload, IconEye, IconFileCheck, IconKey, IconLayoutGrid, IconList, IconListDetails, IconMapPin, IconMessageCircle, IconNavigation, IconPencil, IconPhone, IconPill, IconPlayerPlay, IconPlus, IconPrinter, IconRotate2, IconSearch, IconSettings, IconTrash, IconUser, IconUserPlus, IconUsers, IconX } from '@tabler/icons-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Container, Marker, NaverMap } from 'react-naver-maps';
 
 interface Recipient {
   id: string;
@@ -74,34 +64,8 @@ interface Recipient {
   guardian_phone?: string | null;
 }
 
-const SIDO_CENTERS: Record<string, { lat: number, lng: number }> = {
-  '서울특별시': { lat: 37.5665, lng: 126.9780 },
-  '부산광역시': { lat: 35.1795, lng: 129.0756 },
-  '대구광역시': { lat: 35.8714, lng: 128.6014 },
-  '인천광역시': { lat: 37.4562, lng: 126.7052 },
-  '광주광역시': { lat: 35.1595, lng: 126.8526 },
-  '대전광역시': { lat: 36.3504, lng: 127.3845 },
-  '울산광역시': { lat: 35.5383, lng: 129.3113 },
-  '세종특별자치시': { lat: 36.4800, lng: 127.2890 },
-  '경기도': { lat: 37.2750, lng: 127.0096 },
-  '강원특별자치도': { lat: 37.8853, lng: 127.7298 },
-  '충청북도': { lat: 36.6358, lng: 127.4913 },
-  '충청남도': { lat: 36.6588, lng: 126.6728 },
-  '전북특별자치도': { lat: 35.8203, lng: 127.1087 },
-  '전라남도': { lat: 34.8160, lng: 126.4629 },
-  '경상북도': { lat: 36.5760, lng: 128.5055 },
-  '경상남도': { lat: 35.2382, lng: 128.6925 },
-  '제주특별자치도': { lat: 33.4890, lng: 126.4983 }
-};
-
-const ROUTE_MODE_COLOR: Record<TravelMode, string> = {
-  walk: '#10B981',
-  drive: '#2563EB',
-  transit: '#9333EA',
-};
-
 function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371; 
+  const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -118,21 +82,6 @@ function urlBase64ToUint8Array(base64String: string) {
   const rawData = atob(base64);
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
-
-
-// GeoJSON 및 마커 캐시
-const geoCache: any = { sido: null, sigungu: null, dong: null };
-// 라벨 마커는 화면에 보이는 것만 그때그때(lazy) 만들어서 재사용한다.
-// (동/읍/면은 전국 약 3,500개라 미리 다 만들면 메인 스레드가 멈춘다)
-const labelCache: any = { sido: new Map(), sigungu: new Map(), dong: new Map() };
-// 현재 map.data에 실제로 추가되어 있는 폴리곤의 feature 이름 집합.
-// idle(패닝)마다 map.data.getAllFeature()로 전수조사하지 않기 위해 직접 추적.
-const renderedFeatureKeys: any = { sido: new Set(), sigungu: new Set(), dong: new Set() };
-// 같은 이름의 행정구역(예: 중앙동 31개, 동구 6개)이 존재하므로 이름만으로는 구분할 수 없다.
-// 이름 + 중심 좌표로 고유 키를 만들어 라벨/폴리곤 중복·누락을 방지한다.
-const regionFeatureKey = (f: any): string =>
-  `${f.properties.name}_${Number(f.properties._centerLat).toFixed(4)}_${Number(f.properties._centerLng).toFixed(4)}`;
-let currentRenderedLevel = ''; // Track currently rendered level to prevent re-rendering
 
 function escapeMarkerText(value: string): string {
   return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!);
@@ -178,27 +127,25 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   const [completingRecipient, setCompletingRecipient] = useState<Recipient | null>(null);
   const [completingDateKey, setCompletingDateKey] = useState('');
   const [completingVersion, setCompletingVersion] = useState(0);
-  const [sharingDateKey, setSharingDateKey] = useState('');
-  const [recordVisit, setRecordVisit] = useState<{ recipient: Recipient; dateKey: string } | null>(null);
+
   const [visitSaving, setVisitSaving] = useState(false);
   const [visitActionError, setVisitActionError] = useState('');
-  const [removedSchedule, setRemovedSchedule] = useState<{ recipient: Recipient; dateKey: string; version: number } | null>(null);
+  const [removedSchedule, setRemovedSchedule] = useState<{ recipient: Recipient; dateKey: string; version: number; status: VisitStatus; memo: string | null } | null>(null);
   const [removingActiveVisit, setRemovingActiveVisit] = useState<{ recipient: Recipient; dateKey: string; version: number } | null>(null);
   const [showRemovedSchedules, setShowRemovedSchedules] = useState(false);
   const visitBusy = useRef(false);
   const visitRequestIds = useRef(new Map<string, string>());
-  const [sharingRecipient, setSharingRecipient] = useState<Recipient | null>(null);
+
   const [printingRecipient, setPrintingRecipient] = useState<Recipient | null>(null);
   const [printingDateKey, setPrintingDateKey] = useState('');
+  const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
+  const [printMenuTarget, setPrintMenuTarget] = useState<{recipient: Recipient; dateKey: string} | null>(null);
   const [isBatchPrintOpen, setIsBatchPrintOpen] = useState(false);
   const [isWeeklyPrintOpen, setIsWeeklyPrintOpen] = useState(false);
-  const [printedRecipientIds, setPrintedRecipientIds] = useState<Set<string>>(new Set());
-  const [printSuggestionRecipient, setPrintSuggestionRecipient] = useState<Recipient | null>(null);
-  const [printHistoryDateKey, setPrintHistoryDateKey] = useState<string | null>(null);
+
   const [isVitalsHistoryOpen, setIsVitalsHistoryOpen] = useState(false);
   const [isMedicationModalOpen, setIsMedicationModalOpen] = useState(false);
-  const [routeTabWeather, setRouteTabWeather] = useState<WeatherData | null>(null);
-  const [isWeatherBannerDismissed, setIsWeatherBannerDismissed] = useState(false);
+
   const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
   const todayKey = useVisitDay();
   const selectedDateKey = scheduleDate ? localDateKey(scheduleDate) : todayKey;
@@ -208,21 +155,22 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     const previous = previousVisitDay.current;
     previousVisitDay.current = todayKey;
     // Follow "today" across midnight, but never move a date while its form is open.
-    if (previous !== todayKey && scheduleDate && localDateKey(scheduleDate) === previous && !isDetailModalOpen && !completingRecipient && !recordVisit && !isModalOpen && !document.querySelector('[role="dialog"]')) {
+    if (previous !== todayKey && scheduleDate && localDateKey(scheduleDate) === previous && !isDetailModalOpen && !completingRecipient && !isModalOpen && !document.querySelector('[role="dialog"]')) {
       setScheduleDate(new Date());
     }
-  }, [todayKey, scheduleDate, isDetailModalOpen, completingRecipient, recordVisit, isModalOpen]);
+  }, [todayKey, scheduleDate, isDetailModalOpen, completingRecipient, isModalOpen]);
   const [isScheduleAddOpen, setIsScheduleAddOpen] = useState(false);
   const [managingScheduleRecipient, setManagingScheduleRecipient] = useState<Recipient | null>(null);
-  
+
   const [activeTab, setActiveTab] = useState<'map' | 'list' | 'route' | 'settings'>('map');
   useEffect(() => {
     const retry = () => { if (document.visibilityState === 'visible') void retryPendingVisitLogs(); };
-    retry();
+    void retry();
     window.addEventListener('online', retry);
     document.addEventListener('visibilitychange', retry);
     return () => { window.removeEventListener('online', retry); document.removeEventListener('visibilitychange', retry); };
   }, []);
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     let disposed = false;
@@ -283,147 +231,21 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     const timer = window.setInterval(() => { void refresh(); }, Math.max(30, PRIVATE_STORAGE_TTL_SECONDS - 45) * 1000);
     return () => { active = false; clearInterval(timer); };
   }, [markers]);
-  const [showRegions, setShowRegions] = useState(false);
-  const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
-  const [showWeatherGrid, setShowWeatherGrid] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return accountStorage.getItem('careroute_show_weather_grid') === 'true';
-    }
-    return false;
-  });
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      accountStorage.setItem('careroute_show_weather_grid', String(showWeatherGrid));
-    }
-  }, [showWeatherGrid]);
-
-  // ---- 두 지점(출발/도착) 경로 안내 ----
-  const [isRoutePickMode, setIsRoutePickMode] = useState(false);
-  const [routeOrigin, setRouteOrigin] = useState<Recipient | null>(null);
-  const [routeDestination, setRouteDestination] = useState<Recipient | null>(null);
-  const [routeMode, setRouteMode] = useState<TravelMode | null>(null);
-  const [routePath, setRoutePath] = useState<{ lat: number; lng: number }[] | null>(null);
-  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
-  const [routeDurationMin, setRouteDurationMin] = useState<number | null>(null);
-  const [isRouteLoading, setIsRouteLoading] = useState(false);
-  const [isRouteFallback, setIsRouteFallback] = useState(false);
-  const [routeSteps, setRouteSteps] = useState<RouteStep[] | null>(null);
-  const [isWalkNavActive, setIsWalkNavActive] = useState(false);
-  const [walkNavStepIndex, setWalkNavStepIndex] = useState(0);
-  const [walkSearchOption, setWalkSearchOption] = useState<WalkSearchOption>('0');
   // null이면 직선거리 기준 자동 추천을 따르고, 값이 있으면 사용자가 직접 고른 이동수단을 우선한다.
-  const [manualTravelMode, setManualTravelMode] = useState<TravelMode | null>(null);
 
   // 새 출발/도착 쌍이 지정될 때마다 수동 선택을 초기화해 자동 추천으로 되돌린다.
-  useEffect(() => {
-    setManualTravelMode(null);
-  }, [routeOrigin, routeDestination]);
-
-  const clearRoutePick = () => {
-    setRouteOrigin(null);
-    setRouteDestination(null);
-    setIsWalkNavActive(false);
-    setWalkNavStepIndex(0);
-  };
 
   // 지도 탭에서 마커를 순서대로 탭하거나, 목록 탭에서 버튼을 눌러 출발/도착을 지정한다.
   // 같은 사람을 다시 탭하면 지정을 해제하고, 둘 다 이미 지정된 상태에서 새 사람을 탭하면
   // 그 사람을 새 출발로 삼아 처음부터 다시 지정한다.
-  const assignRoutePoint = (marker: Recipient) => {
-    if (!isValidCoordinates(marker)) { setDataError('위치가 확인된 수급자만 경로에 추가할 수 있습니다. 주소를 먼저 확인해 주세요.'); return; }
-    if (routeOrigin?.id === marker.id) {
-      setRouteOrigin(routeDestination);
-      setRouteDestination(null);
-      return;
-    }
-    if (routeDestination?.id === marker.id) {
-      setRouteDestination(null);
-      return;
-    }
-    if (!routeOrigin) {
-      setRouteOrigin(marker);
-      return;
-    }
-    if (!routeDestination) {
-      setRouteDestination(marker);
-      return;
-    }
-    setRouteOrigin(marker);
-    setRouteDestination(null);
-  };
 
   // 출발/도착이 모두 정해지면 직선거리로 이동수단을 추천하고,
-  // 도보만 이 앱 지도 위에 실제 경로(보행자 경로 API)를 그린다. 차량/대중교통은 실제 도로/노선
+
   // 탐색을 이 앱 안에서 흉내내지 않고, 이미 잘 하는 시스템 지도 앱(네이버/카카오/티맵)의
   // 내비게이션으로 바로 넘긴다 — 직선거리만 참고용으로 보여준다.
-  useEffect(() => {
-    if (!routeOrigin || !routeDestination) {
-      setRoutePath(null);
-      setRouteMode(null);
-      setRouteDistanceKm(null);
-      setRouteDurationMin(null);
-      setIsRouteFallback(false);
-      setRouteSteps(null);
-      return;
-    }
 
-    let cancelled = false;
-    const origin = { lat: routeOrigin.lat, lng: routeOrigin.lng };
-    const destination = { lat: routeDestination.lat, lng: routeDestination.lng };
-    const straightKm = getDistanceFromLatLonInKm(origin.lat, origin.lng, destination.lat, destination.lng);
-    const mode = manualTravelMode ?? recommendTravelMode(straightKm);
-    setRouteMode(mode);
-    setIsRouteFallback(false);
-    setRouteSteps(null);
-    setIsWalkNavActive(false);
-    setWalkNavStepIndex(0);
-    setRouteDistanceKm(straightKm);
-
-    if (mode !== 'walk') {
-      // 차량/대중교통: 인앱 경로선 없이 직선거리만 참고로 보여주고, 길찾기는 외부 앱이 담당
-      setRoutePath(null);
-      setRouteDurationMin(null);
-      return;
-    }
-
-    setIsRouteLoading(true);
-    fetchWalkingRoute(origin, destination, walkSearchOption)
-      .then((result) => {
-        if (cancelled) return;
-        if (result) {
-          setRoutePath(result.path);
-          setRouteDistanceKm(result.distanceKm);
-          setRouteDurationMin(result.durationMin);
-          setRouteSteps(result.steps && result.steps.length > 0 ? result.steps : null);
-        } else {
-          // Tmap API 실패(미설정 포함) 시 직선 경로로 폴백
-          setRoutePath([origin, destination]);
-          setRouteDurationMin(Math.round((straightKm / 4) * 60));
-          setIsRouteFallback(true);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsRouteLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [routeOrigin, routeDestination, walkSearchOption, manualTravelMode]);
-
-  // 도보 안내 모드: 실시간 위치가 현재 단계의 안내 지점에 가까워지면(20m 이내)
   // 자동으로 다음 단계로 넘어간다. 마지막 단계를 지나면 도착으로 간주.
-  const WALK_NAV_ADVANCE_RADIUS_M = 20;
-  useEffect(() => {
-    if (!isWalkNavActive || !routeSteps || !myLocation) return;
-    const currentStep = routeSteps[walkNavStepIndex];
-    if (!currentStep) return;
-    const distToStepM = getDistanceFromLatLonInKm(myLocation.lat, myLocation.lng, currentStep.lat, currentStep.lng) * 1000;
-    if (distToStepM <= WALK_NAV_ADVANCE_RADIUS_M && walkNavStepIndex < routeSteps.length - 1) {
-      setWalkNavStepIndex((i) => i + 1);
-    }
-  }, [myLocation, isWalkNavActive, routeSteps, walkNavStepIndex]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentAddress, setCurrentAddress] = useState('위치 파악 중...');
@@ -445,18 +267,18 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
           const roadAddr = result.address?.roadAddress;
           const jibunAddr = result.address?.jibunAddress;
           let finalAddr = roadAddr || jibunAddr;
-          
+
           if (!finalAddr && result.results && result.results.length > 0) {
              // Fallback: construct it manually from results if SDK didn't provide address object
              for (const res of result.results) {
                const region = res.region;
                const land = res.land;
                if (!region) continue;
-               
+
                const sido = region.area1?.name || '';
                const sigungu = region.area2?.name || '';
                const dong = region.area3?.name || '';
-               
+
                if (res.name === 'roadaddr' && land) {
                  const roadName = land.name || '';
                  const buildingNum = land.number1 || '';
@@ -467,13 +289,13 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                  const landNum2 = land.number2 ? `-${land.number2}` : '';
                  finalAddr = `${sido} ${sigungu} ${dong} ${landNum1}${landNum2}`.trim();
                }
-               
+
                if (!finalAddr) {
                  finalAddr = `${sido} ${sigungu} ${dong}`.trim();
                }
              }
           }
-          
+
           if (finalAddr) {
             setCurrentAddress(finalAddr);
           }
@@ -483,19 +305,15 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     return () => { isMounted = false; };
   }, [mapCenter, mapLoaded]);
   const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring' | 'missed' | 'cancelled'>('all');
-  // 지도 상단 헤더 팝업들의 상호 배타적 단일 상태 (지역 선택 | 실시간 날씨 | 어르신 검색)
+  // 지도 상단 헤더 팝업들의 상호 배타적 단일 상태 (지역 선택 | 어르신 검색)
   // 하나의 상태로 관리하여 어떤 순서로 누르더라도 레이어가 겹치는 문제를 원천 차단합니다.
-  const [activeHeaderModal, setActiveHeaderModal] = useState<'none' | 'region' | 'weather' | 'search'>('none');
+  const [activeHeaderModal, setActiveHeaderModal] = useState<'none' | 'region' | 'search'>('none');
   const isRegionFilterOpen = activeHeaderModal === 'region';
-  const isWeatherDetailOpen = activeHeaderModal === 'weather';
+
   const isMapSearchOpen = activeHeaderModal === 'search';
 
   const toggleRegionFilter = () => {
     setActiveHeaderModal((prev) => (prev === 'region' ? 'none' : 'region'));
-  };
-
-  const toggleWeatherDetail = () => {
-    setActiveHeaderModal((prev) => (prev === 'weather' ? 'none' : 'weather'));
   };
 
   const toggleMapSearch = () => {
@@ -558,44 +376,26 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   const [sortMode, setSortMode] = useState<'time' | 'name' | 'distance'>('name');
   const mapRef = useRef<any>(null);
   const isAutoSelectRef = useRef(false);
-  const regionsLoaded = useRef(false);
-  const regionLabelsRef = useRef<any[]>([]);
 
   // 경로(출발→도착) 전체 구간이 한 화면에 들어오도록 지도를 맞춘다.
   // "길찾기"로 외부 앱을 띄우는 대신, 이 지도 화면 안에서 바로 확인할 수 있게 하기 위함.
-  const fitMapToRoute = (path: { lat: number; lng: number }[]) => {
-    if (path.length === 0 || !mapRef.current || !window.naver?.maps) return;
-    try {
-      const bounds = new window.naver.maps.LatLngBounds(
-        new window.naver.maps.LatLng(path[0].lat, path[0].lng),
-        new window.naver.maps.LatLng(path[0].lat, path[0].lng)
-      );
-      path.forEach((p) => bounds.extend(new window.naver.maps.LatLng(p.lat, p.lng)));
-      mapRef.current.fitBounds(bounds, { top: 90, right: 50, bottom: 240, left: 50 });
-    } catch {}
-  };
-
-  useEffect(() => {
-    if (routePath) fitMapToRoute(routePath);
-  }, [routePath]);
 
   // 경로선 위에 출발→도착 진행 방향을 보여줄 화살표 위치(일정 간격)
-  const routeArrows = useMemo(() => (routePath ? buildRouteArrows(routePath) : []), [routePath]);
 
   // Programmatic Pan & Zoom (React State -> Map API)
   useEffect(() => {
     if (!mapRef.current || !window.naver?.maps) return;
     const map = mapRef.current;
-    
+
     // 현재 지도의 실제 상태
     const currentCenter = map.getCenter();
     const currentZoom = map.getZoom();
     if (!currentCenter) return;
-    
+
     // React State와 실제 지도 상태가 다를 때만 이동 (유저가 직접 드래그한 것을 되돌리지 않기 위해)
     const latDiff = Math.abs(currentCenter.y - mapCenter.lat);
     const lngDiff = Math.abs(currentCenter.x - mapCenter.lng);
-    
+
     if (latDiff > 0.0001 || lngDiff > 0.0001) {
       const targetLatLng = new window.naver.maps.LatLng(mapCenter.lat, mapCenter.lng);
       try {
@@ -604,349 +404,34 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
         map.setCenter(targetLatLng);
       }
     }
-    
+
     if (currentZoom !== mapZoom) {
       map.setZoom(mapZoom);
     }
   }, [mapCenter, mapZoom]);
 
-  // ---- 행정구역 표시 관련 헬퍼: 컴포넌트 레벨로 옮겨서 아래 두 effect가 공유 ----
-  const regionStyleFor = (lvl: string) => ({
-    fillColor: showWeatherGridRef.current ? '#0ea5e9' : (lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6')),
-    fillOpacity: showWeatherGridRef.current ? 0.08 : 0.1,
-    strokeColor: showWeatherGridRef.current ? '#0284c7' : (lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6')),
-    strokeWeight: showWeatherGridRef.current ? 1.5 : (lvl === 'dong' ? 1 : 2),
-    strokeOpacity: showWeatherGridRef.current ? 0.7 : 0.6,
-    visible: true
-  });
 
-  const regionFeaturesInView = (lvl: string, bounds: any) => {
-    const minLat = bounds.minY() - 0.15;
-    const maxLat = bounds.maxY() + 0.15;
-    const minLng = bounds.minX() - 0.15;
-    const maxLng = bounds.maxX() + 0.15;
-    return geoCache[lvl].features.filter((f: any) => {
-      const lat = f.properties?._centerLat;
-      const lng = f.properties?._centerLng;
-      if (lat == null || lng == null) return false;
-      return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
-    });
-  };
-
-  // 폴리곤/라벨 클릭 시 공통으로 쓰는 로직 (중복 제거)
-  const handleRegionSelect = (lat: number, lng: number, lvl: string) => {
-    autoCenterLocation.current = false;
-    if (!window.naver?.maps?.Service) return;
-    // @ts-ignore
-    window.naver.maps.Service.reverseGeocode({
-      coords: new window.naver.maps.LatLng(lat, lng),
-      orders: [window.naver.maps.Service.OrderType.LEGAL_CODE].join(',')
-    }, function (status: any, response: any) {
-      if (status === 200 && response.v2.results.length > 0) {
-        const bcode = response.v2.results[0].code.id; // 10자리 법정동 코드
-        if (bcode && bcode.length === 10) {
-          const sido = getProvinceCode(bcode);
-          const result = response.v2.results[0];
-          const districts = getDistricts(sido);
-          const district = districts.find(row => row.code === bcode.substring(0, 5) + '00000')
-            || districts.find(row => row.name === result.region?.area2?.name);
-          const sigungu = district?.code || '';
-          const neighborhood = getNeighborhoods(sigungu).find(row => row.code === bcode
-            || row.name === result.region?.area3?.name);
-          const dong = neighborhood?.code || '';
-          if (lvl === 'sido') {
-            setSelectedSido(sido);
-            setSelectedSigungu('');
-            setSelectedDong('');
-          } else if (lvl === 'sigungu') {
-            setSelectedSido(sido);
-            setSelectedSigungu(sigungu);
-            setSelectedDong('');
-          } else {
-            setSelectedSido(sido);
-            setSelectedSigungu(sigungu);
-            setSelectedDong(dong);
-          }
-        }
-      }
-    });
-  };
-
-  // 라벨 마커는 필요한 것만 그때그때 만들어서 재사용 (전국 데이터를 한 번에
   // 다 만들면 동/읍/면 기준 약 3,500개 생성으로 메인 스레드가 멈춘다)
-  // 기상 그리드가 켜진 경우 행정구역별 실시간 날씨 및 기온 뱃지로 표시
-  const ensureRegionLabelMarker = (lvl: string, feature: any) => {
-    const name = feature.properties.name;
-    const isWeather = !!showWeatherGridRef.current;
-    const baseKey = regionFeatureKey(feature);
-    const cacheKey = isWeather ? `${baseKey}_weather` : baseKey;
-    const cached = labelCache[lvl].get(cacheKey);
-    if (cached) return cached;
-
-    const centerLat = feature.properties._centerLat;
-    const centerLng = feature.properties._centerLng;
-    const fs = lvl === 'dong' ? '11px' : '12px';
-
-    let marker: any;
-
-    if (isWeather) {
-      const renderWeatherContent = (emoji: string, tempText: string) => `
-        <div class="marker-wrapper weather-region-pill" style="
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 3px 8px;
-          background: rgba(255, 255, 255, 0.95);
-          color: #0f172a;
-          border-radius: 9999px;
-          font-size: ${fs};
-          font-weight: 800;
-          border: 1.5px solid #0284c7;
-          box-shadow: 0 4px 14px rgba(2, 132, 199, 0.24);
-          backdrop-filter: blur(8px);
-          white-space: nowrap;
-          cursor: pointer;
-          user-select: none;
-          transform: translate(-50%, -50%);
-        ">
-          <span style="font-weight: 900; color: #0284c7;">${name}</span>
-          <span style="display: inline-flex; align-items: center; gap: 2px; font-weight: 800; color: #0f172a;">
-            <span style="font-size: 13px;">${emoji}</span>
-            <span>${tempText}</span>
-          </span>
-        </div>
-      `;
-
-      // 캐시된 기상 데이터가 있으면 즉시 반영
-      const gridKey = 'L:' + getGridKey(centerLat, centerLng, 0.03);
-      const memWeather = weatherCache.get(gridKey)?.data;
-      const initialEmoji = memWeather ? getWeatherEmojiAndDesc(memWeather.pty).emoji : '🌤️';
-      const initialTemp = memWeather ? `${memWeather.temp}°` : '--°';
-
-      marker = new window.naver.maps.Marker({
-        position: new window.naver.maps.LatLng(centerLat, centerLng),
-        icon: {
-          content: renderWeatherContent(initialEmoji, initialTemp),
-          anchor: new window.naver.maps.Point(0, 0),
-        },
-      });
-
-      // 캐시가 없으면 비동기로 가져와서 갱신
-      if (!memWeather) {
-        fetchWeatherForCoord(centerLat, centerLng, 0.03, true).then((data) => {
-          // 마커가 일시적으로 지도에서 내려가 있어도 아이콘은 갱신해야 다시 표시될 때 최신 값이 보인다
-          if (data) {
-            const { emoji } = getWeatherEmojiAndDesc(data.pty);
-            marker.setIcon({
-              content: renderWeatherContent(emoji, `${data.temp}°`),
-              anchor: new window.naver.maps.Point(0, 0),
-            });
-          }
-        });
-      }
-
-      // 클릭 시 해당 행정구역 중심으로 이동 및 날씨 상세 모달 표시
-      window.naver.maps.Event.addListener(marker, 'click', () => {
-        setMapCenter({ lat: centerLat, lng: centerLng });
-        setActiveHeaderModal('weather');
-      });
-    } else {
-      const bg = lvl === 'dong' ? 'var(--color-primary)' : (lvl === 'sigungu' ? 'var(--color-primary)' : 'var(--color-primary)');
-      const normalFs = lvl === 'dong' ? '11px' : '13px';
-
-      marker = new window.naver.maps.Marker({
-        position: new window.naver.maps.LatLng(centerLat, centerLng),
-        icon: {
-          content: `<div class="marker-wrapper" style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${normalFs}; font-weight: bold; border: 1px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; cursor: pointer;">${escapeMarkerText(name)}</div>`,
-          anchor: new window.naver.maps.Point(20, 10),
-        },
-      });
-      window.naver.maps.Event.addListener(marker, 'click', () => handleRegionSelect(centerLat, centerLng, lvl));
-    }
-
-    marker.__isWeather = isWeather;
-    labelCache[lvl].set(cacheKey, marker);
-    return marker;
-  };
-
-  const drawRegionLevel = (map: any, lvl: string) => {
-    currentRenderedLevel = lvl;
-    map.data.getAllFeature().forEach((f: any) => map.data.removeFeature(f));
-    renderedFeatureKeys.sido.clear();
-    renderedFeatureKeys.sigungu.clear();
-    renderedFeatureKeys.dong.clear();
-    ['sido', 'sigungu', 'dong'].forEach(l => {
-      labelCache[l].forEach((m: any) => m.setMap(null));
-    });
-
-    const bounds = map.getBounds();
-    const visible = regionFeaturesInView(lvl, bounds);
-
-    map.data.addGeoJson({ type: 'FeatureCollection', features: visible });
-    map.data.setStyle(regionStyleFor(lvl));
-    visible.forEach((f: any) => {
-      renderedFeatureKeys[lvl].add(regionFeatureKey(f));
-      ensureRegionLabelMarker(lvl, f).setMap(map);
-    });
-  };
-
-  // showRegions와 showWeatherGrid는 idle 리스너 안에서 최신 값을 읽기 위해 ref로 보관
-  const showRegionsRef = useRef(showRegions);
-  useEffect(() => { showRegionsRef.current = showRegions; }, [showRegions]);
-
-  const showWeatherGridRef = useRef(showWeatherGrid);
-  useEffect(() => { showWeatherGridRef.current = showWeatherGrid; }, [showWeatherGrid]);
-
-  const idleListenerRegisteredRef = useRef(false);
 
   // 지도 이동/확대를 React 상태(mapZoom/mapCenter)와 항상 동기화하고, 켜져
-  // 있으면 행정구역 폴리곤/라벨(기상 그리드 포함)도 함께 갱신한다.
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!mapRef.current || !window.naver?.maps?.Event || idleListenerRegisteredRef.current) return;
-      idleListenerRegisteredRef.current = true;
-      clearInterval(id);
-
-      const map = mapRef.current;
-      window.naver.maps.Event.addListener(map, 'idle', () => {
-        setMapZoom(map.getZoom());
-        const center = map.getCenter();
-        setMapCenter({ lat: center.y, lng: center.x });
-
-        const shouldShow = showRegionsRef.current || showWeatherGridRef.current;
-        if (!shouldShow || !currentRenderedLevel || !geoCache[currentRenderedLevel]) return;
-        const lvl = currentRenderedLevel;
-        const bounds = map.getBounds();
-        const visible = regionFeaturesInView(lvl, bounds);
-        const toAdd = visible.filter((f: any) => !renderedFeatureKeys[lvl].has(regionFeatureKey(f)));
-
-        if (toAdd.length > 0) {
-          map.data.addGeoJson({ type: 'FeatureCollection', features: toAdd });
-          map.data.setStyle(regionStyleFor(lvl));
-          toAdd.forEach((f: any) => {
-            renderedFeatureKeys[lvl].add(regionFeatureKey(f));
-            ensureRegionLabelMarker(lvl, f).setMap(map);
-          });
-        }
-
-        const weatherMode = !!showWeatherGridRef.current;
-        labelCache[lvl].forEach((m: any) => {
-          // 표시 모드(기상/일반)가 다른 이전 라벨이 겹쳐 보이지 않도록 숨긴다
-          if (!!m.__isWeather !== weatherMode) {
-            if (m.getMap()) m.setMap(null);
-            return;
-          }
-          if (bounds.hasLatLng(m.getPosition())) {
-            if (!m.getMap()) m.setMap(map);
-          } else {
-            if (m.getMap()) m.setMap(null);
-          }
-        });
-      });
-    }, 300);
-    return () => clearInterval(id);
-  }, []);
 
   // 렌더링 상태 캐싱 (불필요한 중복 렌더 방지 및 토글 상태 변경 즉각 감지)
-  const lastRenderedKeyRef = useRef<string>('');
 
   // Semantic Zoom (시도 -> 시군구 -> 동): 어떤 레벨을 그릴지 결정하고 데이터를 로드
-  useEffect(() => {
-    if (!mapRef.current || !window.naver) return;
-    const map = mapRef.current;
-
-    const shouldShow = showRegions || showWeatherGrid;
-    if (!shouldShow) {
-      map.data.setStyle({ visible: false });
-      ['sido', 'sigungu', 'dong'].forEach(lvl => {
-        labelCache[lvl].forEach((m: any) => m.setMap(null));
-      });
-      currentRenderedLevel = '';
-      lastRenderedKeyRef.current = '';
-      return;
-    }
-
-    const level = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
-    const currentKey = `${level}_r:${showRegions}_w:${showWeatherGrid}`;
-
-    // Optimization: 레벨과 표시 모드가 동일하면 재렌더하지 않음
-    if (lastRenderedKeyRef.current === currentKey) return;
-    lastRenderedKeyRef.current = currentKey;
-
-    const urlMap: any = {
-      sido: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_provinces_geo_simple.json',
-      sigungu: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_municipalities_geo_simple.json',
-      dong: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_submunicipalities_geo_simple.json'
-    };
-
-    // 폴리곤 클릭 시: 기상 그리드 모드면 해당 구역 날씨 상세 열기, 아니면 행정구역 선택
-    if (!window.naver.maps.Event.hasListener(map.data, 'click')) {
-      window.naver.maps.Event.addListener(map.data, 'click', (e: any) => {
-        const lat = e.feature.properties?._centerLat;
-        const lng = e.feature.properties?._centerLng;
-        if (!lat || !lng) return;
-        if (showWeatherGridRef.current) {
-          setMapCenter({ lat, lng });
-          setActiveHeaderModal('weather');
-        } else {
-          handleRegionSelect(lat, lng, currentRenderedLevel);
-        }
-      });
-    }
-
-    if (geoCache[level]) {
-      drawRegionLevel(map, level);
-    } else {
-      fetch(urlMap[level])
-        .then(r => r.json())
-        .then(geojson => {
-          // 각 feature의 중심 좌표만 가볍게 미리 계산해둔다
-          if (geojson.features) {
-            geojson.features.forEach((feature: any) => {
-              const coords = feature.geometry?.coordinates;
-              if (!feature.properties?.name || !coords) return;
-              let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-              let valid = false;
-              try {
-                const poly = feature.geometry.type === 'MultiPolygon' ? coords[0][0] : coords[0];
-                poly.forEach((coord: number[]) => {
-                  if (coord[1] < minLat) minLat = coord[1];
-                  if (coord[1] > maxLat) maxLat = coord[1];
-                  if (coord[0] < minLng) minLng = coord[0];
-                  if (coord[0] > maxLng) maxLng = coord[0];
-                  valid = true;
-                });
-              } catch (e) {}
-              if (valid) {
-                feature.properties._centerLat = (minLat + maxLat) / 2;
-                feature.properties._centerLng = (minLng + maxLng) / 2;
-              }
-            });
-          }
-          geoCache[level] = geojson;
-
-          // 로딩 중에 줌이 바뀌었으면 그리지 않음
-          const currentLevel = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
-          if (level === currentLevel && (showRegions || showWeatherGrid)) {
-            drawRegionLevel(map, level);
-          }
-        });
-    }
-  }, [mapZoom, showRegions, showWeatherGrid]);
 
   useEffect(() => {
     if (!window.naver || !window.naver.maps || !window.naver.maps.Service) return;
-    
+
     // 선택된 행정구역 이름 조합
     let query = '';
     const sidoName = sidos.find(s => s.code === selectedSido)?.fullName || '';
     const sigunguName = sigungus.find(s => s.code === selectedSigungu)?.fullName || '';
     const dongName = dongs.find(s => s.code === selectedDong)?.fullName || '';
-    
+
     if (dongName) query = dongName;
     else if (sigunguName) query = sigunguName;
     else if (sidoName) query = sidoName;
-    
+
     if (!query) return;
 
     // 만약 마커 클릭이나 GPS 자동 세팅으로 인한 드롭다운 변경이라면, 지도를 강제로 패닝/줌아웃 하지 않음
@@ -970,8 +455,6 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     });
   }, [mapLoaded, selectedSido, selectedSigungu, selectedDong, sidos, sigungus, dongs]);
 
-
-
   // PWA Install State
   const INSTALL_DISMISSED_KEY = 'careroute_install_dismissed';
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -981,11 +464,11 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   // X로 한 번 닫으면 새로고침해도 계속 안 뜨게 유지 (단, 강제 새로고침
   // 버튼을 눌렀을 때는 이 값을 지워서 다시 뜨도록 함)
   const [installDismissed, setInstallDismissed] = useState(false);
-  const [updateAvailable, setUpdateAvailable] = useState(false);
+
   const waitingWorkerRef = useRef<ServiceWorker | null>(null);
+  const updateReloadApproved = useRef(false);
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
-  const appLoadedAtRef = useRef(0);
-  const hasAutoAppliedInitialUpdateRef = useRef(false);
+
 
   // 실시간 방문 알림 상태
   const [activeVisitAlert, setActiveVisitAlert] = useState<{ recipient: Recipient; timeStr: string } | null>(null);
@@ -994,7 +477,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   // Push 알림 자동 동기화: 이미 알림 권한이 허용된 경우 백그라운드 웹푸시 구독을 갱신/등록
   useEffect(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
-    if (Notification.permission === 'granted') {
+    if ('Notification' in window && Notification.permission === 'granted') {
       registerPushSubscription().catch((err) => console.warn('Push 구독 자동 갱신 실패:', err));
     }
   }, []);
@@ -1083,52 +566,28 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       }
     } catch {}
 
-
     const standalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     setIsStandalone(standalone);
 
-    appLoadedAtRef.current = Date.now();
-
-    // 백그라운드에 있다가 다시 화면으로 돌아오는 것도 "접속"으로 보고, 그 순간 바로 최신
-    // 버전을 확인한다. 막 돌아온 직후(=아직 아무 조작도 안 한 시점)라 자동 적용도 안전하다.
+    // 복귀 시 새 버전을 확인하며 적용은 사용자가 선택합니다.
+    let disposed = false;
+    let updateCheckId: ReturnType<typeof setInterval> | undefined;
+    let removeControllerListener: (() => void) | undefined;
     const handleVisibilityResume = () => {
       if (document.visibilityState !== 'visible') return;
-      appLoadedAtRef.current = Date.now();
-      hasAutoAppliedInitialUpdateRef.current = false;
+
+
       registrationRef.current?.update().catch(() => {});
     };
     document.addEventListener('visibilitychange', handleVisibilityResume);
 
     // Installed bundles update through Google Play, not the web service worker.
     if (!Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {
-      const clearAllCaches = async () => {
-        if (!('caches' in window)) return;
-        try {
-          const keys = await caches.keys();
-          await Promise.all(keys.map((key) => caches.delete(key)));
-        } catch {}
-      };
-
-      // 앱을 막 열었을 때(= 아직 아무 작업도 시작하지 않았을 때) 발견된 업데이트는
-      // 묻지 않고 캐시를 비우고 바로 최신 버전으로 전환해, "매번 접속 시 최신 상태"를 보장한다.
-      // 이미 쓰고 있는 도중에 발견된 업데이트는 입력 중인 내용을 잃지 않도록 기존처럼 배너로만 안내한다.
-      const applyUpdateSilently = async (worker: ServiceWorker) => {
-        await clearAllCaches();
-        worker.postMessage('SKIP_WAITING');
-      };
-
       const notifyUpdateAvailable = (worker: ServiceWorker) => {
-        const elapsedSinceLoad = Date.now() - appLoadedAtRef.current;
-        if (!hasAutoAppliedInitialUpdateRef.current && elapsedSinceLoad < 8000) {
-          hasAutoAppliedInitialUpdateRef.current = true;
-          applyUpdateSilently(worker);
-          return;
-        }
-
         waitingWorkerRef.current = worker;
-        setUpdateAvailable(true);
+        window.dispatchEvent(new Event('careroute:web-update-ready'));
         // 앱이 백그라운드/다른 화면에 있어도 알아챌 수 있도록 시스템 알림도 함께 띄움
-        if (Notification.permission === 'granted') {
+        if ('Notification' in window && Notification.permission === 'granted') {
           navigator.serviceWorker.ready.then((reg) => {
             reg.showNotification('케어루트 업데이트', {
               body: '새 버전이 있습니다. 눌러서 새로고침하세요.',
@@ -1141,6 +600,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       };
 
       navigator.serviceWorker.register('/CareRoute/sw.js').then((registration) => {
+        if (disposed) return;
         registrationRef.current = registration;
         // 접속 직후 바로 최신 버전 여부를 확인(브라우저의 기본 업데이트 체크 주기를 기다리지 않음)
         registration.update().catch(() => {});
@@ -1162,17 +622,20 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
         });
 
         // 앱을 오래 켜두는 현장 특성상, 새로고침 없이도 주기적으로 새 버전을 확인
-        const updateCheckId = setInterval(() => registration.update().catch(() => {}), 5 * 60 * 1000);
-        return () => clearInterval(updateCheckId);
+        updateCheckId = setInterval(() => registration.update().catch(() => {}), 5 * 60 * 1000);
       }).catch(console.error);
 
       let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) {
+      const controllerChanged = () => {
+        if (updateReloadApproved.current && !refreshing) {
           refreshing = true;
           window.location.reload();
+        } else {
+          window.dispatchEvent(new Event('careroute:web-update-ready'));
         }
-      });
+      };
+      navigator.serviceWorker.addEventListener('controllerchange', controllerChanged);
+      removeControllerListener = () => navigator.serviceWorker.removeEventListener('controllerchange', controllerChanged);
     }
 
     const handleBeforeInstallPrompt = (e: any) => {
@@ -1205,6 +668,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     }, 500);
 
     return () => {
+      disposed = true;
+      clearInterval(updateCheckId);
+      removeControllerListener?.();
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       document.removeEventListener('visibilitychange', handleVisibilityResume);
       clearInterval(checkMap);
@@ -1229,15 +695,25 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   };
 
   const handleUpdateRefresh = async () => {
-    // 강제 캐시 지우기: 새 버전 파일들을 확실히 새로 받아오도록 기존 캐시를 모두 비움
+    // 이 앱의 캐시만 비우고 사용자가 승인한 새 버전을 적용합니다.
     if ('caches' in window) {
       try {
         const keys = await caches.keys();
-        await Promise.all(keys.map((key) => caches.delete(key)));
+        await Promise.all(keys.filter(key => key.startsWith('careroute-')).map((key) => caches.delete(key)));
       } catch {}
     }
-    waitingWorkerRef.current?.postMessage('SKIP_WAITING');
+    if (waitingWorkerRef.current?.state === 'installed') {
+      updateReloadApproved.current = true;
+      waitingWorkerRef.current.postMessage('SKIP_WAITING');
+    }
+    else window.location.reload();
   };
+
+  useEffect(() => {
+    const apply = (event: Event) => { event.preventDefault(); void handleUpdateRefresh(); };
+    window.addEventListener('careroute:apply-web-update', apply);
+    return () => window.removeEventListener('careroute:apply-web-update', apply);
+  }, []);
 
   const OFFLINE_CACHE_KEY = 'careroute_markers_cache_v1';
 
@@ -1372,20 +848,17 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   }, []);
 
   const removeScheduleDate = async (r: Recipient, dateKey: string, version: number) => {
+    const before = getVisit(r, dateKey);
     try {
       const saved = await saveVisitTransition(r, dateKey, 'cancelled', undefined, '일정 목록에서 제거', version);
       setRemovingActiveVisit(null);
-      setRemovedSchedule({ recipient: r, dateKey, version: saved.version });
+      setRemovedSchedule({ recipient: r, dateKey, version: saved.version, status: before.status, memo: before.memo });
     } catch { /* The existing error banner explains the failure; keep the item. */ }
   };
 
   const handleRemoveFromSchedule = (r: Recipient, date: Date) => {
     const dateKey = localDateKey(date);
     const session = getVisit(r, dateKey);
-    if (session.status === 'completed' || session.status === 'missed') {
-      openVisitRecord(r, dateKey);
-      return;
-    }
     if (session.status === 'in_progress') {
       setRemovingActiveVisit({ recipient: r, dateKey, version: session.version });
       return;
@@ -1393,9 +866,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     void removeScheduleDate(r, dateKey, session.version);
   };
 
-  const restoreScheduleDate = async (r: Recipient, dateKey: string, version: number) => {
+  const restoreScheduleDate = async (r: Recipient, dateKey: string, version: number, status: VisitStatus = 'planned', memo?: string | null) => {
     try {
-      await saveVisitTransition(r, dateKey, 'planned', undefined, '제거한 일정을 복원', version);
+      await saveVisitTransition(r, dateKey, status, memo, undefined, version);
       setRemovedSchedule(null);
     } catch { /* Keep the restore action available for retry. */ }
   };
@@ -1512,9 +985,6 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     }
   };
 
-
-
-  const todayYMD = () => todayKey;
   const getVisit = (r: Recipient, dateKey = todayKey): VisitSession => {
     const stored = visits.sessions[sessionKey(r.id, dateKey)];
     if (stored) return stored;
@@ -1529,9 +999,22 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     return { ...r, last_completed_key: session.status === 'completed' ? dateKey : null,
       last_completed_memo: session.status === 'completed' ? session.memo : null };
   };
-  const openPrintRecipient = (r: Recipient, dateKey = detailDateKey) => {
+  const launchPrintRecipient = (r: Recipient, dateKey = detailDateKey) => {
     setPrintingDateKey(dateKey);
     setPrintingRecipient(projectVisitForDate(r, dateKey));
+  };
+  const openPrintRecipient = (r: Recipient, dateKey = detailDateKey) => { setPrintMenuTarget({ recipient: r, dateKey }); setIsPrintMenuOpen(true); };
+  const openSchedulePrintMenu = () => { setPrintMenuTarget(null); setIsPrintMenuOpen(true); };
+  const choosePrint = (kind: 'recipient' | 'day' | 'week') => {
+    const scope = captureAccountStorage();
+    const target = printMenuTarget;
+    setIsPrintMenuOpen(false);
+    window.setTimeout(() => {
+      if (!scope.isCurrent()) return;
+      if (kind === 'recipient' && target) launchPrintRecipient(target.recipient, target.dateKey);
+      else if (kind === 'day') setIsBatchPrintOpen(true);
+      else if (kind === 'week') setIsWeeklyPrintOpen(true);
+    }, 200);
   };
   const visitActionIcon = (r: Recipient, dateKey = todayKey, size = 18) => {
     const status = getVisit(r, dateKey).status;
@@ -1547,8 +1030,10 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   const isSelectedVisitCompleted = (r: Recipient) => getVisit(r, detailDateKey).status === 'completed';
 
   const saveVisitTransition = async (r: Recipient, dateKey: string, status: VisitStatus, memo?: string | null, reason?: string, expectedVersion?: number) => {
+    const scope = captureAccountStorage();
+    if (!scope.isCurrent()) throw new Error('로그인 상태가 변경되었습니다. 다시 확인해주세요.');
     if (visitBusy.current || visits.loading || visits.error) {
-      const message = visitBusy.current ? '다른 방문 기록을 저장 중입니다. 잠시 기다려 주세요.' : '방문 기록을 다시 불러온 뒤 저장해 주세요.';
+      const message = visitBusy.current ? '다른 일정을 저장 중입니다. 잠시 기다려 주세요.' : '일정을 다시 불러온 뒤 저장해 주세요.';
       setVisitActionError(message);
       throw new Error(message);
     }
@@ -1563,74 +1048,64 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     try {
       const saved = await transitionVisitSession({ recipientId: r.id, dateKey, status, memo: savedMemo, reason,
         expectedVersion: version, requestId });
+      if (!scope.isCurrent()) throw new Error('로그인 상태가 변경되었습니다. 다시 확인해주세요.');
       visits.apply(saved);
       visitRequestIds.current.delete(requestKey);
       fetchMarkers();
       void visits.refresh();
       return saved;
     } catch (error) {
-      const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : '방문 기록 저장에 실패했습니다. 입력 내용은 유지됩니다.';
+      const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : '일정 저장에 실패했습니다. 입력 내용은 유지됩니다.';
       setVisitActionError(message);
       void visits.refresh();
       throw new Error(message);
     } finally { visitBusy.current = false; setVisitSaving(false); }
   };
-  const openVisitRecord = (r: Recipient, dateKey = todayKey) => {
+  const openScheduleManagement = (r: Recipient, dateKey = todayKey) => {
     setVisitActionError('');
-    setRecordVisit({ recipient: r, dateKey });
+    setScheduleDate(new Date(`${dateKey}T12:00:00`));
+    setManagingScheduleRecipient(r);
   };
   const handleStartVisit = async (r: Recipient, dateKey = todayKey) => {
-    try { await saveVisitTransition(r, dateKey, 'in_progress'); } catch (error) { setVisitActionError(error instanceof Error ? error.message : '방문 시작을 저장하지 못했습니다.'); }
+    try { await saveVisitTransition(r, dateKey, 'in_progress'); }
+    catch (error) { setVisitActionError(error instanceof Error ? error.message : '방문 시작을 저장하지 못했습니다.'); }
   };
   const visitPrimaryLabel = (r: Recipient, dateKey = todayKey) => {
     const status = getVisit(r, dateKey).status;
-    if (status === 'completed') return '방문 기록 보기';
-    if (status === 'missed' || status === 'cancelled' || dateKey > todayKey) return '방문 상태 보기';
-    return status === 'planned' && dateKey === todayKey ? '방문 시작' : '방문 완료';
+    if (status === 'completed' || status === 'missed' || status === 'cancelled' || dateKey > todayKey) return '일정 관리';
+    return status === 'planned' ? '방문 시작' : '방문 완료';
+  };
+  const completionActionLabel = (r: Recipient, dateKey = todayKey) => {
+    const status = getVisit(r, dateKey).status;
+    if (status === 'missed' || status === 'cancelled' || dateKey > todayKey) return '일정 관리';
+    return status === 'completed' ? '완료 내용' : '방문 완료';
   };
   const openCompletionForm = (r: Recipient, dateKey = todayKey) => {
     setVisitActionError('');
-    const status = getVisit(r, dateKey).status;
-    if (status === 'completed' || status === 'cancelled' || status === 'missed' || dateKey > todayKey) {
-      openVisitRecord(r, dateKey);
-      return;
-    }
+    if (dateKey > todayKey || ['missed', 'cancelled'].includes(getVisit(r, dateKey).status)) { openScheduleManagement(r, dateKey); return; }
     setCompletingDateKey(dateKey);
     setCompletingVersion(getVisit(r, dateKey).version);
     setCompletingRecipient(r);
   };
   const toggleCompleted = (r: Recipient, dateKey = todayKey) => {
-    if (getVisit(r, dateKey).status === 'planned' && dateKey === todayKey) {
-      void handleStartVisit(r, dateKey);
-    } else openCompletionForm(r, dateKey);
+    const status = getVisit(r, dateKey).status;
+    if (status === 'planned' && dateKey === todayKey) void handleStartVisit(r, dateKey);
+    else if (status === 'in_progress') openCompletionForm(r, dateKey);
+    else openScheduleManagement(r, dateKey);
   };
-  const handleShareReport = (r: Recipient) => {
-    const session = getVisit(r, detailDateKey);
-    setSharingDateKey(detailDateKey);
-    setSharingRecipient({ ...r, last_completed_key: session.status === 'completed' ? detailDateKey : null, last_completed_memo: session.memo });
-  };
-  const finishVisit = async (memo: string, vitals?: VitalsInput, share = false) => {
-    if (!completingRecipient) return;
+  const finishVisit = async (memo: string, vitals?: VitalsInput) => {
+    const scope = captureAccountStorage();
+    if (!completingRecipient || !scope.isCurrent()) return;
     const target = completingRecipient;
     const dateKey = completingDateKey || todayKey;
-    const before = getVisit(target, dateKey);
     try {
-      const saved = await saveVisitTransition(target, dateKey, 'completed', memo, undefined, completingVersion);
-      const updated = { ...target, last_completed_key: dateKey, last_completed_memo: saved.memo, last_visit_started_at: null };
+      await saveVisitTransition(target, dateKey, 'completed', memo, undefined, completingVersion);
+      if (!scope.isCurrent()) return;
       setCompletingRecipient(null);
-      if (before.started_at && saved.completed_at) {
-        void logVisitDuration({ recipientId: target.id, recipientName: target.name, startedAt: before.started_at, endedAt: saved.completed_at });
-      }
       if (vitals) void logVitals({ recipientId: target.id, recipientName: target.name, vitals, memo });
-      if (share) { setSharingDateKey(dateKey); setSharingRecipient(updated); }
-      else setPrintSuggestionRecipient(updated);
-    } catch { /* Keep memo and vitals open for retry. */ }
+    } catch { /* Keep the form open for retry. */ }
   };
   const handleSaveMemo = (memo: string, vitals?: VitalsInput) => finishVisit(memo, vitals);
-  const handleSaveAndShareMemo = (memo: string, vitals?: VitalsInput) => finishVisit(memo, vitals, true);
-
-  // 선택한 날짜에 방문 예정인지: 특정 날짜로 지정했거나, 반복 요일에 오늘 요일이 포함되면 해당
-
 
   const getScheduledForDate = (r: Recipient, date: Date) => {
     const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -1669,30 +1144,6 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     return () => { window.removeEventListener('careroute:notification-permission', refresh); document.removeEventListener('visibilitychange', visible); };
   }, [markers, visits.sessions, visits.loading, visits.error]);
 
-  // 폭염/한파 주의 수준일 때, 오늘 방문 예정이 없는 어르신 안부를 챙기도록 일정 탭에
-  // 배너로 안내한다. 하루에 한 번 닫으면 그날은 다시 안 뜨게 로컬에 기억해둔다.
-  const isViewingToday = Boolean(scheduleDate) && scheduleDate!.toDateString() === new Date().toDateString();
-  useEffect(() => {
-    if (activeTab !== 'route' || !isViewingToday) return;
-    if (typeof window !== 'undefined' && accountStorage.getItem(`careroute_weather_banner_dismissed_${todayYMD()}`)) {
-      setIsWeatherBannerDismissed(true);
-      return;
-    }
-    fetchWeatherForCoord(mapCenter.lat, mapCenter.lng, 0.02, true).then((data) => {
-      if (data) setRouteTabWeather(data);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, isViewingToday, mapCenter.lat, mapCenter.lng]);
-
-  const dismissWeatherBanner = () => {
-    setIsWeatherBannerDismissed(true);
-    if (typeof window !== 'undefined') {
-      accountStorage.setItem(`careroute_weather_banner_dismissed_${todayYMD()}`, '1');
-    }
-  };
-
-  const heatColdWarning = routeTabWeather ? getHeatColdWarning(routeTabWeather) : { level: null, label: '' };
-  const noScheduleTodayRecipients = markers.filter((m) => !getScheduledForDate(m, new Date()));
 
   // 오늘의 경로: 시간이 정해진 일정을 뼈대로 두고, 시간 미정인 곳은 이동
   // 거리가 가장 적게 늘어나는 위치에 끼워넣는 방식(최근접 삽입 휴리스틱)으로
@@ -1719,35 +1170,6 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       console.error('Failed to load custom route order:', e);
     }
   }, [scheduleDateKey]);
-
-  // 선택한 날짜에 이미 출력/공유한 수급자 id 모음("출력됨" 배지용). 일정 리스트는 이미
-  // 로드된 markers로 즉시 그려지므로, 이 보조 정보는 화면을 막지 않고 조용히 채워진다.
-  useEffect(() => {
-    if (!scheduleDateKey) {
-      setPrintedRecipientIds(new Set());
-      return;
-    }
-    let cancelled = false;
-    fetchPrintedRecipientIdsForDate(scheduleDateKey).then((ids) => {
-      if (!cancelled) setPrintedRecipientIds(ids);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [scheduleDateKey]);
-
-  // 출력 모달을 닫을 때도 "출력됨" 배지를 즉시 갱신(막 출력/공유했을 수 있으므로).
-  const refetchPrintedRecipientIds = () => {
-    if (!scheduleDateKey) return;
-    fetchPrintedRecipientIdsForDate(scheduleDateKey).then(setPrintedRecipientIds);
-  };
-
-  // 방문완료 확인서 출력 제안 토스트: 일정 시간 뒤 자동으로 사라진다.
-  useEffect(() => {
-    if (!printSuggestionRecipient) return;
-    const t = setTimeout(() => setPrintSuggestionRecipient(null), 6000);
-    return () => clearTimeout(t);
-  }, [printSuggestionRecipient]);
 
   // 커스텀 순서 저장 헬퍼
   const updateCustomOrder = (newOrderIds: string[]) => {
@@ -1935,15 +1357,15 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       alert('Google Calendar 연동을 위한 클라이언트 ID 설정이 필요합니다. 관리자에게 문의해주세요.');
       return;
     }
-    
+
     let targetRoute = scheduleRoute;
     let syncDate = scheduleDate;
-    
+
     if (!syncDate) {
       syncDate = new Date();
       targetRoute = markers.filter(r => getScheduledForDate(r, syncDate as Date));
     }
-    
+
     if (targetRoute.length === 0) {
       alert(scheduleDate ? '선택한 날짜에 방문 예정인 어르신이 없어서 동기화할 서비스 일정이 없습니다.' : '오늘 방문 예정인 어르신이 없어서 동기화할 서비스 일정이 없습니다.');
       return;
@@ -1988,11 +1410,11 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       );
       const existing = await existingRes.json();
       if (!existingRes.ok) throw new Error(existing.error?.message || `캘린더 조회 실패 (${existingRes.status})`);
-      
+
       // 이미 일정이 존재할 경우 사용자에게 알림을 띄우고 처리 방식을 결정합니다.
       if (existing.items && existing.items.length > 0) {
         const wantsOverwrite = window.confirm('해당 날짜에 이미 동기화된 구글 캘린더 일정이 존재합니다.\n기존 일정을 삭제하고 최신 일정으로 덮어쓰시겠습니까?\n(취소를 누르면 중복으로 추가하지 않고 작업을 중단합니다.)');
-        
+
         if (!wantsOverwrite) {
           setIsSyncingCalendar(false);
           return; // 사용자가 취소하면 중단 (중복 방지)
@@ -2094,7 +1516,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
   return (
     <main className="app-shell flex-1 flex flex-col h-[100dvh] relative bg-background font-sans">
-      
+
       <AnimatePresence>
         {isSplashVisible && (
           <motion.div
@@ -2105,13 +1527,13 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
           >
             {/* Background Ornaments */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.5, rotate: -45 }}
                 animate={{ opacity: 0.15, scale: 1, rotate: 0 }}
                 transition={{ duration: 2, ease: "easeOut" }}
                 className="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-white rounded-full blur-3xl"
               />
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.5, rotate: 45 }}
                 animate={{ opacity: 0.1, scale: 1, rotate: 0 }}
                 transition={{ duration: 2.5, ease: "easeOut", delay: 0.2 }}
@@ -2126,13 +1548,13 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               className="relative z-10 flex flex-col items-center"
             >
               <div className="w-24 h-24 rounded-[32px] shadow-2xl flex items-center justify-center mb-6 relative overflow-hidden bg-white/10 backdrop-blur-md border border-white/20">
-                <img 
-                  src="/CareRoute/icon-192.png" 
-                  alt="케어루트 로고" 
-                  className="w-full h-full object-cover rounded-[32px] drop-shadow-md" 
+                <img
+                  src="/CareRoute/icon-192.png"
+                  alt="케어루트 로고"
+                  className="w-full h-full object-cover rounded-[32px] drop-shadow-md"
                 />
               </div>
-              
+
               <h1 className="text-4xl font-black text-white tracking-tight mb-2 drop-shadow-sm">케어루트</h1>
               <p className="text-white/80 font-medium tracking-tight">어르신 방문 요양의 새로운 기준</p>
             </motion.div>
@@ -2202,7 +1624,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
         </div>
       )}
 
-      {(visits.error || (visitActionError && !completingRecipient && !recordVisit)) && (
+      {(visits.error || (visitActionError && !completingRecipient)) && (
         <div role="alert" className="absolute top-[calc(1rem+var(--app-safe-top))] left-4 right-4 max-w-xl mx-auto z-[70] bg-surface border border-rose-500/40 rounded-2xl p-3 text-sm text-foreground shadow-lg">
           <p>{visits.error || visitActionError}</p>
           <button type="button" className="mt-2 underline font-bold" onClick={() => { setVisitActionError(''); void visits.refresh(); }}>다시 불러오기</button>
@@ -2225,25 +1647,6 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       )}
 
       {/* 앱 업데이트 안내창 */}
-      {updateAvailable && (
-        <div className="absolute top-4 left-4 right-4 z-[60] bg-foreground text-white p-4 rounded-2xl shadow-xl flex items-center justify-between animate-fade-in-down">
-          <div className="flex items-center gap-3">
-            <div className="bg-surface/15 p-2 rounded-xl">
-              <IconDownload size={20} className="text-white" />
-            </div>
-            <div>
-              <p className="font-bold text-sm">새 버전이 있습니다</p>
-              <p className="text-xs text-slate-300">지금 새로고침하면 최신 버전으로 업데이트돼요</p>
-            </div>
-          </div>
-          <button
-            onClick={handleUpdateRefresh}
-            className="px-4 py-2 bg-surface text-foreground/90 font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform whitespace-nowrap"
-          >
-            새로고침
-          </button>
-        </div>
-      )}
 
       {/* 실시간 방문 예정 알림 인앱 플로팅 배너 */}
       <AnimatePresence>
@@ -2328,15 +1731,6 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
             {isMapSearchOpen ? <IconX size={22} /> : <IconSearch size={22} strokeWidth={2.5} />}
           </button>
         </div>
-
-        {/* 행정구역 기상 마커 및 폴리곤 터치 시 표시되는 상세 날씨 모달 */}
-        <WeatherWidget
-          lat={mapCenter.lat}
-          lng={mapCenter.lng}
-          isOpen={isWeatherDetailOpen}
-          onClose={closeAllHeaderPopups}
-          modalOnly
-        />
 
         {/* In-Map Search & Region Filter Common Backdrop */}
         {(isMapSearchOpen || isRegionFilterOpen) && (
@@ -2487,15 +1881,15 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               <span className="text-[17px] font-black text-foreground tracking-tight block">지역 직접 선택</span>
               <span className="text-[12px] font-bold text-foreground/50">원하는 행정구역으로 이동합니다</span>
             </div>
-            <button 
-              onClick={closeAllHeaderPopups} 
+            <button
+              onClick={closeAllHeaderPopups}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 text-foreground/50 hover:bg-foreground/10 transition-colors"
               aria-label="닫기"
             >
               <IconX size={18} />
             </button>
           </div>
-          
+
           <div className="flex flex-col gap-3">
             <NativeSelect
               className="w-full !bg-foreground/[0.04] !border-0 !rounded-[20px] !py-3.5 !px-4 !text-[15px] !font-bold text-foreground focus:!ring-2 focus:!ring-primary/40 transition-all appearance-none"
@@ -2547,7 +1941,6 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       <div className="flex-1 relative w-full h-full bg-surface-muted">
         {activeTab === 'map' && mapLoaded && (location.locating || location.error) && <div role="status" className="absolute left-4 right-20 bottom-[calc(6rem+var(--app-safe-bottom))] z-40 rounded-2xl border border-surface-border bg-surface p-3 text-sm leading-relaxed text-foreground shadow-lg">{location.error || '현재 위치 확인 중…'}{location.error && <button type="button" onClick={handleMyLocation} className="mt-2 min-h-11 font-bold text-primary">위치 다시 확인</button>}</div>}
 
-        
         {/* Map View */}
         <div className={`absolute inset-0 top-0 transition-opacity duration-300 ${activeTab === 'map' ? 'z-0 opacity-100' : 'opacity-0 pointer-events-none'}`} style={{ zIndex: activeTab === 'map' ? 0 : -10 }}>
           <MapErrorBoundary>
@@ -2595,73 +1988,15 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                     }}
                   />
                 )}
-                
-                {/* 오늘의 경로 추천: 전체 동선을 점선으로 연결 (직선 기준, 실제 도로선 아님) */}
-                {scheduleRoute.length > 1 && scheduleRoute.map((stop, i) => {
-                  const next = scheduleRoute[i + 1];
-                  if (!next || !isValidCoordinates(stop) || !isValidCoordinates(next)) return null;
-                  return (
-                    <Polyline
-                      key={`schedule-leg-${stop.id}-${next.id}`}
-                      path={[{ lat: stop.lat, lng: stop.lng }, { lat: next.lat, lng: next.lng }]}
-                      strokeColor="#F59E0B"
-                      strokeOpacity={0.85}
-                      strokeWeight={4}
-                      strokeStyle="shortdash"
-                      strokeLineCap="round"
-                      strokeLineJoin="round"
-                      zIndex={5}
-                    />
-                  );
-                })}
-
-                {/* 두 어르신 출발→도착 경로. 실제 도로/인도 경로를 가져왔으면 실선, 직선 추정(폴백/대중교통)이면 점선 */}
-                {routePath && routeMode && (
-                  <Polyline
-                    path={routePath}
-                    strokeColor={ROUTE_MODE_COLOR[routeMode]}
-                    strokeOpacity={0.95}
-                    strokeWeight={isRouteFallback ? 4 : 6}
-                    strokeStyle={isRouteFallback ? 'shortdash' : 'solid'}
-                    strokeLineCap="round"
-                    strokeLineJoin="round"
-                    zIndex={10}
-                  />
-                )}
-
-                {/* 경로선 위 진행 방향 화살표 (출발→도착 흐름 표시용, 실시간 위치와 무관) */}
-                {routeMode && routeArrows.map((arrow, i) => (
-                  <Marker
-                    key={`route-arrow-${i}`}
-                    position={{ lat: arrow.lat, lng: arrow.lng }}
-                    zIndex={11}
-                    icon={{
-                      content: `
-                        <div style="transform: rotate(${arrow.bearingDeg}deg); width:22px; height:22px; display:flex; align-items:center; justify-content:center; pointer-events:none;">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${ROUTE_MODE_COLOR[routeMode]}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));">
-                            <path d="M7 14 L12 7 L17 14" />
-                          </svg>
-                        </div>
-                      `,
-                      anchor: { x: 11, y: 11 }
-                    }}
-                  />
-                ))}
-
-                {/* 전역 행정구역 날씨 맵 마커 (방해되지 않도록 작고 반투명하게) */}
                 {regionMarkers.filter(marker => isValidCoordinates(marker)).map((marker) => {
                   const isSelected = selectedRecipient?.id === marker.id;
                   const isCompleted = isCompletedToday(marker);
-                  const routeBadge = routeOrigin?.id === marker.id ? '출발' : routeDestination?.id === marker.id ? '도착' : null;
-                  return (
+                                    return (
                     <Marker
                       key={marker.id}
                       position={{ lat: marker.lat, lng: marker.lng }}
                       onClick={() => {
-                        if (isRoutePickMode) {
-                          assignRoutePoint(marker);
-                          return;
-                        }
+
                         autoCenterLocation.current = false;
                         setSelectedRecipient(marker);
                         setMapCenter({ lat: marker.lat, lng: marker.lng });
@@ -2669,14 +2004,10 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                       icon={{
                         content: `
                           <div class="marker-wrapper relative flex flex-col items-center ${isSelected ? 'scale-115 z-50' : 'scale-100'} transition-transform duration-300">
-                            ${routeBadge ? `
-                              <div class="mb-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black text-white shadow-sm ${routeBadge === '출발' ? 'bg-emerald-500' : 'bg-rose-500'}">
-                                ${routeBadge}
-                              </div>
-                            ` : ''}
+
                             <div class="relative w-11 h-11 flex items-center justify-center">
                               ${isSelected ? '<div class="absolute -inset-1.5 bg-accent rounded-full opacity-60 animate-ping"></div>' : ''}
-                              <div class="relative w-11 h-11 rounded-full overflow-hidden ${isCompleted ? 'bg-emerald-600' : 'bg-primary'} flex items-center justify-center border-2 ${routeBadge ? (routeBadge === '출발' ? 'border-emerald-400 ring-2 ring-emerald-400/50' : 'border-rose-400 ring-2 ring-rose-400/50') : isSelected ? 'border-accent ring-2 ring-accent/50' : isCompleted ? 'border-emerald-400' : 'border-white'} shadow-md shadow-foreground/20 transition-colors duration-300">
+                              <div class="relative w-11 h-11 rounded-full overflow-hidden ${isCompleted ? 'bg-emerald-600' : 'bg-primary'} flex items-center justify-center border-2 ${isSelected ? 'border-accent ring-2 ring-accent/50' : isCompleted ? 'border-emerald-400' : 'border-white'} shadow-md shadow-foreground/20 transition-colors duration-300">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                 ${markerPhotoUrls[marker.id] ? `<img src="${escapeMarkerText(markerPhotoUrls[marker.id])}" onerror="this.style.display='none'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />` : ''}
                               </div>
@@ -2719,7 +2050,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
         {/* List View (Redesigned) */}
         {activeTab === 'list' && (
           <div className="app-scroll-view absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background">
-            
+
             {/* List View Header & Add Action */}
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
@@ -2757,8 +2088,8 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                   onClick={() => setListFilter(stat.key)}
                   aria-pressed={listFilter === stat.key}
                   className={`p-2.5 rounded-[18px] transition-all text-left flex flex-col justify-between ${
-                    listFilter === stat.key 
-                      ? `${stat.bg} ring-2 ring-primary shadow-xs` 
+                    listFilter === stat.key
+                      ? `${stat.bg} ring-2 ring-primary shadow-xs`
                       : 'bg-surface/80 hover:bg-surface border border-surface-border/40'
                   }`}
                 >
@@ -2797,31 +2128,31 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
             {/* View Mode Segmented Pill & Sort Dropdown */}
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2 px-0.5">
               <div role="group" aria-label="어르신 보기 방식" className="flex bg-foreground/[0.04] dark:bg-white/[0.06] p-1 rounded-full border border-surface-border/40 shadow-2xs">
-                <button 
+                <button
                   type="button"
                   aria-pressed={listViewMode === 'list'}
                   aria-label="목록 보기"
-                  onClick={() => setListViewMode('list')} 
+                  onClick={() => setListViewMode('list')}
                   className={`min-w-11 min-h-11 flex items-center justify-center rounded-full transition-all ${listViewMode === 'list' ? 'bg-surface text-primary shadow-xs font-black' : 'text-foreground/40 hover:text-foreground/70'}`}
                   title="목록 보기"
                 >
                   <IconList size={18} />
                 </button>
-                <button 
+                <button
                   type="button"
                   aria-pressed={listViewMode === 'grid'}
                   aria-label="그리드 보기"
-                  onClick={() => setListViewMode('grid')} 
+                  onClick={() => setListViewMode('grid')}
                   className={`min-w-11 min-h-11 flex items-center justify-center rounded-full transition-all ${listViewMode === 'grid' ? 'bg-surface text-primary shadow-xs font-black' : 'text-foreground/40 hover:text-foreground/70'}`}
                   title="그리드 보기"
                 >
                   <IconLayoutGrid size={18} />
                 </button>
-                <button 
+                <button
                   type="button"
                   aria-pressed={listViewMode === 'compact'}
                   aria-label="심플 보기"
-                  onClick={() => setListViewMode('compact')} 
+                  onClick={() => setListViewMode('compact')}
                   className={`min-w-11 min-h-11 flex items-center justify-center rounded-full transition-all ${listViewMode === 'compact' ? 'bg-surface text-primary shadow-xs font-black' : 'text-foreground/40 hover:text-foreground/70'}`}
                   title="심플 보기"
                 >
@@ -2866,8 +2197,8 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                       aria-label={`${f.label} ${count}`}
                       onClick={() => setListFilter(listFilter === f.key ? 'all' : f.key)}
                       className={`min-h-11 px-2 py-1.5 rounded-full text-sm font-black whitespace-nowrap transition-all active:scale-95 shadow-2xs flex items-center gap-1 shrink-0 ${
-                        listFilter === f.key 
-                          ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.3)] scale-[1.02]' 
+                        listFilter === f.key
+                          ? 'bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(var(--primary),0.3)] scale-[1.02]'
                           : 'bg-surface/80 text-foreground/60 border border-surface-border/60 hover:bg-surface'
                       }`}
                     >
@@ -2995,24 +2326,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                               {visitActionIcon(marker, todayKey, 18)}
                             </IconButton>
                             {/* 경로 출발/도착 지정: 누르면 지도 탭의 경로 그리기 모드가 켜지고 순서대로 출발→도착이 지정된다 */}
-                            <IconButton
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setIsRoutePickMode(true);
-                                assignRoutePoint(marker);
-                                setActiveTab('map');
-                              }}
-                              className={`min-w-11 min-h-11 rounded-[18px] transition-all ${
-                                routeOrigin?.id === marker.id
-                                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
-                                  : routeDestination?.id === marker.id
-                                    ? 'bg-rose-500 text-white shadow-md shadow-rose-500/30'
-                                    : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'
-                              }`}
-                              aria-label="경로 출발/도착 지정"
-                            >
-                              <IconRoute2 size={18} strokeWidth={2.5} />
-                            </IconButton>
+
                           </div>
                         </div>
 
@@ -3042,36 +2356,36 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
                         {/* Card Action Buttons: 4 Quick Actions */}
                         <div className="grid grid-cols-2 min-[480px]:grid-cols-4 gap-2">
-                          <button 
+                          <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} 
+                            onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }}
                             className="min-h-11 py-2.5 rounded-[16px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 text-sm font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs"
                           >
                             <IconNavigation size={15} />
                             <span>길안내</span>
                           </button>
-                          <button 
+                          <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); openCompletionForm(marker); }}
                             className="min-h-11 py-2.5 rounded-[16px] bg-primary/10 hover:bg-primary/15 text-primary text-sm font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
                           >
                             <IconMessageCircle size={15} />
-                            <span>{['completed', 'missed', 'cancelled'].includes(getVisit(marker).status) ? '방문 기록' : '일지·완료'}</span>
+                            <span>{completionActionLabel(marker)}</span>
                           </button>
-                          <button 
+                          <button
                             type="button"
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              focusRecipientOnMap(marker); 
-                            }} 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              focusRecipientOnMap(marker);
+                            }}
                             className="min-h-11 py-2.5 rounded-[16px] bg-foreground/[0.04] dark:bg-white/[0.06] hover:bg-foreground/[0.08] text-foreground text-sm font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-surface-border/40"
                           >
                             <IconMapPin size={15} />
                             <span>지도 보기</span>
                           </button>
-                          <button 
+                          <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }} 
+                            onClick={(e) => { e.stopPropagation(); setEditingRecipient(marker); setIsModalOpen(true); }}
                             className="min-h-11 py-2.5 rounded-[16px] bg-foreground/[0.04] dark:bg-white/[0.06] hover:bg-foreground/[0.08] text-foreground/70 text-sm font-black flex items-center justify-center gap-1 active:scale-95 transition-all"
                           >
                             <IconPencil size={15} />
@@ -3092,7 +2406,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                               <IconUser size={24} className="text-primary" />
                             )}
                           </div>
-                          <button 
+                          <button
                             onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
                               disabled={visitSaving || visits.loading}
                             className={`min-w-11 min-h-11 flex items-center justify-center rounded-[14px] transition-colors ${
@@ -3110,9 +2424,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                         <p className="text-sm text-foreground/60 font-semibold [overflow-wrap:anywhere] mb-4 flex-1 leading-relaxed">
                           {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
                         </p>
-                        <Button 
-                          variant="dark" 
-                          onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} 
+                        <Button
+                          variant="dark"
+                          onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }}
                           className="min-h-11 py-2.5 text-sm w-full mt-auto rounded-[16px]"
                         >
                           길안내
@@ -3143,8 +2457,8 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                             {parseVisitTime(marker.visit_time, marker.notes).formattedText} · {marker.address}{marker.detail_address ? ` ${marker.detail_address}` : ''}
                           </p>
                         </div>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }} 
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address); }}
                           type="button"
                           className="min-w-11 min-h-11 flex items-center justify-center p-2.5 bg-surface-muted/80 text-foreground/70 rounded-[14px] hover:bg-surface-border transition-colors shrink-0 active:scale-95"
                           aria-label="길안내"
@@ -3170,7 +2484,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
           <div className="app-scroll-view absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background flex flex-col">
             {removedSchedule && <div role="status" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-surface-border bg-surface p-3 text-sm text-foreground">
               <p className="min-w-0 flex-1 break-words">{removedSchedule.recipient.name} · {removedSchedule.dateKey} 일정을 제거했습니다.</p>
-              <Button variant="ghost" disabled={visitSaving || visits.loading || Boolean(visits.error)} onClick={() => void restoreScheduleDate(removedSchedule.recipient, removedSchedule.dateKey, removedSchedule.version)} className="min-h-11">되돌리기</Button>
+              <Button variant="ghost" disabled={visitSaving || visits.loading || Boolean(visits.error)} onClick={() => void restoreScheduleDate(removedSchedule.recipient, removedSchedule.dateKey, removedSchedule.version, removedSchedule.status, removedSchedule.memo)} className="min-h-11">되돌리기</Button>
               <IconButton aria-label="일정 제거 알림 닫기" onClick={() => setRemovedSchedule(null)}><IconX size={18} /></IconButton>
             </div>}
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -3211,53 +2525,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
             </div>
 
             {/* 폭염/한파 주의 수준 안내: 오늘 방문 예정 없는 어르신 안부를 챙기도록 유도 */}
-            {isViewingToday && heatColdWarning.level && !isWeatherBannerDismissed && noScheduleTodayRecipients.length > 0 && (
-              <div className={`mb-3 p-3.5 rounded-[20px] border flex items-start gap-2.5 ${
-                heatColdWarning.level === 'heat'
-                  ? 'bg-orange-500/10 border-orange-500/25 text-orange-700 dark:text-orange-400'
-                  : 'bg-sky-500/10 border-sky-500/25 text-sky-700 dark:text-sky-400'
-              }`}>
-                <span className="text-lg leading-none shrink-0">{heatColdWarning.level === 'heat' ? '🥵' : '🥶'}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-black leading-snug">오늘 {heatColdWarning.label}입니다</p>
-                  <p className="text-[12px] font-bold opacity-80 leading-snug mt-0.5">
-                    방문 예정이 없는 어르신 {noScheduleTodayRecipients.length}명의 안부를 한 번 확인해보세요.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={dismissWeatherBanner}
-                  className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
-                  aria-label="닫기"
-                >
-                  <IconX size={16} />
-                </button>
-              </div>
-            )}
 
             {/* 그날/이번 주 방문 일정을 한 번에 인쇄/PDF로 출력 (현장 나가기 전 서류 준비용) */}
-            {scheduleDate && (
-              <div className="flex items-center gap-1.5 mb-3 -mt-0.5">
-                {scheduleRoute.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setIsBatchPrintOpen(true)}
-                    className="self-start min-h-11 flex items-center gap-1.5 px-3.5 py-2 rounded-[16px] text-sm font-bold bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 transition-colors active:scale-95 border border-surface-border/40"
-                  >
-                    <IconPrinter size={14} />
-                    오늘 일정 일괄 출력 ({scheduleRoute.length}명)
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setIsWeeklyPrintOpen(true)}
-                  className="self-start min-h-11 flex items-center gap-1.5 px-3.5 py-2 rounded-[16px] text-sm font-bold bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 transition-colors active:scale-95 border border-surface-border/40"
-                >
-                  <IconCalendarEvent size={14} />
-                  이번 주 전체 출력
-                </button>
-              </div>
-            )}
+            {scheduleDate && <Button variant="ghost" onClick={openSchedulePrintMenu} startIcon={<IconPrinter size={18} />} className="mb-3 min-h-11 self-start">출력</Button>}
 
             {/* Quick Date Switcher & Progress Insight */}
             <div className="bg-surface/85 supports-[backdrop-filter]:bg-surface/65 backdrop-blur-[36px] rounded-[22px] p-3 mb-3 border border-white/30 dark:border-white/10 shadow-xs space-y-2">
@@ -3319,8 +2589,6 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               selectedDate={scheduleDate}
               onSelectDate={setScheduleDate}
               hasSchedule={(d) => markers.some(r => getScheduledForDate(r, d))}
-              showPrintHistory
-              onPrintedDateClick={setPrintHistoryDateKey}
             />
 
             {scheduleDate && (showRemovedSchedules || markers.some(r => visits.sessions[sessionKey(r.id, selectedDateKey)]?.status === 'cancelled')) && <section className="mb-3 rounded-2xl border border-surface-border bg-surface p-3 text-foreground">
@@ -3353,7 +2621,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               <div className="relative pl-6 space-y-4 mt-4">
                 {/* Vertical Timeline Gradient Connector Line */}
                 <div className="absolute top-4 bottom-8 left-[11px] w-[3px] bg-gradient-to-b from-primary via-accent to-surface-border rounded-full" />
-                
+
                 {scheduleRoute.map((marker, i) => {
                   const completed = isCompletedForDate(marker, scheduleDate);
                   const isNext = ['planned', 'in_progress'].includes(getVisit(marker, selectedDateKey).status) && scheduleRoute.slice(0, i).every(r => ['completed', 'missed', 'cancelled'].includes(getVisit(r, selectedDateKey).status));
@@ -3369,15 +2637,15 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                     >
                       {/* One UI Timeline Node Squircle */}
                       <div className={`absolute -left-[25px] top-1.5 w-[26px] h-[26px] rounded-[10px] flex items-center justify-center z-10 transition-transform ${
-                        completed 
-                          ? 'bg-surface-muted border-2 border-surface-border text-foreground/40' 
-                          : isNext 
-                            ? 'bg-primary border-2 border-white dark:border-white/20 text-primary-foreground shadow-lg shadow-primary/40 scale-110' 
+                        completed
+                          ? 'bg-surface-muted border-2 border-surface-border text-foreground/40'
+                          : isNext
+                            ? 'bg-primary border-2 border-white dark:border-white/20 text-primary-foreground shadow-lg shadow-primary/40 scale-110'
                             : 'bg-surface border-2 border-surface-border text-foreground/70 shadow-xs'
                       }`}>
                         {completed ? <IconCheck size={14} strokeWidth={3} /> : <span className="text-[11px] font-black">{i + 1}</span>}
                       </div>
-                      
+
                       {/* One UI 9.0 Inset Card Content */}
                       <div className={`flex-1 min-w-0 rounded-[30px] border ${isNext ? 'border-primary/60 shadow-[0_8px_25px_rgba(var(--primary),0.15)] ring-1 ring-primary/20' : 'border-white/30 dark:border-white/10 shadow-[0_6px_20px_rgba(0,0,0,0.04)]'} bg-surface/90 backdrop-blur-xl p-4.5 transition-all`}>
                         <div className="flex gap-3.5 items-start">
@@ -3388,7 +2656,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                               <IconUser size={26} className="text-primary" />
                             )}
                           </div>
-                          
+
                           <div className="flex-1 min-w-0 pt-0.5">
                             <div className="flex flex-wrap items-center gap-2 mb-1">
                               <button type="button" aria-label={`${marker.name} 어르신 상세 보기`} onClick={(e) => { e.stopPropagation(); setSelectedRecipient(marker); setIsDetailModalOpen(true); }} className={`text-left w-full min-h-11 font-black text-[18px] text-foreground tracking-tight [overflow-wrap:anywhere] `} >{marker.name} 어르신</button>
@@ -3398,15 +2666,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                                   다음 방문
                                 </span>
                               )}
-                              {printedRecipientIds.has(marker.id) && (
-                                <span
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-black border border-primary/20 shrink-0"
-                                  title={`${selectedDateKey}에 수행한 인쇄·PDF 저장·공유 작업 이력입니다. 방문 날짜나 실제 전달·출력 완료를 뜻하지는 않습니다.`}
-                                >
-                                  <IconFileCheck size={11} strokeWidth={2.5} />
-                                  문서 작업
-                                </span>
-                              )}
+
                             </div>
                             <div className="flex items-center gap-1.5 mb-1.5 text-xs font-black text-foreground/60">
                               <IconClock size={14} className={isNext ? 'text-accent' : 'text-foreground/40'} />
@@ -3439,7 +2699,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
                           {/* 순서 조정 (위/아래 이동) 컨트롤 */}
                           {scheduleRoute.length > 1 && (
-                            <div 
+                            <div
                               className="flex flex-col gap-1 items-center shrink-0 pl-1"
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -3448,8 +2708,8 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                                 disabled={i === 0}
                                 onClick={(e) => { e.stopPropagation(); moveRouteItem(i, 'up'); }}
                                 className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
-                                  i === 0 
-                                    ? 'opacity-25 text-foreground/30 cursor-not-allowed' 
+                                  i === 0
+                                    ? 'opacity-25 text-foreground/30 cursor-not-allowed'
                                     : 'bg-surface-muted hover:bg-surface-border text-foreground/70 active:scale-90 border border-surface-border/40 shadow-2xs'
                                 }`}
                                 aria-label="순서 위로 이동"
@@ -3462,8 +2722,8 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                                 disabled={i === scheduleRoute.length - 1}
                                 onClick={(e) => { e.stopPropagation(); moveRouteItem(i, 'down'); }}
                                 className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
-                                  i === scheduleRoute.length - 1 
-                                    ? 'opacity-25 text-foreground/30 cursor-not-allowed' 
+                                  i === scheduleRoute.length - 1
+                                    ? 'opacity-25 text-foreground/30 cursor-not-allowed'
                                     : 'bg-surface-muted hover:bg-surface-border text-foreground/70 active:scale-90 border border-surface-border/40 shadow-2xs'
                                 }`}
                                 aria-label="순서 아래로 이동"
@@ -3484,15 +2744,15 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                               className={`min-h-11 whitespace-normal text-sm px-3 ${getVisit(marker, selectedDateKey).status === 'missed' ? 'min-[360px]:col-span-2' : ''}`}
                               variant={completed ? 'plain' : 'primary'}
                             >
-                              <span aria-label={`${marker.name} ${['completed', 'missed'].includes(getVisit(marker, selectedDateKey).status) ? '방문 기록' : visitPrimaryLabel(marker, selectedDateKey)}`}>{['completed', 'missed'].includes(getVisit(marker, selectedDateKey).status) ? '방문 기록' : visitPrimaryLabel(marker, selectedDateKey)}</span>
+                              <span aria-label={`${marker.name} ${visitPrimaryLabel(marker, selectedDateKey)}`}>{visitPrimaryLabel(marker, selectedDateKey)}</span>
                             </Button>
                             {['planned', 'in_progress'].includes(getVisit(marker, selectedDateKey).status) && <Button variant="ghost" onClick={() => handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address)} startIcon={<IconNavigation size={18} />} className="min-h-11 whitespace-normal text-sm px-3">길안내</Button>}
-                            {completed && <Button variant="ghost" onClick={() => handleShareReport(marker)} startIcon={<IconShare size={18} />} className="min-h-11 whitespace-normal text-sm px-3">기록 공유</Button>}
+
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Button variant="ghost" onClick={() => openPrintRecipient(marker, selectedDateKey)} startIcon={<IconPrinter size={16} />} className="min-h-11 flex-1 whitespace-normal text-sm px-3">출력</Button>
                             <Button variant="ghost" onClick={() => setManagingScheduleRecipient(marker)} startIcon={<IconPencil size={16} />} className="min-h-11 flex-1 whitespace-normal text-sm px-3">일정 수정</Button>
-                            {!['completed', 'missed'].includes(getVisit(marker, selectedDateKey).status) && <Button variant="danger-ghost" onClick={() => handleRemoveFromSchedule(marker, scheduleDate)} disabled={visitSaving || visits.loading || Boolean(visits.error)} startIcon={<IconTrash size={16} />} className="min-h-11 flex-1 whitespace-normal text-sm px-3"><span aria-label={`${marker.name} 일정 제거`}>일정 제거</span></Button>}
+                            {getVisit(marker, selectedDateKey).status !== 'cancelled' && <Button variant="danger-ghost" onClick={() => handleRemoveFromSchedule(marker, scheduleDate)} disabled={visitSaving || visits.loading || Boolean(visits.error)} startIcon={<IconTrash size={16} />} className="min-h-11 flex-1 whitespace-normal text-sm px-3"><span aria-label={`${marker.name} 일정 제거`}>일정 제거</span></Button>}
                           </div>
                         </div>
                       </div>
@@ -3501,14 +2761,13 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                 })}
               </div>
             ))}
-            
 
           </div>
         )}
       </div>
-      
+
       {activeTab === 'settings' && (
-        <SettingsView 
+        <SettingsView
           accountEmail={accountEmail}
           onSignOut={onSignOut}
           onSyncCalendar={handleSyncToCalendar}
@@ -3534,58 +2793,13 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       {/* 맵 플로팅 컨트롤 툴바 (줌 / 레이어 / 내위치) - One UI 9.0 Squircle Island */}
       {activeTab === 'map' && (
         <div id="tour-map-controls" className={`absolute right-4 ${selectedRecipient && !isDetailModalOpen ? 'bottom-[calc(230px+var(--app-safe-bottom))]' : 'bottom-[calc(104px+var(--app-safe-bottom))]'} transition-all duration-300 z-40 flex flex-col items-center gap-3.5 pointer-events-none`}>
-          
+
           <div className="flex flex-col items-center bg-surface/85 supports-[backdrop-filter]:bg-surface/70 backdrop-blur-[40px] saturate-200 rounded-[28px] shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-white/30 dark:border-white/10 pointer-events-auto p-1.5 gap-1.5">
             {/* 지도 레이어 (행정구역 경계 + 기상 그리드) 통합 메뉴 */}
             <div className="relative">
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.90 }}
-                onClick={() => setIsLayerMenuOpen(prev => !prev)}
-                className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors ${(showRegions || showWeatherGrid) ? 'bg-primary text-primary-foreground shadow-md' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
-                title="지도 레이어"
-              >
-                <IconMap size={22} strokeWidth={2.5} />
-              </motion.button>
 
               <AnimatePresence>
-                {isLayerMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setIsLayerMenuOpen(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, x: 8 }}
-                      animate={{ opacity: 1, scale: 1, x: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, x: 8 }}
-                      transition={{ type: 'spring', damping: 28, stiffness: 400 }}
-                      className="map-layer-menu absolute right-[56px] top-1/2 -translate-y-1/2 z-20 bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[22px] p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.14)] border border-white/30 dark:border-white/10 w-[196px] pointer-events-auto"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setShowRegions(v => !v)}
-                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[16px] hover:bg-foreground/[0.05] transition-colors"
-                      >
-                        <span className="flex items-center gap-2 text-[13px] font-bold text-foreground/80">
-                          <IconMap size={16} /> 행정구역 경계
-                        </span>
-                        <span className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${showRegions ? 'bg-primary' : 'bg-foreground/15'}`}>
-                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showRegions ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowWeatherGrid(v => !v)}
-                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[16px] hover:bg-foreground/[0.05] transition-colors"
-                      >
-                        <span className="flex items-center gap-2 text-[13px] font-bold text-foreground/80">
-                          <IconCloud size={16} /> 기상 그리드
-                        </span>
-                        <span className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${showWeatherGrid ? 'bg-sky-500' : 'bg-foreground/15'}`}>
-                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showWeatherGrid ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                        </span>
-                      </button>
-                    </motion.div>
-                  </>
-                )}
+
               </AnimatePresence>
             </div>
 
@@ -3610,25 +2824,6 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
           </div>
 
           {/* 두 어르신 경로 그리기 모드 (보조 FAB, 평소엔 뷰 컨트롤과 분리) */}
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.90 }}
-            onClick={() => {
-              setIsRoutePickMode(prev => {
-                const next = !prev;
-                if (!next) clearRoutePick();
-                return next;
-              });
-            }}
-            className={`w-[52px] h-[52px] flex items-center justify-center rounded-[24px] shadow-[0_12px_28px_rgba(0,0,0,0.14)] border transition-colors backdrop-blur-[40px] saturate-200 pointer-events-auto ${
-              isRoutePickMode
-                ? 'bg-accent text-primary border-accent/40 shadow-accent/30'
-                : 'bg-surface/85 supports-[backdrop-filter]:bg-surface/70 text-foreground/80 border-white/30 dark:border-white/10'
-            }`}
-            aria-label="두 어르신 경로 그리기"
-          >
-            <IconRoute2 size={24} strokeWidth={2.5} />
-          </motion.button>
 
           {/* 어르신 추가 (One UI 9.0 강조형 Squircle FAB) */}
           <motion.button
@@ -3648,7 +2843,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
       {/* 지도 하단 어르신 퀵 프리뷰 플로팅 카드 (Senior Floating Peek Card) */}
       <AnimatePresence>
-        {activeTab === 'map' && selectedRecipient && !isDetailModalOpen && !isRoutePickMode && (
+        {activeTab === 'map' && selectedRecipient && !isDetailModalOpen && (
           <motion.div
             initial={{ opacity: 0, y: 40, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -3732,7 +2927,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
                 {/* Badges: Health Tags & Passcode & Parking */}
                 {(() => {
-                  const activeTags = selectedRecipient.health_tags || 
+                  const activeTags = selectedRecipient.health_tags ||
                     (typeof window !== 'undefined' ? accountStorage.getItem(`careroute_health_tags_${selectedRecipient.id}`) : null);
                   return (selectedRecipient.door_passcode || selectedRecipient.parking_memo || selectedRecipient.guardian_phone || activeTags) ? (
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
@@ -3809,7 +3004,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                 className="py-2.5 rounded-[16px] bg-primary/10 hover:bg-primary/20 text-primary text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
               >
                 <IconMessageCircle size={15} />
-                <span>음성일지</span>
+                <span>{completionActionLabel(selectedRecipient, detailDateKey)}</span>
               </button>
 
               <button
@@ -3825,234 +3020,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
         )}
       </AnimatePresence>
 
-      {/* 두 어르신 경로 보기 패널 (출발/도착 지정 안내 + 결과 요약) */}
-      <AnimatePresence>
-        {activeTab === 'map' && isRoutePickMode && (
-          <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 30, scale: 0.96 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="app-map-card fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-lg mx-auto z-40 bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-[40px] saturate-200 rounded-[32px] p-4 border border-white/30 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.14)]"
-          >
-            <div className="w-10 h-1 rounded-full bg-foreground/15 mx-auto mb-3" />
-            {!routeOrigin || !routeDestination ? (
-              <div className="flex items-center gap-3 py-1">
-                <div className="w-11 h-11 rounded-[18px] bg-accent/20 text-primary flex items-center justify-center shrink-0">
-                  <IconRoute2 size={22} strokeWidth={2.5} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-black text-foreground">
-                    {!routeOrigin ? '출발할 어르신을 지도에서 탭하세요' : `${routeOrigin.name} 어르신 출발 · 도착할 어르신을 탭하세요`}
-                  </p>
-                  <p className="text-[12px] text-foreground/50 font-semibold mt-0.5">목록 탭의 경로 버튼으로도 지정할 수 있어요</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setIsRoutePickMode(false); clearRoutePick(); }}
-                  className="w-9 h-9 flex items-center justify-center rounded-full bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1] transition-colors shrink-0"
-                  aria-label="경로 모드 종료"
-                >
-                  <IconX size={16} strokeWidth={2.5} />
-                </button>
-              </div>
-            ) : isWalkNavActive && routeSteps ? (
-              (() => {
-                const currentStep = routeSteps[walkNavStepIndex];
-                const isLastStep = walkNavStepIndex === routeSteps.length - 1;
-                const liveDistM = myLocation
-                  ? getDistanceFromLatLonInKm(myLocation.lat, myLocation.lng, currentStep.lat, currentStep.lng) * 1000
-                  : currentStep.distanceM;
-                const isArrived = isLastStep && liveDistM <= WALK_NAV_ADVANCE_RADIUS_M;
-                return (
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-2.5">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black text-white bg-emerald-500">
-                        <IconWalk size={13} />
-                        {isArrived ? '도착' : `${walkNavStepIndex + 1} / ${routeSteps.length}단계`}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setIsWalkNavActive(false)}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1] transition-colors shrink-0"
-                      >
-                        <IconX size={12} strokeWidth={2.5} />
-                        안내 종료
-                      </button>
-                    </div>
-                    {isArrived ? (
-                      <p className="text-[16px] font-black text-foreground leading-snug">
-                        {routeDestination.name} 어르신 댁에 도착했어요 👏
-                      </p>
-                    ) : (
-                      <>
-                        <p className="text-[16px] font-black text-foreground leading-snug">{currentStep.description}</p>
-                        <p className="text-[12px] font-bold text-foreground/50 mt-1">
-                          다음 안내까지 약 {Math.max(0, Math.round(liveDistM))}m
-                          {myLocation?.heading == null && ' · 이동 중이어야 진행 방향이 표시돼요'}
-                        </p>
-                      </>
-                    )}
-
-                    {/* 실제로 이동 중이 아니어도 전체 턴바이턴 안내를 미리 넘겨볼 수 있게 수동 이전/다음 */}
-                    <div className="flex items-center gap-2 mt-3">
-                      <button
-                        type="button"
-                        onClick={() => setWalkNavStepIndex((i) => Math.max(0, i - 1))}
-                        disabled={walkNavStepIndex === 0}
-                        className="flex-1 flex items-center justify-center gap-1 py-2 rounded-[14px] text-[12px] font-black bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.1] disabled:opacity-35 disabled:hover:bg-foreground/[0.06] transition-colors"
-                      >
-                        <IconChevronUp size={14} className="-rotate-90" />
-                        이전 단계
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setWalkNavStepIndex((i) => Math.min(routeSteps.length - 1, i + 1))}
-                        disabled={walkNavStepIndex === routeSteps.length - 1}
-                        className="flex-1 flex items-center justify-center gap-1 py-2 rounded-[14px] text-[12px] font-black bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.1] disabled:opacity-35 disabled:hover:bg-foreground/[0.06] transition-colors"
-                      >
-                        다음 단계
-                        <IconChevronDown size={14} className="-rotate-90" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()
-            ) : (
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-1.5 min-w-0 text-[13px] font-black text-foreground truncate">
-                    <span className="text-emerald-600">{routeOrigin.name}</span>
-                    <IconChevronRight size={14} className="text-foreground/30 shrink-0" />
-                    <span className="text-rose-600">{routeDestination.name}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={clearRoutePick}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1] transition-colors shrink-0"
-                  >
-                    <IconX size={12} strokeWidth={2.5} />
-                    지정 초기화
-                  </button>
-                </div>
-
-                {/* 이동수단 수동 전환: 기본은 거리 기준 자동 추천이지만 언제든 직접 바꿀 수 있다 */}
-                <div className="flex items-center gap-1 mb-3 p-1 rounded-[18px] bg-foreground/[0.05]">
-                  {(['walk', 'drive', 'transit'] as TravelMode[]).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setManualTravelMode(m)}
-                      className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[14px] text-[12px] font-black transition-all ${
-                        routeMode === m ? 'bg-surface shadow-xs' : 'text-foreground/45 hover:text-foreground/70'
-                      }`}
-                      style={routeMode === m ? { color: ROUTE_MODE_COLOR[m] } : undefined}
-                    >
-                      {m === 'walk' && <IconWalk size={14} />}
-                      {m === 'drive' && <IconCar size={14} />}
-                      {m === 'transit' && <IconBus size={14} />}
-                      {TRAVEL_MODE_LABEL[m]}
-                    </button>
-                  ))}
-                </div>
-
-                {routeMode === 'walk' && (
-                  <div className="flex items-center gap-1.5 mb-3 overflow-x-auto no-scrollbar">
-                    {(Object.keys(WALK_SEARCH_OPTION_LABEL) as WalkSearchOption[]).map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setWalkSearchOption(opt)}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-black whitespace-nowrap transition-colors shrink-0 ${
-                          walkSearchOption === opt
-                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-foreground/[0.06] text-foreground/60 hover:bg-foreground/[0.1]'
-                        }`}
-                      >
-                        {WALK_SEARCH_OPTION_LABEL[opt]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {routeMode !== 'walk' ? (
-                  // 차량/대중교통: 인앱 경로 없이 직선거리만 참고로 보여주고, 실제 길찾기는
-                  // 이미 잘 하는 시스템 지도 앱(네이버/카카오/티맵)으로 바로 넘긴다.
-                  <div className="flex items-center gap-3 rounded-[20px] bg-foreground/[0.035] p-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: `${ROUTE_MODE_COLOR[routeMode!]}1A`, color: ROUTE_MODE_COLOR[routeMode!] }}
-                    >
-                      {routeMode === 'drive' ? <IconCar size={20} /> : <IconBus size={20} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-black text-foreground truncate">{routeDestination.name} 어르신 댁까지</p>
-                      <p className="text-[12px] font-bold text-foreground/50">
-                        {routeDistanceKm !== null && `${routeDistanceKm.toFixed(1)}km`} · 직선거리 · 실제 경로는 지도 앱에서 확인
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleDirections(routeDestination.lat, routeDestination.lng, routeDestination.address, routeDestination.detail_address)}
-                      className="py-2.5 px-4 rounded-full text-white text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs shrink-0"
-                      style={{ backgroundColor: ROUTE_MODE_COLOR[routeMode!] }}
-                    >
-                      <IconNavigation size={14} />
-                      길찾기
-                    </button>
-                  </div>
-                ) : isRouteLoading ? (
-                  <div className="flex items-center gap-2 py-2 text-[13px] font-bold text-foreground/60">
-                    <Spinner size={16} />
-                    실제 도보 경로를 불러오는 중...
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-black shrink-0"
-                        style={{ backgroundColor: `${ROUTE_MODE_COLOR.walk}1A`, color: ROUTE_MODE_COLOR.walk }}
-                      >
-                        <IconWalk size={14} />
-                        도보
-                      </span>
-                      <span className="text-[12px] font-bold text-foreground/60 truncate">
-                        {routeDistanceKm !== null && `${routeDistanceKm.toFixed(1)}km`}
-                        {routeDurationMin !== null && ` · 약 ${routeDurationMin}분`}
-                        {isRouteFallback && ' · 직선 거리 기준(폴백)'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {!isRouteFallback && routeSteps && (
-                        <button
-                          type="button"
-                          onClick={() => { setWalkNavStepIndex(0); setIsWalkNavActive(true); }}
-                          className="py-2 px-3.5 rounded-full bg-emerald-500 text-white text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-xs"
-                        >
-                          <IconWalk size={14} />
-                          안내 시작
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => routePath && fitMapToRoute(routePath)}
-                        className="w-9 h-9 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 flex items-center justify-center active:scale-95 transition-all shadow-xs shrink-0"
-                        aria-label="경로에 맞춰 보기"
-                      >
-                        <IconMap size={15} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* 어르신 상세 팝업 - One UI 9.0 Hero Bottom Sheet / Dialog */}
-      <Modal 
-        open={Boolean(selectedRecipient && (activeTab === 'route' || isDetailModalOpen))} 
+      <Modal
+        open={Boolean(selectedRecipient && (activeTab === 'route' || isDetailModalOpen))}
         onClose={() => {
           setSelectedRecipient(null);
           setIsDetailModalOpen(false);
@@ -4105,7 +3075,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                   </div>
 
                   {(() => {
-                    const activeTags = selectedRecipient.health_tags || 
+                    const activeTags = selectedRecipient.health_tags ||
                       (typeof window !== 'undefined' ? accountStorage.getItem(`careroute_health_tags_${selectedRecipient.id}`) : null);
                     if (!activeTags) return null;
                     return (
@@ -4131,7 +3101,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
                 {/* Visit action & edit actions */}
                 <div className="flex gap-1.5 shrink-0">
-                  <IconButton 
+                  <IconButton
                     onClick={() => toggleCompleted(selectedRecipient, detailDateKey)}
                     disabled={visitSaving || visits.loading}
                     className={`w-11 h-11 rounded-[18px] transition-all ${isSelectedVisitCompleted(selectedRecipient) ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'}`}
@@ -4139,15 +3109,15 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                   >
                     {visitActionIcon(selectedRecipient, detailDateKey, 20)}
                   </IconButton>
-                  <IconButton 
-                    onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }} 
+                  <IconButton
+                    onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }}
                     className="w-11 h-11 rounded-[18px] bg-surface-muted text-foreground/70 hover:bg-surface-border"
                     aria-label="정보 수정"
                   >
                     <IconPencil size={18} />
                   </IconButton>
-                  <IconButton 
-                    onClick={() => handleDelete(selectedRecipient.id)} 
+                  <IconButton
+                    onClick={() => handleDelete(selectedRecipient.id)}
                     className="w-11 h-11 rounded-[18px] bg-red-500/10 text-red-500 hover:bg-red-500/20"
                     aria-label="삭제"
                   >
@@ -4156,8 +3126,8 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                 </div>
               </div>
 
-                <button type="button" onClick={() => openVisitRecord(selectedRecipient, detailDateKey)} className="rounded-2xl border border-surface-border px-3 py-2 text-sm font-bold text-left">
-                  {detailDateKey} · {VISIT_STATUS_LABEL[getVisit(selectedRecipient, detailDateKey).status]} · 기록·정정
+                <button type="button" onClick={() => openScheduleManagement(selectedRecipient, detailDateKey)} className="rounded-2xl border border-surface-border px-3 py-2 text-sm font-bold text-left">
+                  {detailDateKey} · {VISIT_STATUS_LABEL[getVisit(selectedRecipient, detailDateKey).status]}
                 </button>
 
               {/* One UI 9.0 Quick Action Pill Bar */}
@@ -4175,19 +3145,11 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                   className="py-3 px-1 rounded-[20px] bg-primary/10 hover:bg-primary/15 text-primary flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
                 >
                   <IconMessageCircle size={20} />
-                  <span className="text-[12px] font-black">{['completed', 'missed', 'cancelled'].includes(getVisit(selectedRecipient, detailDateKey).status) ? '방문 기록' : '일지·완료'}</span>
+                  <span className="text-[12px] font-black">{completionActionLabel(selectedRecipient, detailDateKey)}</span>
                 </button>
 
                 <button
-                  onClick={() => handleShareReport(selectedRecipient)}
-                  className="py-3 px-1 rounded-[20px] bg-[#FEE500]/20 hover:bg-[#FEE500]/30 text-amber-900 dark:text-amber-200 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-amber-500/20"
-                >
-                  <IconShare size={20} />
-                  <span className="text-[12px] font-black">안심 공유</span>
-                </button>
-
-                <button
-                  onClick={() => openPrintRecipient(selectedRecipient)}
+                  onClick={() => openPrintRecipient(selectedRecipient, detailDateKey)}
                   className="py-3 px-1 rounded-[20px] bg-foreground/[0.04] hover:bg-foreground/[0.08] text-foreground/75 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-surface-border/40"
                 >
                   <IconPrinter size={20} />
@@ -4300,62 +3262,25 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
         )}
       </Modal>
 
-      {/* 방문완료 처리 직후 확인서 출력을 가볍게 제안하는 토스트. 일정 시간 후 자동으로 사라진다. */}
-      <AnimatePresence>
-        {printSuggestionRecipient && (
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 24 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-            className="fixed left-4 right-4 bottom-24 z-[70] max-w-md mx-auto flex items-center justify-between gap-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-[22px] pl-4 pr-2 py-2.5 shadow-2xl"
-          >
-            <p className="text-[13px] font-bold">
-              {printSuggestionRecipient.name} 어르신 방문완료 처리했어요
-            </p>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  openPrintRecipient(printSuggestionRecipient, printSuggestionRecipient.last_completed_key || todayKey);
-                  setPrintSuggestionRecipient(null);
-                }}
-                className="px-3 py-2 rounded-full bg-white/15 dark:bg-zinc-900/10 text-[12px] font-black whitespace-nowrap active:scale-95 transition-transform"
-              >
-                확인서 출력
-              </button>
-              <button
-                type="button"
-                onClick={() => setPrintSuggestionRecipient(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 dark:bg-zinc-900/10 active:scale-95 transition-transform"
-                aria-label="닫기"
-              >
-                <IconX size={14} />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* iOS Cupertino Native Tab Bar (Ultra-thin Frosted Glass Material) */}
       <nav
-        id="tour-bottom-nav" 
+        id="tour-bottom-nav"
         className="app-bottom-nav fixed bottom-0 left-0 right-0 z-50 bg-white/85 dark:bg-[#121214]/85 backdrop-blur-2xl saturate-150 border-t border-black/[0.08] dark:border-white/[0.1] pb-[max(var(--app-safe-bottom),8px)] pt-2 px-3 shadow-[0_-4px_24px_rgba(0,0,0,0.03)] select-none pointer-events-auto"
       >
         <div className="max-w-md mx-auto flex h-12 items-center justify-around">
           {([
             { key: 'map' as const, label: '지도', Icon: IconMapPin },
-            { 
-              key: 'list' as const, 
-              label: '수급자', 
-              Icon: IconUsers, 
+            {
+              key: 'list' as const,
+              label: '수급자',
+              Icon: IconUsers,
               badge: markers.length > 0 ? String(markers.length) : undefined,
               badgeColor: 'bg-[#8E8E93] text-white'
             },
-            { 
-              key: 'route' as const, 
-              label: '일정', 
-              Icon: IconCalendarEvent, 
+            {
+              key: 'route' as const,
+              label: '일정',
+              Icon: IconCalendarEvent,
               badge: (() => {
                 const todayCount = markers.filter(m => getScheduledForDate(m, new Date())).length;
                 const completedCount = markers.filter(m => getScheduledForDate(m, new Date()) && isCompletedToday(m)).length;
@@ -4399,44 +3324,26 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
         </div>
       </nav>
 
-      <VoiceMemoModal
-        key={completingRecipient?.id || 'none'}
-        isOpen={Boolean(completingRecipient)}
-        onClose={() => { if (!visitSaving) setCompletingRecipient(null); }}
-        onSave={handleSaveMemo}
-        onSaveAndShare={handleSaveAndShareMemo}
-        recipientName={completingRecipient?.name || ''}
-        recipientId={completingRecipient?.id}
-        initialMemo={completingRecipient ? getVisit(completingRecipient, completingDateKey || todayKey).memo : null}
-        saving={visitSaving}
-        saveError={visitActionError}
-        visitDateLabel={completingDateKey}
-      />
-
-      {recordVisit && <VisitRecordModal open onClose={() => { if (!visitSaving) setRecordVisit(null); }}
-        recipientName={recordVisit.recipient.name} dateKey={recordVisit.dateKey} session={getVisit(recordVisit.recipient, recordVisit.dateKey)}
-        saving={visitSaving} error={visitActionError}
-        onTransition={async (status, reason, expectedVersion) => { await saveVisitTransition(recordVisit.recipient, recordVisit.dateKey, status, undefined, reason, expectedVersion); }} />}
-
-      <ShareReportModal
-        key={sharingRecipient ? `${sharingRecipient.id}:${sharingDateKey}` : 'closed'}
-        isOpen={Boolean(sharingRecipient)}
-        onClose={() => setSharingRecipient(null)}
-        recipient={sharingRecipient ? { ...sharingRecipient, last_completed_memo: getVisit(sharingRecipient, sharingDateKey || todayKey).memo } : null}
-        visitSession={sharingRecipient ? getVisit(sharingRecipient, sharingDateKey || todayKey) : null}
-        selectedDate={sharingDateKey ? new Date(`${sharingDateKey}T12:00:00`) : new Date()}
-      />
-
+      <VisitCompletionModal key={completingRecipient ? `${completingRecipient.id}:${completingDateKey}` : 'none'} isOpen={Boolean(completingRecipient)} onClose={() => { if (!visitSaving) setCompletingRecipient(null); }} onSave={handleSaveMemo} recipientName={completingRecipient?.name || ''} recipientId={completingRecipient?.id} initialMemo={completingRecipient ? getVisit(completingRecipient, completingDateKey || todayKey).memo : null} saving={visitSaving} saveError={visitActionError} visitDateLabel={completingDateKey} />
+      <Modal open={isPrintMenuOpen} onClose={() => setIsPrintMenuOpen(false)}>
+        <div className="space-y-3 p-5 text-foreground">
+          <div className="flex items-center justify-between gap-2"><h2 className="text-xl font-bold">출력</h2><IconButton aria-label="닫기" onClick={() => setIsPrintMenuOpen(false)}><IconX size={20} /></IconButton></div>
+          <p className="text-sm text-foreground/70">출력할 범위를 선택하세요.</p>
+          {printMenuTarget && <Button fullWidth variant="ghost" onClick={() => choosePrint('recipient')}>{printMenuTarget.recipient.name} 수급자 정보</Button>}
+          <Button fullWidth variant="ghost" disabled={visits.loading || Boolean(visits.error) || !scheduleRoute.length} onClick={() => choosePrint('day')}>선택 날짜 일정 · {selectedDateKey} · {scheduleRoute.length}명</Button>
+          <Button fullWidth variant="ghost" disabled={visits.loading || Boolean(visits.error) || !weekDays.some(day => day.recipients.length)} onClick={() => choosePrint('week')}>선택한 주 일정 · {weekLabel}</Button>
+        </div>
+      </Modal>
       <PrintProfileModal
         isOpen={Boolean(printingRecipient)}
-        onClose={() => { setPrintingRecipient(null); refetchPrintedRecipientIds(); }}
+        onClose={() => setPrintingRecipient(null)}
         recipient={printingRecipient}
         dateKey={printingDateKey || todayKey}
       />
 
       <BatchPrintModal
         isOpen={isBatchPrintOpen}
-        onClose={() => { setIsBatchPrintOpen(false); refetchPrintedRecipientIds(); }}
+        onClose={() => setIsBatchPrintOpen(false)}
         recipients={scheduleDate ? scheduleRoute.map((r) => ({ ...projectVisitForDate(r, selectedDateKey), completed: isCompletedForDate(r, scheduleDate) })) : scheduleRoute}
         dateKey={selectedDateKey}
         dateLabel={scheduleDate ? `${scheduleDate.getMonth() + 1}월 ${scheduleDate.getDate()}일` : undefined}
@@ -4444,19 +3351,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
       <WeeklyPrintModal
         isOpen={isWeeklyPrintOpen}
-        onClose={() => { setIsWeeklyPrintOpen(false); refetchPrintedRecipientIds(); }}
+        onClose={() => setIsWeeklyPrintOpen(false)}
         days={weekDays}
         weekLabel={weekLabel}
-      />
-
-      <PrintHistorySheet
-        open={Boolean(printHistoryDateKey)}
-        onClose={() => setPrintHistoryDateKey(null)}
-        dateKey={printHistoryDateKey || undefined}
-        dateLabel={printHistoryDateKey ? (() => {
-          const [, m, d] = printHistoryDateKey.split('-').map(Number);
-          return `${m}월 ${d}일`;
-        })() : undefined}
       />
 
       {selectedRecipient && (
@@ -4478,7 +3375,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
       )}
 
             {isScheduleAddOpen && (
-        <ScheduleAddModal 
+        <ScheduleAddModal
           isOpen={isScheduleAddOpen}
           onClose={() => setIsScheduleAddOpen(false)}
           date={scheduleDate as Date}
@@ -4512,10 +3409,10 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
           setManagingScheduleRecipient(null);
         }}
       />
-      
-      <RecipientModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+
+      <RecipientModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         onSuccess={() => {
           setIsModalOpen(false);
           fetchMarkers();

@@ -95,7 +95,7 @@ export default function Tour({ onComplete }: TourProps) {
     {
       target: '#tour-map-controls',
       title: <><IconMap className="text-primary" /> 맵 컨트롤 툴바</>,
-      content: '지도 레이어에서 행정구역·기상 표시를 선택하고, 내 위치 버튼으로 현재 위치를 확인할 수 있습니다. 지도는 손가락이나 마우스로 확대·축소하세요.',
+      content: '내 위치 버튼으로 현재 위치를 확인할 수 있습니다. 지도는 손가락이나 마우스로 확대·축소하고, 지역 선택에서 원하는 곳으로 이동하세요.',
       disableBeacon: true,
     },
     {

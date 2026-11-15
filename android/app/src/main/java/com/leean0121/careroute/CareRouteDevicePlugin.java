@@ -11,7 +11,6 @@ import android.net.Uri;
 import android.provider.Settings;
 import androidx.core.content.ContextCompat;
 import android.print.PrintManager;
-import android.speech.RecognizerIntent;
 import androidx.activity.result.ActivityResult;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -19,7 +18,6 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import java.util.ArrayList;
 
 @CapacitorPlugin(name = "CareRouteDevice")
 public class CareRouteDevicePlugin extends Plugin {
@@ -107,23 +105,4 @@ public class CareRouteDevicePlugin extends Plugin {
         });
     }
 
-    @PluginMethod
-    public void recognizeSpeech(PluginCall call) {
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR");
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "방문 기록을 말씀해 주세요");
-        try { startActivityForResult(call, intent, "speechResult"); }
-        catch (Exception error) { call.reject("기기에 음성 인식 서비스가 없습니다. 키보드로 입력해 주세요.", error); }
-    }
-
-    @ActivityCallback
-    private void speechResult(PluginCall call, ActivityResult result) {
-        if (call == null) return;
-        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
-            call.resolve(new JSObject().put("text", "")); return;
-        }
-        ArrayList<String> matches = result.getData().getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-        call.resolve(new JSObject().put("text", matches == null || matches.isEmpty() ? "" : matches.get(0)));
-    }
 }

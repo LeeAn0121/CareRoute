@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { IconChevronLeft, IconChevronRight, IconCalendarEvent, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchPrintedDateKeysInRange } from '@/lib/printLogs';
 
 interface MonthCalendarProps {
   defaultCollapsed?: boolean;
@@ -12,20 +11,14 @@ interface MonthCalendarProps {
   selectedDate: Date | null;
   onSelectDate: (date: Date) => void;
   hasSchedule?: (date: Date) => boolean;
-  // true면 달력이 보여주는 달에 한해 출력 기록이 있는 날짜에 점을 표시한다(자체적으로 조회).
-  showPrintHistory?: boolean;
-  // 출력 기록 점을 눌렀을 때: 날짜 선택(onSelectDate)과 별개로 그 날짜의 출력 이력을 바로 열람하게 한다.
-  onPrintedDateClick?: (dateKey: string) => void;
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule, showPrintHistory, onPrintedDateClick, defaultCollapsed = false, collapsible = true, getDaySummary, onMonthChange }: MonthCalendarProps) {
+export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule, defaultCollapsed = false, collapsible = true, getDaySummary, onMonthChange }: MonthCalendarProps) {
   const initialDate = selectedDate || new Date();
   const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
-  const [printedDateKeys, setPrintedDateKeys] = useState<Set<string>>(new Set());
-  const [loadingPrintHistory, setLoadingPrintHistory] = useState(false);
 
   const selectedDateKey = selectedDate
     ? `${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}`
@@ -48,36 +41,6 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
     notifiedMonth.current = monthKey;
     onMonthChange(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1));
   }, [currentMonth, onMonthChange]);
-
-  // 화면에 보이는 달이 바뀔 때마다 그 달의 출력 기록 날짜만 다시 불러온다.
-  useEffect(() => {
-    if (!showPrintHistory) return;
-    const y = currentMonth.getFullYear();
-    const m = currentMonth.getMonth();
-    const startKey = `${y}-${String(m + 1).padStart(2, '0')}-01`;
-    const nextMonth = new Date(y, m + 1, 1);
-    const endKey = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
-    let cancelled = false;
-    Promise.resolve().then(() => {
-      if (cancelled) return null;
-      setPrintedDateKeys(new Set());
-      setLoadingPrintHistory(true);
-      return fetchPrintedDateKeysInRange(startKey, endKey);
-    }).then((keys) => {
-      if (!cancelled && keys) {
-        setPrintedDateKeys(keys);
-        setLoadingPrintHistory(false);
-      }
-    }).catch(() => {
-      if (!cancelled) {
-        setPrintedDateKeys(new Set());
-        setLoadingPrintHistory(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [showPrintHistory, currentMonth]);
 
   const prevMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
@@ -214,9 +177,6 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
               ))}
             </div>
 
-            {showPrintHistory && loadingPrintHistory && (
-              <p role="status" className="mb-2 text-xs text-foreground/60">출력 이력 불러오는 중…</p>
-            )}
             {/* One UI Days Grid with Squircle Pebbles */}
             <div className="relative grid grid-cols-7 gap-1">
               {days.map((d, i) => {
@@ -229,8 +189,6 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
                 const pending = summary?.pending === true;
                 const scheduled = !pending && (summary ? summary.count > 0 : Boolean(hasSchedule?.(dateObj)));
                 const count = summary?.count ?? (scheduled ? 1 : 0);
-                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const printed = Boolean(showPrintHistory) && printedDateKeys.has(dateKey);
                 const isSunday = new Date(year, month, d).getDay() === 0;
                 const isSaturday = new Date(year, month, d).getDay() === 6;
 
@@ -262,23 +220,6 @@ export default function MonthCalendar({ selectedDate, onSelectDate, hasSchedule,
                         ))}
                       </span>}
                     </motion.button>
-                    {/* 해당 날짜에 출력/공유 기록이 있음을 표시하는 작은 점. 날짜 선택 버튼과는
-                        별개로 누르면 그 날짜의 출력 이력을 바로 열어볼 수 있다. 선택된(primary 배경)
-                        칸에서도 묻히지 않게 색을 바꿔 항상 보이게 한다. */}
-                    {printed && (
-                      <button
-                        type="button"
-                        aria-label={`${year}년 ${month + 1}월 ${d}일 출력 이력 보기`}
-                        title="이 날짜에 수행한 문서 작업 이력입니다 · 방문일 기준이 아닙니다 · 눌러서 보기"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onPrintedDateClick?.(dateKey);
-                        }}
-                        className="absolute top-0 right-0 w-6 h-6 flex items-center justify-center cursor-pointer"
-                      >
-                        <span className={`w-[5px] h-[5px] rounded-full ${selected ? 'bg-primary-foreground' : 'bg-primary'}`} />
-                      </button>
-                    )}
                   </div>
                 );
               })}

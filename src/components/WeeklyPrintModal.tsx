@@ -2,13 +2,11 @@
 import { savePdf } from '@/lib/native';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconCheck, IconDeviceFloppy } from '@tabler/icons-react';
+import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconCheck } from '@tabler/icons-react';
 import { Modal, IconButton, Button } from './ui';
 import PrintSheet from './PrintSheet';
 import { usePrintDraft, usePrintSetting } from './usePrintDraft';
-import PrintHistorySheet from './PrintHistorySheet';
 import { captureSheetCanvas, createA4Pdf, addCanvasAsA4Page } from '@/lib/pdfExport';
-import { logPrintEvent, uploadPrintPdf } from '@/lib/printLogs';
 
 interface Recipient {
   id: string;
@@ -115,10 +113,8 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
   const [orgName, setOrgName] = usePrintSetting('careroute_print_org_name', isOpen);
   const [orgContact, setOrgContact] = usePrintSetting('careroute_print_org_contact', isOpen);
   const [isExporting, setIsExporting] = useState(false);
-  const [isSavingBackup, setIsSavingBackup] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const sheetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -170,18 +166,6 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
     return pdf;
   };
 
-  const logWeekly = (method: 'pdf' | 'share' | 'print' | 'save', pdfPath?: string | null) => {
-    const recipientIds = Array.from(new Set(selectedEntries.map((e) => e.recipient.id)));
-    logPrintEvent({
-      recipientName: selectedEntries[0].recipient.name,
-      recipientIds,
-      method,
-      batchCount: selectedEntries.length,
-      authorName,
-      pdfPath,
-    });
-  };
-
   const fileNameBase = `${weekLabel ? weekLabel + '_' : ''}주간_방문일정_어르신정보`;
   const fileName = `${fileNameBase}.pdf`;
 
@@ -192,32 +176,11 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
       const pdf = await buildPdf();
       if (!pdf) return;
       await savePdf(pdf, fileName);
-      logWeekly('pdf');
     } catch (e) {
       console.error(e);
       alert('PDF 생성에 실패했습니다. 인쇄 버튼으로 다시 시도해주세요.');
     } finally {
       setIsExporting(false);
-    }
-  };
-
-  // PDF를 기기에 저장하면서 동시에 서버(print-pdfs 버킷)에도 올려, 나중에 출력 이력에서
-  // 다시 열어볼 수 있게 보관한다.
-  const handleSaveWithBackup = async () => {
-    if (selectedEntries.length === 0) return;
-    setIsSavingBackup(true);
-    try {
-      const pdf = await buildPdf();
-      if (!pdf) return;
-      await savePdf(pdf, fileName);
-      const blob = pdf.output('blob') as Blob;
-      const pdfPath = await uploadPrintPdf(blob, selectedEntries[0].recipient.id, fileNameBase);
-      logWeekly('save', pdfPath);
-    } catch (e) {
-      console.error(e);
-      alert('저장에 실패했습니다. PDF 아이콘으로 다시 시도해주세요.');
-    } finally {
-      setIsSavingBackup(false);
     }
   };
 
@@ -238,7 +201,6 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
         return;
       }
       await navigator.share({ files: [file], title: fileName });
-      logWeekly('share');
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error(e);
@@ -250,7 +212,6 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
 
   const handlePrint = () => {
     if (selectedEntries.length === 0) return;
-    logWeekly('print');
     window.print();
   };
 
@@ -264,9 +225,6 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
           <p className="text-[12px] font-bold text-foreground/50">{selectedEntries.length}명 선택됨 (총 {allEntries.length}명)</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <IconButton onClick={() => setIsHistoryOpen(true)} className="w-9 h-9 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="출력 이력">
-            <IconHistory size={17} />
-          </IconButton>
           <IconButton
             onClick={() => setIsPreview((v) => !v)}
             className={`w-9 h-9 rounded-full ${isPreview ? 'bg-primary/15 text-primary' : 'bg-foreground/[0.04] hover:bg-foreground/[0.08]'}`}
@@ -380,18 +338,6 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
         </IconButton>
         <Button
           type="button"
-          variant="ghost"
-          fullWidth
-          loading={isSavingBackup}
-          disabled={selectedEntries.length === 0}
-          startIcon={<IconDeviceFloppy size={19} />}
-          onClick={handleSaveWithBackup}
-          className="whitespace-nowrap py-3.5 text-[15px] font-black rounded-[22px]"
-        >
-          {isSavingBackup ? '저장 중...' : '저장'}
-        </Button>
-        <Button
-          type="button"
           fullWidth
           disabled={selectedEntries.length === 0}
           startIcon={<IconPrinter size={19} />}
@@ -402,7 +348,6 @@ export default function WeeklyPrintModal({ isOpen, onClose, days, weekLabel }: W
         </Button>
       </div>
 
-      <PrintHistorySheet open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
     </Modal>
   );
 }

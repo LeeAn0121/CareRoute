@@ -169,6 +169,23 @@ INSERT INTO public.medications(recipient_id) VALUES('10000000-0000-0000-0000-000
 SELECT pg_temp.check_true((SELECT owner_id IS NULL FROM public.medications),'legacy child inherits NULL');
 SELECT pg_temp.expect_denied($q$insert into public.medications(recipient_id,owner_id) values('10000000-0000-0000-0000-000000000000','00000000-0000-0000-0000-000000000002')$q$);
 -- Legacy projection trigger must call the guarded wrapper as the original caller.
+-- Editing an imported completed memo must not invent an unknown completion time.
+DO $$ DECLARE s public.visit_sessions; changed public.visit_sessions; BEGIN
+ BEGIN
+  SELECT * INTO STRICT s FROM public.visit_sessions
+   WHERE recipient_id='10000000-0000-0000-0000-000000000000' AND status='completed';
+  ASSERT s.completed_at IS NULL,'imported completion time is unknown';
+  changed:=public.transition_visit_session(s.recipient_id,s.visit_date,'completed','edited historical memo',NULL,s.version);
+  ASSERT changed.completed_at IS NULL AND changed.version=s.version+1,'memo edit preserves unknown actual completion time';
+  ASSERT (SELECT last_completed_memo='edited historical memo' FROM public.recipients WHERE id=s.recipient_id),'memo edit updates legacy projection';
+  s:=changed;
+  changed:=public.transition_visit_session(s.recipient_id,s.visit_date,'cancelled',s.memo,NULL,s.version);
+  changed:=public.transition_visit_session(s.recipient_id,s.visit_date,'completed',s.memo,NULL,changed.version);
+  ASSERT changed.completed_at IS NULL AND changed.memo=s.memo,'historical completion undo preserves unknown actual time';
+  RAISE EXCEPTION 'rollback memo fixture' USING ERRCODE='Z0001';
+ EXCEPTION WHEN SQLSTATE 'Z0001' THEN NULL;
+ END;
+END $$;
 UPDATE public.recipients SET last_completed_key=(now() AT TIME ZONE 'Asia/Seoul')::date::text,last_completed_memo='legacy edit'
  WHERE id='10000000-0000-0000-0000-000000000003';
 SELECT pg_temp.check_true((SELECT status='completed' AND owner_id=auth.uid() FROM public.visit_sessions WHERE recipient_id='10000000-0000-0000-0000-000000000003'),'legacy trigger works with private owner');
@@ -211,6 +228,162 @@ UPDATE public.legacy_data_access SET enabled=true WHERE email='jggen0401@gmail.c
 -- Preserve private ownership after recipient deletion, including FK SET NULL.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',true);
+-- Exercise direct changes in a subtransaction so the security suite's existing
+-- fixture cardinalities and authorization assertions remain unchanged.
+DO $$ DECLARE
+ s public.visit_sessions; original public.visit_sessions; retry public.visit_sessions;
+ edited public.visit_sessions; edit_req uuid:=gen_random_uuid();
+ same_result public.visit_sessions; same_req uuid:=gen_random_uuid();
+ undo_result public.visit_sessions; undo_req uuid:=gen_random_uuid();
+ other_day public.visit_sessions; before_events bigint; req uuid:=gen_random_uuid();
+ today date:=(statement_timestamp() AT TIME ZONE 'Asia/Seoul')::date;
+ rid uuid:='10000000-0000-0000-0000-000000000001';
+BEGIN
+ BEGIN
+  SELECT * INTO s FROM public.visit_sessions WHERE recipient_id=rid AND visit_date=today;
+  other_day:=public.transition_visit_session(rid,today-10,'planned',NULL,NULL,0);
+  s:=public.transition_visit_session(rid,today,'completed','direct fixture',NULL,s.version);
+  edited:=public.transition_visit_session(rid,today,'completed','updated memo',NULL,s.version,edit_req);
+  ASSERT edited.version=s.version+1 AND edited.status='completed' AND edited.memo='updated memo','completed memo edit is versioned';
+  ASSERT edited.completed_at IS NOT DISTINCT FROM s.completed_at
+   AND edited.started_at IS NOT DISTINCT FROM s.started_at,'memo edit preserves actual visit times';
+  ASSERT (SELECT from_status='completed' AND to_status='completed' AND reason IS NULL
+   AND before_state->>'memo'='direct fixture' AND after_state->>'memo'='updated memo'
+   AND actor_id=auth.uid() FROM public.visit_session_events WHERE request_id=edit_req),'memo edit has immutable actor audit';
+  BEGIN
+   PERFORM public.transition_visit_session(rid,today,'completed','updated memo',NULL,s.version);
+   RAISE EXCEPTION 'accepted stale unchanged memo';
+  EXCEPTION WHEN serialization_failure THEN NULL; END;
+  SELECT count(*) INTO before_events FROM public.visit_session_events;
+  BEGIN
+   same_result:=public.transition_visit_session(rid,today,'completed',edited.memo,NULL,edited.version,same_req);
+   ASSERT same_result.version=edited.version+1 AND same_result.memo=edited.memo,'unchanged completed save increments version';
+   ASSERT same_result.completed_at IS NOT DISTINCT FROM edited.completed_at
+    AND same_result.started_at IS NOT DISTINCT FROM edited.started_at,'unchanged save preserves actual timestamps';
+   ASSERT (SELECT count(*)=before_events+1 FROM public.visit_session_events),'unchanged completed save appends one audit';
+   ASSERT (SELECT from_status='completed' AND to_status='completed' AND actor_id=auth.uid()
+    AND before_state->>'memo'=after_state->>'memo' FROM public.visit_session_events WHERE request_id=same_req),'unchanged save retains immutable actor audit';
+   BEGIN
+    PERFORM public.transition_visit_session(rid,today,'completed',edited.memo,NULL,edited.version);
+    RAISE EXCEPTION 'accepted stale unchanged save';
+   EXCEPTION WHEN serialization_failure THEN NULL; END;
+   PERFORM public.transition_visit_session(rid,today,'cancelled',same_result.memo,NULL,same_result.version);
+   SELECT count(*) INTO before_events FROM public.visit_session_events;
+   retry:=public.transition_visit_session(rid,today,'completed',edited.memo,NULL,edited.version,same_req);
+   ASSERT to_jsonb(retry)=to_jsonb(same_result),'unchanged save retry returns original after cancellation';
+   ASSERT (SELECT count(*)=before_events FROM public.visit_session_events),'unchanged save retry appends no audit';
+   RAISE EXCEPTION 'rollback unchanged-save fixture' USING ERRCODE='Z0003';
+  EXCEPTION WHEN SQLSTATE 'Z0003' THEN NULL; END;
+  BEGIN
+   PERFORM public.transition_visit_session(rid,today,'completed','conflicting edit',NULL,edited.version,edit_req);
+   RAISE EXCEPTION 'accepted reused memo request';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  s:=edited;
+  original:=public.transition_visit_session(rid,today,'cancelled',s.memo,NULL,s.version,req);
+  SELECT count(*) INTO before_events FROM public.visit_session_events;
+  retry:=public.transition_visit_session(rid,today,'completed','updated memo',NULL,edited.version-1,edit_req);
+  ASSERT to_jsonb(retry)=to_jsonb(edited),'memo retry returns original result after cancellation';
+  ASSERT (SELECT count(*)=before_events FROM public.visit_session_events),'memo retry appends no audit';
+  ASSERT original.status='cancelled' AND original.completed_at IS NULL AND original.started_at IS NULL,'completed cancellation clears actual times';
+  ASSERT original.version=s.version+1 AND original.owner_id=auth.uid(),'cancel preserves CAS and ownership';
+  ASSERT (SELECT last_completed_key IS NULL FROM public.recipients WHERE id=rid),'cancel updates legacy completion projection';
+  ASSERT (SELECT reason IS NULL AND from_status='completed' AND to_status='cancelled'
+    AND before_state->>'status'='completed' AND after_state->>'status'='cancelled'
+    AND actor_id=auth.uid() AND owner_id=auth.uid()
+    FROM public.visit_session_events WHERE request_id=req),'reasonless removal retains actor and snapshots';
+  BEGIN
+   BEGIN
+    PERFORM public.transition_visit_session(rid,today,'completed','forged undo memo',NULL,original.version);
+    RAISE EXCEPTION 'accepted forged undo memo';
+   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+   BEGIN
+    PERFORM public.transition_visit_session(rid,today,'in_progress',original.memo,NULL,original.version);
+    RAISE EXCEPTION 'accepted wrong undo status';
+   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+   PERFORM set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',true);
+   PERFORM pg_temp.expect_denied(format('SELECT public.transition_visit_session(%L,%L,''completed'',%L,NULL,%s)',rid,today,original.memo,original.version));
+   PERFORM set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',true);
+   retry:=public.transition_visit_session(rid,today,'completed',edited.memo,NULL,original.version,undo_req);
+   ASSERT retry.version=original.version+1 AND retry.memo=edited.memo AND retry.status='completed','completed delete undo restores status and memo';
+   ASSERT retry.completed_at IS NOT DISTINCT FROM edited.completed_at
+    AND retry.started_at IS NOT DISTINCT FROM edited.started_at,'completed undo restores server timestamps';
+   ASSERT (SELECT last_completed_memo=edited.memo AND last_completed_key=today::text FROM public.recipients WHERE id=rid),'completed undo restores legacy projection';
+   BEGIN
+    PERFORM public.transition_visit_session(rid,today,'completed',edited.memo,NULL,original.version);
+    RAISE EXCEPTION 'accepted stale undo';
+   EXCEPTION WHEN serialization_failure THEN NULL; END;
+   undo_result:=retry;
+   PERFORM public.transition_visit_session(rid,today,'planned',NULL,NULL,retry.version);
+   SELECT count(*) INTO before_events FROM public.visit_session_events;
+   retry:=public.transition_visit_session(rid,today,'completed',edited.memo,NULL,original.version,undo_req);
+   ASSERT to_jsonb(retry)=to_jsonb(undo_result),'undo retry returns its original result after later change';
+   ASSERT (SELECT count(*)=before_events FROM public.visit_session_events),'undo retry appends no audit';
+   RAISE EXCEPTION 'rollback undo fixture' USING ERRCODE='Z0002';
+  EXCEPTION WHEN SQLSTATE 'Z0002' THEN NULL; END;
+  s:=public.transition_visit_session(rid,today,'planned',NULL,NULL,original.version);
+  ASSERT s.status='planned' AND s.version=original.version+1,'cancelled restores without reason';
+  SELECT count(*) INTO before_events FROM public.visit_session_events;
+  retry:=public.transition_visit_session(rid,today,'cancelled',original.memo,NULL,original.version-1,req);
+  ASSERT to_jsonb(retry)=to_jsonb(original),'retry returns original cancellation after restoration';
+  ASSERT (SELECT count(*)=before_events FROM public.visit_session_events),'retry appends no audit';
+  BEGIN
+   PERFORM public.transition_visit_session(rid,today,'cancelled','different memo',NULL,s.version,req);
+   RAISE EXCEPTION 'accepted conflicting retry';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  BEGIN
+   PERFORM public.transition_visit_session(rid,today,'cancelled',NULL,NULL,s.version-1);
+   RAISE EXCEPTION 'accepted stale version';
+  EXCEPTION WHEN serialization_failure THEN NULL; END;
+  s:=public.transition_visit_session(rid,today,'missed',NULL,'fixture missed visit',s.version);
+  edited:=s;
+  s:=public.transition_visit_session(rid,today,'cancelled',NULL,NULL,s.version);
+  ASSERT s.status='cancelled','missed cancels directly without reason';
+  s:=public.transition_visit_session(rid,today,'missed',edited.memo,NULL,s.version);
+  ASSERT s.status='missed' AND s.memo IS NOT DISTINCT FROM edited.memo,'missed undo needs no new reason';
+  s:=public.transition_visit_session(rid,today,'cancelled',NULL,NULL,s.version);
+  s:=public.transition_visit_session(rid,today,'planned',NULL,'   ',s.version);
+  s:=public.transition_visit_session(rid,today,'completed',NULL,NULL,s.version);
+  s:=public.transition_visit_session(rid,today,'planned',NULL,NULL,s.version);
+  ASSERT s.status='planned','completed restores directly without reason';
+  s:=public.transition_visit_session(rid,today,'missed',NULL,'fixture missed visit',s.version);
+  s:=public.transition_visit_session(rid,today,'planned',NULL,NULL,s.version);
+  ASSERT s.status='planned','missed restores directly without reason';
+  s:=public.transition_visit_session(rid,today,'in_progress',NULL,NULL,s.version);
+  edited:=s;
+  s:=public.transition_visit_session(rid,today,'cancelled',s.memo,NULL,s.version);
+  s:=public.transition_visit_session(rid,today,'in_progress',edited.memo,NULL,s.version);
+  ASSERT s.status='in_progress' AND s.started_at IS NOT DISTINCT FROM edited.started_at
+   AND s.completed_at IS NULL,'in-progress undo restores original start';
+  s:=public.transition_visit_session(rid,today,'planned',NULL,NULL,s.version);
+  ASSERT s.started_at IS NULL,'in-progress restoration clears start';
+  s:=public.transition_visit_session(rid,today,'cancelled',NULL,NULL,s.version);
+  BEGIN
+   PERFORM public.transition_visit_session(rid,today,'completed',NULL,NULL,s.version);
+   RAISE EXCEPTION 'accepted completion undo of a planned cancellation';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  BEGIN
+   PERFORM public.transition_visit_session(rid,today,'cancelled',NULL,NULL,s.version);
+   RAISE EXCEPTION 'accepted same-status cancellation';
+  EXCEPTION WHEN raise_exception THEN
+   IF SQLERRM='accepted same-status cancellation' THEN RAISE; END IF;
+  END;
+  ASSERT (SELECT to_jsonb(v)=to_jsonb(other_day) FROM public.visit_sessions v WHERE id=other_day.id),'other date unchanged';
+  BEGIN
+   PERFORM public.transition_visit_session(rid,today+1,'completed',NULL,NULL,0);
+   RAISE EXCEPTION 'accepted future completion';
+  EXCEPTION WHEN raise_exception THEN
+   IF SQLERRM <> 'Invalid visit date for requested status' THEN RAISE; END IF;
+  END;
+  BEGIN
+   PERFORM public.transition_visit_session(rid,today-1,'in_progress',NULL,NULL,0);
+   RAISE EXCEPTION 'accepted past start';
+  EXCEPTION WHEN raise_exception THEN
+   IF SQLERRM <> 'Invalid visit date for requested status' THEN RAISE; END IF;
+  END;
+  RAISE EXCEPTION 'rollback direct-change fixtures' USING ERRCODE='Z0001';
+ EXCEPTION WHEN SQLSTATE 'Z0001' THEN NULL;
+ END;
+END $$;
 DELETE FROM public.recipients WHERE id='10000000-0000-0000-0000-000000000001';
 SELECT pg_temp.check_true((SELECT owner_id=auth.uid() AND recipient_id IS NULL FROM public.visit_sessions),'deleted session ownership retained');
 SELECT pg_temp.check_true((SELECT count(*)>0 FROM public.visit_session_events),'deleted recipient audit retained');
@@ -647,7 +820,92 @@ DO $$ BEGIN
  END IF;
 END $$;
 """
-    sql = preflight + fixture + ''.join(migration(name) for name in names) + tests
+    # Assert replacement preserves the guarded wrapper and the internal security
+    # metadata, including under the fixture's permissive default privileges.
+    snapshot = """
+CREATE TEMP TABLE direct_change_function_before AS
+ SELECT oid,proacl,proowner,prosecdef,proconfig,prosrc FROM pg_proc
+ WHERE pronamespace='public'::regnamespace
+  AND oid<>'public.rotate_calendar_feed_token()'::regprocedure;
+CREATE TEMP TABLE direct_change_rotate_before AS
+ SELECT oid,proowner,prosecdef,proconfig,prosrc FROM pg_proc
+ WHERE oid='public.rotate_calendar_feed_token()'::regprocedure;
+CREATE TEMP TABLE direct_change_data_before AS
+ SELECT 'recipients' AS name,jsonb_agg(to_jsonb(r) ORDER BY id) AS rows FROM public.recipients r
+ UNION ALL SELECT 'sessions',jsonb_agg(to_jsonb(s) ORDER BY id) FROM public.visit_sessions s
+ UNION ALL SELECT 'events',jsonb_agg(to_jsonb(e) ORDER BY id) FROM public.visit_session_events e
+ UNION ALL SELECT 'security_audit',jsonb_agg(to_jsonb(a) ORDER BY id) FROM public.security_change_log a;
+-- Synthetic capability only; remove this test identity before the unchanged
+-- account/lifecycle fixture is installed below.
+INSERT INTO auth.users(id,email,email_confirmed_at)
+ VALUES('90000000-0000-0000-0000-000000000009','retired-feed@example.test',now());
+INSERT INTO auth.identities VALUES('90000000-0000-0000-0000-000000000009','google');
+INSERT INTO calendar_private.feed_tokens(owner_id,token_hash)
+ VALUES('90000000-0000-0000-0000-000000000009',repeat('a',64));
+DO $$ BEGIN
+ ASSERT (SELECT count(*)=1 FROM public.resolve_calendar_feed_token(repeat('a',64))),'fixture feed resolves before retirement';
+END $$;
+"""
+    unchanged = """
+DO $$ BEGIN
+ ASSERT NOT EXISTS (
+  SELECT FROM direct_change_function_before b JOIN pg_proc p USING(oid)
+  WHERE b.proacl IS DISTINCT FROM p.proacl OR b.proowner<>p.proowner
+   OR b.prosecdef<>p.prosecdef OR b.proconfig IS DISTINCT FROM p.proconfig
+   OR (p.oid<>'public.account_internal_transition_visit_session(uuid,date,text,text,text,integer,uuid)'::regprocedure AND b.prosrc<>p.prosrc)
+ ),'direct-change migration preserves ACLs/owner/definer/search_path/public wrapper';
+ ASSERT (SELECT count(*)=0 FROM calendar_private.feed_tokens),'existing iCal capabilities revoked';
+ ASSERT NOT has_function_privilege('authenticated','public.rotate_calendar_feed_token()','EXECUTE'),'retired apps cannot regenerate iCal tokens';
+ ASSERT NOT has_function_privilege('anon','public.rotate_calendar_feed_token()','EXECUTE'),'anonymous cannot regenerate iCal tokens';
+ ASSERT has_function_privilege('postgres','public.rotate_calendar_feed_token()','EXECUTE'),'admin rotation privilege retained';
+ ASSERT NOT EXISTS (
+  SELECT FROM direct_change_rotate_before b JOIN pg_proc p USING(oid)
+  WHERE b.proowner<>p.proowner OR b.prosecdef<>p.prosecdef
+   OR b.proconfig IS DISTINCT FROM p.proconfig OR b.prosrc<>p.prosrc
+ ),'rotation function owner/body/definer/search_path preserved';
+ ASSERT (SELECT count(*)=0 FROM public.resolve_calendar_feed_token(repeat('a',64))),'old feed hash no longer resolves';
+ ASSERT NOT EXISTS (
+  SELECT FROM direct_change_data_before b JOIN (
+   SELECT 'recipients' AS name,jsonb_agg(to_jsonb(r) ORDER BY id) AS rows FROM public.recipients r
+   UNION ALL SELECT 'sessions',jsonb_agg(to_jsonb(s) ORDER BY id) FROM public.visit_sessions s
+   UNION ALL SELECT 'events',jsonb_agg(to_jsonb(e) ORDER BY id) FROM public.visit_session_events e
+   UNION ALL SELECT 'security_audit',jsonb_agg(to_jsonb(a) ORDER BY id) FROM public.security_change_log a
+  ) a USING(name) WHERE b.rows IS DISTINCT FROM a.rows
+ ),'migration does not rewrite patient/session/event/security-audit rows';
+END $$;
+DELETE FROM auth.identities WHERE user_id='90000000-0000-0000-0000-000000000009';
+DELETE FROM auth.users WHERE id='90000000-0000-0000-0000-000000000009';
+"""
+    direct = migration('20261115030000_direct_visit_changes.sql')
+    # Exercise the original calendar lifecycle before retirement, then apply the
+    # complete migration twice against populated fixtures and assert retirement.
+    # Only these two exact statements are deferred; never rewrite function bodies.
+    retirement = [
+        'REVOKE EXECUTE ON FUNCTION public.rotate_calendar_feed_token() FROM PUBLIC, anon, authenticated;\n',
+        'DELETE FROM calendar_private.feed_tokens;\n',
+    ]
+    transition_only = direct
+    for statement in retirement:
+        if transition_only.count(statement) != 1:
+            raise ValueError('Unexpected iCal retirement statement')
+        transition_only = transition_only.replace(statement, '', 1)
+    ending = 'RESET ROLE;\nROLLBACK;\n'
+    if not tests.endswith(ending):
+        raise ValueError('Unexpected security test transaction ending')
+    retired_tests = """
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.role','authenticated',true),set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',true);
+SELECT pg_temp.expect_denied('SELECT public.rotate_calendar_feed_token()');
+SET LOCAL ROLE anon;
+SELECT pg_temp.expect_denied('SELECT public.rotate_calendar_feed_token()');
+SET LOCAL ROLE postgres;
+DO $$ BEGIN ASSERT (SELECT count(*)=0 FROM calendar_private.feed_tokens),'denied rotations leave token table empty'; END $$;
+RESET ROLE;
+ROLLBACK;
+"""
+    sql = (preflight + fixture + ''.join(migration(name) for name in names)
+           + transition_only + tests.removesuffix(ending) + 'SET LOCAL ROLE postgres;\n'
+           + snapshot + direct + direct + unchanged + retired_tests)
     result = subprocess.run(
         [psql, '-X', '-q', '-w', '-h', args.host, '-p', str(args.port),
          '-U', args.user, '-d', args.database, '-v', 'ON_ERROR_STOP=1'],
@@ -657,7 +915,7 @@ END $$;
         # stdout may contain synthetic capability tokens; never emit query results.
         print(result.stderr, end='', file=sys.stderr)
         return result.returncode
-    print('PASS: account isolation, lifecycle, calendar, push, storage and default-privilege assertions; all fixture DDL/data/roles rolled back.')
+    print('PASS: direct visit changes/memo edits/audited cancellation undo, iCal capability revocation without patient rewrites, migration reapplication/ACL preservation, account isolation, lifecycle, calendar, push, storage and default-privilege assertions; all fixture DDL/data/roles rolled back.')
     return 0
 
 

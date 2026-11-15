@@ -2,13 +2,11 @@
 import { savePdf } from '@/lib/native';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconHistory, IconCheck, IconDeviceFloppy } from '@tabler/icons-react';
+import { IconX, IconPrinter, IconFileDownload, IconShare2, IconEye, IconEyeOff, IconCheck } from '@tabler/icons-react';
 import { Modal, IconButton, Button } from './ui';
 import PrintSheet from './PrintSheet';
 import { usePrintDraft, usePrintSetting } from './usePrintDraft';
-import PrintHistorySheet from './PrintHistorySheet';
 import { captureSheetCanvas, createA4Pdf, addCanvasAsA4Page } from '@/lib/pdfExport';
-import { logPrintEvent, uploadPrintPdf } from '@/lib/printLogs';
 
 interface Recipient {
   id: string;
@@ -105,10 +103,8 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
   const [orgName, setOrgName] = usePrintSetting('careroute_print_org_name', isOpen);
   const [orgContact, setOrgContact] = usePrintSetting('careroute_print_org_contact', isOpen);
   const [isExporting, setIsExporting] = useState(false);
-  const [isSavingBackup, setIsSavingBackup] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const sheetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -166,40 +162,11 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
       const pdf = await buildPdf();
       if (!pdf) return;
       await savePdf(pdf, `${dateLabel ? dateLabel + '_' : ''}방문일정_어르신정보.pdf`);
-      logPrintEvent({ recipientName: selectedRecipients[0].name, recipientIds: selectedRecipients.map((r) => r.id), method: 'pdf', batchCount: selectedRecipients.length, authorName });
     } catch (e) {
       console.error(e);
       alert('PDF 생성에 실패했습니다. 인쇄 버튼으로 다시 시도해주세요.');
     } finally {
       setIsExporting(false);
-    }
-  };
-
-  // PDF를 기기에 저장하면서 동시에 서버(print-pdfs 버킷)에도 올려, 나중에 출력 이력에서
-  // 다시 열어볼 수 있게 보관한다.
-  const handleSaveWithBackup = async () => {
-    if (selectedRecipients.length === 0) return;
-    setIsSavingBackup(true);
-    try {
-      const pdf = await buildPdf();
-      if (!pdf) return;
-      const fileNameBase = `${dateLabel ? dateLabel + '_' : ''}방문일정_어르신정보`;
-      await savePdf(pdf, `${fileNameBase}.pdf`);
-      const blob = pdf.output('blob') as Blob;
-      const pdfPath = await uploadPrintPdf(blob, selectedRecipients[0].id, fileNameBase);
-      logPrintEvent({
-        recipientName: selectedRecipients[0].name,
-        recipientIds: selectedRecipients.map((r) => r.id),
-        method: 'save',
-        batchCount: selectedRecipients.length,
-        authorName,
-        pdfPath,
-      });
-    } catch (e) {
-      console.error(e);
-      alert('저장에 실패했습니다. PDF 아이콘으로 다시 시도해주세요.');
-    } finally {
-      setIsSavingBackup(false);
     }
   };
 
@@ -221,7 +188,6 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
         return;
       }
       await navigator.share({ files: [file], title: fileName });
-      logPrintEvent({ recipientName: selectedRecipients[0].name, recipientIds: selectedRecipients.map((r) => r.id), method: 'share', batchCount: selectedRecipients.length, authorName });
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error(e);
@@ -233,7 +199,6 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
 
   const handlePrint = () => {
     if (selectedRecipients.length === 0) return;
-    logPrintEvent({ recipientName: selectedRecipients[0].name, recipientIds: selectedRecipients.map((r) => r.id), method: 'print', batchCount: selectedRecipients.length, authorName });
     window.print();
   };
 
@@ -247,9 +212,6 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
           <p className="text-[12px] font-bold text-foreground/50">{selectedRecipients.length}명 선택됨 (총 {recipients.length}명)</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <IconButton onClick={() => setIsHistoryOpen(true)} className="w-9 h-9 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08]" aria-label="출력 이력">
-            <IconHistory size={17} />
-          </IconButton>
           <IconButton
             onClick={() => setIsPreview((v) => !v)}
             className={`w-9 h-9 rounded-full ${isPreview ? 'bg-primary/15 text-primary' : 'bg-foreground/[0.04] hover:bg-foreground/[0.08]'}`}
@@ -362,18 +324,6 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
         </IconButton>
         <Button
           type="button"
-          variant="ghost"
-          fullWidth
-          loading={isSavingBackup}
-          disabled={selectedRecipients.length === 0}
-          startIcon={<IconDeviceFloppy size={19} />}
-          onClick={handleSaveWithBackup}
-          className="whitespace-nowrap py-3.5 text-[15px] font-black rounded-[22px]"
-        >
-          {isSavingBackup ? '저장 중...' : '저장'}
-        </Button>
-        <Button
-          type="button"
           fullWidth
           disabled={selectedRecipients.length === 0}
           startIcon={<IconPrinter size={19} />}
@@ -384,7 +334,6 @@ export default function BatchPrintModal({ isOpen, onClose, recipients, dateLabel
         </Button>
       </div>
 
-      <PrintHistorySheet open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
     </Modal>
   );
 }

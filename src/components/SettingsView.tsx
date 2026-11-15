@@ -3,29 +3,19 @@ import { CareRouteDevice, downloadBlob } from '@/lib/native';
 import { Capacitor } from '@capacitor/core';
 import { fetchAllRecipientsForExport } from '@/lib/recipientExport';
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  IconSettings, IconChevronRight, IconChevronDown,
-  IconMoonStars, IconSun, IconDeviceDesktop, IconBrandGithub, 
-  IconBug, IconRefresh, IconBell, IconBellRinging, IconCheck, 
-  IconAlertTriangle, IconInfoCircle, IconDeviceMobile,
-  IconBrandGoogle, IconCalendarEvent,
-  IconMapPin, IconSparkles,
-  IconHelp, IconDownload, IconUpload, IconDatabase, IconFileSpreadsheet,
-  IconExternalLink, IconAlertCircle,
-  IconSearch, IconX, IconTypography, IconShieldCheck, IconSwitchHorizontal, IconLogout
+import {
+  IconSettings, IconChevronRight, IconChevronDown, IconMoonStars, IconSun, IconDeviceDesktop, IconBug, IconRefresh, IconBellRinging, IconCheck, IconAlertTriangle, IconInfoCircle, IconBrandGoogle, IconCalendarEvent, IconMapPin, IconSparkles, IconHelp, IconDownload, IconUpload, IconFileSpreadsheet, IconExternalLink, IconAlertCircle, IconSearch, IconX, IconTypography, IconShieldCheck, IconSwitchHorizontal, IconLogout
 } from '@tabler/icons-react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   getDetailedNotificationStatus,
   requestNotificationPermission,
-  sendTestNotification,
   NotificationStatus
 } from '@/lib/notifications';
 import packageJson from '../../package.json';
 import { supabase } from '@/lib/supabase';
 import { captureAccountStorage } from '@/lib/accountStorage';
-import { buildCalendarFeedUrl, revokeCalendarFeedToken } from '@/lib/calendarFeed';
 import { Button, Modal } from './ui';
 
 const APP_VERSION = packageJson.version;
@@ -141,11 +131,9 @@ export default function SettingsView({
   const [locationPerm, setLocationPerm] = useState('확인 중...');
   const [notifStatus, setNotifStatus] = useState<NotificationStatus | null>(null);
   const [isRequestingNotif, setIsRequestingNotif] = useState(false);
-  const [isTestingNotif, setIsTestingNotif] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [isExportingBackup, setIsExportingBackup] = useState(false);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
-  const [feedUrlCopied, setFeedUrlCopied] = useState(false);
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
   const restoreInputRef = React.useRef<HTMLInputElement>(null);
   
@@ -377,8 +365,7 @@ export default function SettingsView({
       await refreshNotifStatus();
 
       if (res.success) {
-        setFeedbackMessage({ type: 'success', text: '알림 권한이 허용되었습니다. 테스트 알림을 요청합니다.' });
-        await sendTestNotification();
+        setFeedbackMessage({ type: 'success', text: '알림 권한이 허용되었습니다.' });
       } else {
         if (res.permission === 'denied') {
           setFeedbackMessage({ type: 'error', text: '알림 권한이 차단되었습니다. 브라우저/기기 설정에서 허용해주세요.' });
@@ -394,54 +381,6 @@ export default function SettingsView({
     }
   };
 
-  const handleTestNotification = async () => {
-    setIsTestingNotif(true);
-    setFeedbackMessage(null);
-    try {
-      if (notifStatus?.permission !== 'granted') {
-        const resPerm = await requestNotificationPermission();
-        await refreshNotifStatus();
-        if (!resPerm.success) {
-          if (resPerm.permission === 'denied') {
-            setShowUnblockGuide(true);
-            setFeedbackMessage({ type: 'error', text: '알림 권한이 차단되어 있습니다. 브라우저/기기 설정에서 허용해주세요.' });
-          } else {
-            setFeedbackMessage({ type: 'info', text: '알림 권한이 허용되어야 테스트 알림을 발송할 수 있습니다.' });
-          }
-          return;
-        }
-      }
-      const res = await sendTestNotification();
-      if (res.success) {
-        setFeedbackMessage({ type: 'success', text: '테스트 알림 발송을 요청했습니다. 기기·브라우저의 알림을 확인해주세요.' });
-      } else {
-        setFeedbackMessage({ type: 'error', text: res.error || '알림 발송에 실패했습니다.' });
-      }
-    } catch (err: any) {
-      setFeedbackMessage({ type: 'error', text: err?.message || '알림 발송 중 오류가 발생했습니다.' });
-    } finally {
-      setIsTestingNotif(false);
-    }
-  };
-
-  const handleResetCache = async () => {
-    if (!window.confirm('서비스 워커와 임시 캐시를 삭제하고 새로고침하시겠습니까?\n(등록된 수급자 데이터는 삭제되지 않습니다.)')) {
-      return;
-    }
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(key => caches.delete(key)));
-    }
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for (const reg of regs) {
-        await reg.unregister();
-      }
-    }
-    try { localStorage.removeItem('careroute_pwa_install_dismissed'); } catch {}
-    window.location.href = window.location.pathname + '?t=' + Date.now();
-  };
-
   // 검색 가능한 설정 항목들
   const searchableSettings = useMemo(() => [
     ...(onSignOut ? [
@@ -454,15 +393,13 @@ export default function SettingsView({
     { id: 'permission', category: '권한 상태', title: '위치 서비스 (GPS) 상태', desc: '현재 위치 표시 및 내 위치로 지도 이동' },
     { id: 'calendar', category: '구글 캘린더 동기화', title: '구글 캘린더 방문 일정 동기화', desc: '선택 날짜(미선택 시 오늘)를 구글 캘린더에 반영' },
     { id: 'push', category: '알림 권한 상태', title: '알림 권한 상태', desc: '앱 기기 알림·웹 브라우저 알림 권한 상태' },
-    { id: 'test-notif', category: '테스트 알림 발송', title: '테스트 알림 발송', desc: '기기·브라우저 알림 시험 발송' },
     { id: 'lead', category: '알림 권한 상태', title: '사전 리마인더 알림 시점', desc: '앱 기기 알림만 적용 · 방문 10/15/30분 전' },
     { id: 'theme', category: '화면 및 디스플레이', title: '화면 모드 (테마)', desc: '라이트, 다크, 시스템 자동 모드' },
     { id: 'color', category: '화면 및 디스플레이', title: '강조 컬러 선택', desc: '포인트 컬러 스타일 변경' },
     { id: 'font', category: '화면 및 디스플레이', title: '큰 글씨 가독성 모드', desc: '가독성을 높이는 폰트 확대' },
     { id: 'backup', category: '데이터 및 저장공간', title: '수급자 데이터 백업 다운로드', desc: '수급자 정보 JSON 백업 · 전체 방문 이력 제외' },
-    { id: 'cache', category: '데이터 및 저장공간', title: '오프라인 캐시 초기화 및 강력 새로고침', desc: '오프라인 캐시 및 앱 새로고침' },
     { id: 'tutorial', category: '앱 정보 및 고객지원', title: '앱 사용법 가이드 튜토리얼', desc: '핵심 사용법 튜토리얼 다시 보기' },
-    { id: 'version', category: '앱 정보 및 고객지원', title: '버전 정보', desc: `현재 앱 버전 v${APP_VERSION}` },
+    { id: 'version', category: '앱 정보 및 고객지원', title: '업데이트 확인', desc: `버전 정보 · 현재 앱 버전 v${APP_VERSION}` },
     { id: 'support', category: '앱 정보 및 고객지원', title: '현장 개선 건의 및 버그 제보', desc: '기능 제안 및 버그 제보' },
   ], [onSignOut]);
 
@@ -781,72 +718,13 @@ export default function SettingsView({
                   </button>
                 </div>
 
-                {/* iCal 구독 링크: "밀어넣기"와 달리 캘린더 앱이 주기적으로 알아서 다시 불러온다 */}
-                <div className="px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto sm:flex-1">
-                    <div className="w-[32px] h-[32px] rounded-[10px] bg-violet-500 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                      <IconCalendarEvent size={18} strokeWidth={2.5} />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
-                        일정 구독 링크 (iCal)
-                      </span>
-                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block">
-                        새 링크를 복사하면 이전 링크는 무효화됩니다. 캘린더 앱에 다시 등록해주세요.
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={async (event) => {
-                      if (!window.confirm('새 구독 링크를 발급하면 기존 링크가 즉시 무효화되고 기존 캘린더 구독의 갱신이 중단됩니다. 새 링크를 발급하고 복사할까요?')) return;
-                      const button = event.currentTarget;
-                      const buttons = button.parentElement?.querySelectorAll('button');
-                      buttons?.forEach((action) => { action.disabled = true; });
-                      try {
-                        await navigator.clipboard.writeText(await buildCalendarFeedUrl());
-                        setFeedUrlCopied(true);
-                        setTimeout(() => setFeedUrlCopied(false), 2000);
-                      } catch {
-                        setFeedbackMessage({ type: 'error', text: '발급 또는 복사에 실패했습니다. Google 로그인과 클립보드 권한을 확인해주세요. 발급됐다면 이전 링크는 무효화됩니다.' });
-                      } finally {
-                        buttons?.forEach((action) => { action.disabled = false; });
-                      }
-                    }}
-                    className="px-3.5 py-1.5 rounded-full bg-violet-500/10 hover:bg-violet-500/20 text-violet-600 dark:text-violet-400 font-black text-[13px] active:scale-95 transition-all shrink-0 whitespace-nowrap"
-                  >
-                    {feedUrlCopied ? '복사됨!' : '새 구독 링크 발급·복사'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async (event) => {
-                      if (!window.confirm('일정 구독 링크를 해제하면 기존 링크가 즉시 무효화되고 캘린더 구독의 갱신이 중단됩니다. 구독 링크를 해제할까요?')) return;
-                      const button = event.currentTarget;
-                      const buttons = button.parentElement?.querySelectorAll('button');
-                      buttons?.forEach((action) => { action.disabled = true; });
-                      try {
-                        await revokeCalendarFeedToken();
-                        setFeedUrlCopied(false);
-                        setFeedbackMessage({ type: 'success', text: '일정 구독 링크를 해제했습니다. 기존 링크로는 더 이상 일정을 볼 수 없습니다.' });
-                      } catch {
-                        setFeedbackMessage({ type: 'error', text: '구독 해제에 실패했습니다. Google 로그인을 확인해주세요.' });
-                      } finally {
-                        buttons?.forEach((action) => { action.disabled = false; });
-                      }
-                    }}
-                    className="px-3.5 py-1.5 rounded-full bg-violet-500/10 hover:bg-violet-500/20 text-violet-600 dark:text-violet-400 font-black text-[13px] active:scale-95 transition-all shrink-0 whitespace-nowrap"
-                  >
-                    구독 해제
-                  </button>
-                </div>
-
               </div>
             </div>
 
             {/* 3. 알림 권한 상태 및 테스트 발송 (NOTIFICATIONS & TEST) */}
             <div id="section-push">
               <span className="text-[12px] font-black text-[#6D6D72] dark:text-[#8E8E93] uppercase tracking-wider ml-4 mb-2 block">
-                알림 권한 상태 및 테스트 알림 발송
+                알림 권한 상태
               </span>
 
               <div className="bg-white dark:bg-[#1C1C1E] rounded-[24px] shadow-xs border border-black/[0.04] dark:border-white/[0.08] overflow-hidden divide-y divide-black/[0.05] dark:divide-white/[0.06]">
@@ -911,39 +789,6 @@ export default function SettingsView({
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </div>
-
-                {/* 테스트 알림 발송 */}
-                <div id="section-test-notif" className="px-4 py-3.5 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-[32px] h-[32px] rounded-[10px] bg-[#FF9500] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                      <IconBell size={18} strokeWidth={2.5} />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">
-                        테스트 알림 발송
-                      </span>
-                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D] block truncate">
-                        기기·브라우저 알림 시험 발송
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleTestNotification}
-                    disabled={isTestingNotif}
-                    className="px-3.5 py-1.5 rounded-full bg-[#FF9500]/10 hover:bg-[#FF9500]/20 text-[#FF9500] font-black text-[13px] active:scale-95 disabled:opacity-50 transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap"
-                  >
-                    {isTestingNotif ? (
-                      <div className="w-3.5 h-3.5 border-2 border-[#FF9500] border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <IconBellRinging size={15} strokeWidth={2.4} className="shrink-0" />
-                        <span className="whitespace-nowrap">지금 발송</span>
-                      </>
-                    )}
-                  </button>
                 </div>
 
                 {/* 사전 알림 리드타임 설정 */}
@@ -1179,28 +1024,6 @@ export default function SettingsView({
                   }}
                 />
 
-                {/* 전체 캐시 초기화 및 강력 새로고침 */}
-                <button
-                  type="button"
-                  id="section-cache"
-                  onClick={handleResetCache}
-                  className="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors text-[#FF3B30]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-[32px] h-[32px] rounded-[10px] bg-[#FF3B30] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                      <IconRefresh size={18} strokeWidth={2.5} />
-                    </div>
-                    <div>
-                      <span className="text-[16px] font-bold tracking-tight block">
-                        오프라인 캐시 초기화 및 강력 새로고침
-                      </span>
-                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">
-                        서비스 워커·임시 캐시 삭제 후 새로고침
-                      </span>
-                    </div>
-                  </div>
-                  <IconChevronRight size={17} className="text-[#C7C7CC]" />
-                </button>
               </div>
             </div>
 
@@ -1228,25 +1051,24 @@ export default function SettingsView({
                   <IconChevronRight size={17} className="text-[#C7C7CC]" />
                 </button>
 
-                {/* 버전 정보 */}
-                <a
+                {/* 버전 정보 및 업데이트 확인 */}
+                <button
+                  type="button"
                   id="section-version"
-                  href="https://github.com/LeeAn0121/CareRoute/releases"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-3.5 flex items-center justify-between active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
+                  onClick={() => window.dispatchEvent(new Event('careroute:check-update'))}
+                  className="w-full px-4 py-3.5 flex items-center justify-between gap-3 text-left active:bg-black/[0.03] dark:active:bg-white/[0.04] transition-colors"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="w-[32px] h-[32px] rounded-[10px] bg-[#48484A] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                      <IconBrandGithub size={18} strokeWidth={2.5} />
+                      <IconRefresh size={18} strokeWidth={2.5} />
                     </div>
-                    <div>
-                      <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">버전 정보</span>
-                      <span className="text-[12px] text-[#8E8E93]">현재 앱 버전</span>
+                    <div className="min-w-0">
+                      <span className="text-[16px] font-bold text-black dark:text-white tracking-tight block">업데이트 확인</span>
+                      <span className="text-[12px] text-[#8E8E93] dark:text-[#98989D]">현재 앱 버전 v{APP_VERSION}</span>
                     </div>
                   </div>
-                  <span className="text-[14px] font-black text-[#007AFF]">v{APP_VERSION}</span>
-                </a>
+                  <IconChevronRight size={17} className="text-[#C7C7CC] shrink-0" />
+                </button>
 
                 {/* 기능 제안 및 버그 제보 */}
                 <a

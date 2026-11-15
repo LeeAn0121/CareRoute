@@ -2,13 +2,13 @@ import { supabase } from './supabase';
 import { captureAccountStorage } from './accountStorage';
 
 const STORAGE_KEY = 'careroute_pending_visit_logs_v1';
-type PendingLog = { id: string; table: 'visit_logs' | 'vitals_logs'; payload: Record<string, unknown> };
+type PendingLog = { id: string; table: 'vitals_logs'; payload: Record<string, unknown> };
 type Scope = ReturnType<typeof captureAccountStorage>;
 const retries = new Map<number, Promise<void>>();
 
 function readPending(scope: Scope): PendingLog[] {
   const value = JSON.parse(scope.getItem(STORAGE_KEY) || '[]');
-  return Array.isArray(value) ? value.filter(item => item?.id && ['visit_logs', 'vitals_logs'].includes(item.table) && item.payload && typeof item.payload === 'object') : [];
+  return Array.isArray(value) ? value.filter(item => item?.id && item.table === 'vitals_logs' && item.payload && typeof item.payload === 'object') : [];
 }
 
 async function verifyScope(scope: Scope): Promise<boolean> {

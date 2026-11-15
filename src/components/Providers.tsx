@@ -5,6 +5,7 @@ import { NavermapsProvider } from 'react-naver-maps';
 import { ThemeProvider, useTheme } from 'next-themes';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { CareRouteDevice, installNativeSharing } from '@/lib/native';
+import AppUpdateNotice from '@/components/AppUpdateNotice';
 
 const navermapsOptions = {
   ncpKeyId: process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || 'f9sp6e02ix',
@@ -111,6 +112,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <NativeSystemBarTheme />
+      <AppUpdateNotice />
       <NavermapsProvider {...navermapsOptions}>
         {children}
       </NavermapsProvider>

@@ -5,7 +5,6 @@ import { captureAccountStorage } from '@/lib/accountStorage';
 export const CareRouteDevice = registerPlugin<{
   setWindowBackground(options: { dark: boolean }): Promise<void>;
   print(): Promise<void>;
-  recognizeSpeech(): Promise<{ text: string }>;
   authorizeCalendar(): Promise<{ accessToken: string }>;
   signInGoogle(options: { clientId: string; nonce: string }): Promise<{ idToken: string }>;
   getLocationPermission(): Promise<{ status: 'precise' | 'approximate' | 'not-granted' }>;

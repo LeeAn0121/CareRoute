@@ -1,7 +1,7 @@
 {
   "name": "temp-app",
-  "version": "1.41.1",
-  "androidVersionCode": 20,
+  "version": "1.42.0",
+  "androidVersionCode": 21,
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,7 +11,8 @@
     "android:sync": "node scripts/android-icons.mjs && node scripts/android-web.mjs && cap sync android",
     "android:open": "cap open android",
     "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
-    "android:bundle": "npm run android:sync && node scripts/android-release.mjs"
+    "android:bundle": "npm run android:sync && node scripts/android-release.mjs",
+    "prebuild": "node scripts/write-version.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",
