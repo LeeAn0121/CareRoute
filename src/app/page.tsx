@@ -1,4 +1,8 @@
 'use client';
+import WeatherWidget from '@/components/WeatherWidget';
+import { fetchWeatherForCoord, getWeatherEmojiAndDesc, weatherCache, getGridKey } from '@/lib/weather';
+import { getProvinceCode } from '@/lib/regions';
+import { IconMap, IconCloud } from '@tabler/icons-react';
 import AuthGate from '@/components/AuthGate';
 import BatchPrintModal from '@/components/BatchPrintModal';
 import MapErrorBoundary from '@/components/MapErrorBoundary';
@@ -87,6 +91,22 @@ function escapeMarkerText(value: string): string {
   return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!);
 }
 
+const geoCache: any = { sido: null, sigungu: null, dong: null };
+// 라벨 마커는 화면에 보이는 것만 그때그때(lazy) 만들어서 재사용한다.
+// (동/읍/면은 전국 약 3,500개라 미리 다 만들면 메인 스레드가 멈춘다)
+const labelCache: any = { sido: new Map(), sigungu: new Map(), dong: new Map() };
+// 현재 map.data에 실제로 추가되어 있는 폴리곤의 feature 이름 집합.
+// idle(패닝)마다 map.data.getAllFeature()로 전수조사하지 않기 위해 직접 추적.
+const renderedFeatureKeys: any = { sido: new Set(), sigungu: new Set(), dong: new Set() };
+// 같은 이름의 행정구역(예: 중앙동 31개, 동구 6개)이 존재하므로 이름만으로는 구분할 수 없다.
+// 이름 + 중심 좌표로 고유 키를 만들어 라벨/폴리곤 중복·누락을 방지한다.
+const regionFeatureKey = (f: any): string =>
+  `${f.properties.name}_${Number(f.properties._centerLat).toFixed(4)}_${Number(f.properties._centerLng).toFixed(4)}`;
+let currentRenderedLevel = ''; // Track currently rendered level to prevent re-rendering
+
+
+
+
 function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut: () => Promise<void> }) {
 
   const location = useCurrentLocation();
@@ -103,9 +123,19 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     location.refresh();
   };
 
+  const [showRegions, setShowRegions] = useState(false);
+  const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
+  const [showWeatherGrid, setShowWeatherGrid] = useState(() => accountStorage.getItem('careroute_show_weather_grid') === 'true');
+  const showRegionsRef = useRef(showRegions);
+  const showWeatherGridRef = useRef(showWeatherGrid);
+  const lastRenderedKeyRef = useRef('');
+  useEffect(() => { showRegionsRef.current = showRegions; showWeatherGridRef.current = showWeatherGrid; accountStorage.setItem('careroute_show_weather_grid', String(showWeatherGrid)); }, [showRegions, showWeatherGrid]);
+  const regionSelectionRequest = useRef(0);
+  useEffect(() => () => { regionSelectionRequest.current++; }, []);
   const [selectedSido, setSelectedSido] = useState('');
   const [selectedSigungu, setSelectedSigungu] = useState('');
   const [selectedDong, setSelectedDong] = useState('');
+  useEffect(() => { regionSelectionRequest.current++; }, [selectedSido, selectedSigungu, selectedDong]);
   const sidos = PROVINCES;
   const sigungus = useMemo(() => getDistricts(selectedSido), [selectedSido]);
   const dongs = useMemo(() => getNeighborhoods(selectedSigungu), [selectedSigungu]);
@@ -307,9 +337,10 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   const [listFilter, setListFilter] = useState<'all' | 'today' | 'incomplete' | 'completed' | 'recurring' | 'missed' | 'cancelled'>('all');
   // 지도 상단 헤더 팝업들의 상호 배타적 단일 상태 (지역 선택 | 어르신 검색)
   // 하나의 상태로 관리하여 어떤 순서로 누르더라도 레이어가 겹치는 문제를 원천 차단합니다.
-  const [activeHeaderModal, setActiveHeaderModal] = useState<'none' | 'region' | 'search'>('none');
+  const [activeHeaderModal, setActiveHeaderModal] = useState<'none' | 'region' | 'weather' | 'search'>('none');
   const isRegionFilterOpen = activeHeaderModal === 'region';
 
+  const isWeatherDetailOpen = activeHeaderModal === 'weather';
   const isMapSearchOpen = activeHeaderModal === 'search';
 
   const toggleRegionFilter = () => {
@@ -416,6 +447,11 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   // 지도 이동/확대를 React 상태(mapZoom/mapCenter)와 항상 동기화하고, 켜져
 
   // 렌더링 상태 캐싱 (불필요한 중복 렌더 방지 및 토글 상태 변경 즉각 감지)
+
+  useEffect(() => () => {
+    for (const level of ['sido','sigungu','dong']) { labelCache[level].forEach((marker: any) => marker.setMap(null)); labelCache[level].clear(); renderedFeatureKeys[level].clear(); }
+    currentRenderedLevel = '';
+  }, []);
 
   // Semantic Zoom (시도 -> 시군구 -> 동): 어떤 레벨을 그릴지 결정하고 데이터를 로드
 
@@ -714,6 +750,279 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
     window.addEventListener('careroute:apply-web-update', apply);
     return () => window.removeEventListener('careroute:apply-web-update', apply);
   }, []);
+
+const regionStyleFor = (lvl: string) => ({
+    fillColor: showWeatherGridRef.current ? '#0ea5e9' : (lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6')),
+    fillOpacity: showWeatherGridRef.current ? 0.08 : 0.1,
+    strokeColor: showWeatherGridRef.current ? '#0284c7' : (lvl === 'dong' ? '#0ea5e9' : (lvl === 'sigungu' ? '#0d9488' : '#8b5cf6')),
+    strokeWeight: showWeatherGridRef.current ? 1.5 : (lvl === 'dong' ? 1 : 2),
+    strokeOpacity: showWeatherGridRef.current ? 0.7 : 0.6,
+    visible: true
+  });
+
+const regionFeaturesInView = (lvl: string, bounds: any) => {
+    const minLat = bounds.minY() - 0.15;
+    const maxLat = bounds.maxY() + 0.15;
+    const minLng = bounds.minX() - 0.15;
+    const maxLng = bounds.maxX() + 0.15;
+    return geoCache[lvl].features.filter((f: any) => {
+      const lat = f.properties?._centerLat;
+      const lng = f.properties?._centerLng;
+      if (lat == null || lng == null) return false;
+      return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+    });
+  };
+
+const handleRegionSelect = (lat: number, lng: number, lvl: string) => {
+    const request = ++regionSelectionRequest.current;
+    const scope = captureAccountStorage();
+    autoCenterLocation.current = false;
+    if (!window.naver?.maps?.Service) return;
+    // @ts-ignore
+    window.naver.maps.Service.reverseGeocode({
+      coords: new window.naver.maps.LatLng(lat, lng),
+      orders: [window.naver.maps.Service.OrderType.LEGAL_CODE].join(',')
+    }, function (status: any, response: any) {
+      if (request !== regionSelectionRequest.current || !scope.isCurrent()) return;
+      if (status === 200 && response.v2.results.length > 0) {
+        const bcode = response.v2.results[0].code.id; // 10자리 법정동 코드
+        if (bcode && bcode.length === 10) {
+          const sido = getProvinceCode(bcode);
+          const result = response.v2.results[0];
+          const districts = getDistricts(sido);
+          const district = districts.find(row => row.code === bcode.substring(0, 5) + '00000')
+            || districts.find(row => row.name === result.region?.area2?.name);
+          const sigungu = district?.code || '';
+          const neighborhood = getNeighborhoods(sigungu).find(row => row.code === bcode
+            || row.name === result.region?.area3?.name);
+          const dong = neighborhood?.code || '';
+          if (lvl === 'sido') {
+            setSelectedSido(sido);
+            setSelectedSigungu('');
+            setSelectedDong('');
+          } else if (lvl === 'sigungu') {
+            setSelectedSido(sido);
+            setSelectedSigungu(sigungu);
+            setSelectedDong('');
+          } else {
+            setSelectedSido(sido);
+            setSelectedSigungu(sigungu);
+            setSelectedDong(dong);
+          }
+        }
+      }
+    });
+  };
+
+const ensureRegionLabelMarker = (lvl: string, feature: any) => {
+    const name = feature.properties.name;
+    const isWeather = !!showWeatherGridRef.current;
+    const baseKey = regionFeatureKey(feature);
+    const cacheKey = isWeather ? `${baseKey}_weather` : baseKey;
+    const cached = labelCache[lvl].get(cacheKey);
+    const cachedWeather = weatherCache.get('L:' + getGridKey(feature.properties._centerLat, feature.properties._centerLng, 0.03));
+    if (cached && (!isWeather || (cachedWeather && Date.now() - cachedWeather.timestamp < 20 * 60_000))) return cached;
+    if (cached) cached.setMap(null);
+
+    const centerLat = feature.properties._centerLat;
+    const centerLng = feature.properties._centerLng;
+    const fs = lvl === 'dong' ? '11px' : '12px';
+
+    let marker: any;
+
+    if (isWeather) {
+      const renderWeatherContent = (emoji: string, tempText: string) => `
+        <div class="marker-wrapper weather-region-pill" style="
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 3px 8px;
+          background: rgba(255, 255, 255, 0.95);
+          color: #0f172a;
+          border-radius: 9999px;
+          font-size: ${fs};
+          font-weight: 800;
+          border: 1.5px solid #0284c7;
+          box-shadow: 0 4px 14px rgba(2, 132, 199, 0.24);
+          backdrop-filter: blur(8px);
+          white-space: nowrap;
+          cursor: pointer;
+          user-select: none;
+          transform: translate(-50%, -50%);
+        ">
+          <span style="font-weight: 900; color: #0284c7;">${escapeMarkerText(name)}</span>
+          <span style="display: inline-flex; align-items: center; gap: 2px; font-weight: 800; color: #0f172a;">
+            <span style="font-size: 13px;">${emoji}</span>
+            <span>${tempText}</span>
+          </span>
+        </div>
+      `;
+
+      // 캐시된 기상 데이터가 있으면 즉시 반영
+      const gridKey = 'L:' + getGridKey(centerLat, centerLng, 0.03);
+      const weatherEntry = weatherCache.get(gridKey);
+      const memWeather = weatherEntry && Date.now() - weatherEntry.timestamp < 20 * 60_000 ? weatherEntry.data : null;
+      const initialEmoji = memWeather ? getWeatherEmojiAndDesc(memWeather.pty).emoji : '🌤️';
+      const initialTemp = memWeather ? `${memWeather.temp}°` : '--°';
+
+      marker = new window.naver.maps.Marker({
+        position: new window.naver.maps.LatLng(centerLat, centerLng),
+        icon: {
+          content: renderWeatherContent(initialEmoji, initialTemp),
+          anchor: new window.naver.maps.Point(0, 0),
+        },
+      });
+
+      // 캐시가 없으면 비동기로 가져와서 갱신
+      if (!memWeather) {
+        fetchWeatherForCoord(centerLat, centerLng, 0.03, true).then((data) => {
+          // 마커가 일시적으로 지도에서 내려가 있어도 아이콘은 갱신해야 다시 표시될 때 최신 값이 보인다
+          if (data) {
+            const { emoji } = getWeatherEmojiAndDesc(data.pty);
+            marker.setIcon({
+              content: renderWeatherContent(emoji, `${data.temp}°`),
+              anchor: new window.naver.maps.Point(0, 0),
+            });
+          }
+        });
+      }
+
+      // 클릭 시 해당 행정구역 중심으로 이동 및 날씨 상세 모달 표시
+      window.naver.maps.Event.addListener(marker, 'click', () => {
+        setMapCenter({ lat: centerLat, lng: centerLng });
+        setActiveHeaderModal('weather');
+      });
+    } else {
+      const bg = lvl === 'dong' ? 'var(--color-primary)' : (lvl === 'sigungu' ? 'var(--color-primary)' : 'var(--color-primary)');
+      const normalFs = lvl === 'dong' ? '11px' : '13px';
+
+      marker = new window.naver.maps.Marker({
+        position: new window.naver.maps.LatLng(centerLat, centerLng),
+        icon: {
+          content: `<div class="marker-wrapper" style="padding: 2px 6px; background: ${bg}; color: white; border-radius: 8px; font-size: ${normalFs}; font-weight: bold; border: 1px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; cursor: pointer;">${escapeMarkerText(name)}</div>`,
+          anchor: new window.naver.maps.Point(20, 10),
+        },
+      });
+      window.naver.maps.Event.addListener(marker, 'click', () => handleRegionSelect(centerLat, centerLng, lvl));
+    }
+
+    marker.__isWeather = isWeather;
+    labelCache[lvl].set(cacheKey, marker);
+    return marker;
+  };
+
+const drawRegionLevel = (map: any, lvl: string) => {
+    currentRenderedLevel = lvl;
+    map.data.getAllFeature().forEach((f: any) => map.data.removeFeature(f));
+    renderedFeatureKeys.sido.clear();
+    renderedFeatureKeys.sigungu.clear();
+    renderedFeatureKeys.dong.clear();
+    ['sido', 'sigungu', 'dong'].forEach(l => {
+      labelCache[l].forEach((m: any) => m.setMap(null));
+    });
+
+    const bounds = map.getBounds();
+    const visible = regionFeaturesInView(lvl, bounds);
+
+    map.data.addGeoJson({ type: 'FeatureCollection', features: visible });
+    map.data.setStyle(regionStyleFor(lvl));
+    visible.forEach((f: any) => {
+      renderedFeatureKeys[lvl].add(regionFeatureKey(f));
+      ensureRegionLabelMarker(lvl, f).setMap(map);
+    });
+  };
+
+
+
+
+
+
+
+useEffect(() => {
+    if (!mapRef.current || !window.naver) return;
+    const map = mapRef.current;
+
+    let active = true;
+    const shouldShow = showRegions || showWeatherGrid;
+    if (!shouldShow) {
+      map.data.setStyle({ visible: false });
+      ['sido', 'sigungu', 'dong'].forEach(lvl => {
+        labelCache[lvl].forEach((m: any) => m.setMap(null));
+      });
+      currentRenderedLevel = '';
+      lastRenderedKeyRef.current = '';
+      return;
+    }
+
+    const level = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
+    const currentKey = `${level}_r:${showRegions}_w:${showWeatherGrid}_${mapCenter.lat}_${mapCenter.lng}`;
+
+    // Optimization: 레벨과 표시 모드가 동일하면 재렌더하지 않음
+    if (lastRenderedKeyRef.current === currentKey) return;
+    lastRenderedKeyRef.current = currentKey;
+
+    const urlMap: any = {
+      sido: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_provinces_geo_simple.json',
+      sigungu: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_municipalities_geo_simple.json',
+      dong: 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_submunicipalities_geo_simple.json'
+    };
+
+    // 폴리곤 클릭 시: 기상 그리드 모드면 해당 구역 날씨 상세 열기, 아니면 행정구역 선택
+    if (!window.naver.maps.Event.hasListener(map.data, 'click')) {
+      window.naver.maps.Event.addListener(map.data, 'click', (e: any) => {
+        const lat = e.feature.properties?._centerLat;
+        const lng = e.feature.properties?._centerLng;
+        if (!lat || !lng) return;
+        if (showWeatherGridRef.current) {
+          setMapCenter({ lat, lng });
+          setActiveHeaderModal('weather');
+        } else {
+          handleRegionSelect(lat, lng, currentRenderedLevel);
+        }
+      });
+    }
+
+    if (geoCache[level]) {
+      drawRegionLevel(map, level);
+    } else {
+      fetch(urlMap[level])
+        .then(r => { if (!r.ok) throw new Error('행정구역 데이터를 불러오지 못했습니다.'); return r.json(); })
+        .then(geojson => {
+          if (!active) return;
+          // 각 feature의 중심 좌표만 가볍게 미리 계산해둔다
+          if (geojson.features) {
+            geojson.features.forEach((feature: any) => {
+              const coords = feature.geometry?.coordinates;
+              if (!feature.properties?.name || !coords) return;
+              let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+              let valid = false;
+              try {
+                const poly = feature.geometry.type === 'MultiPolygon' ? coords[0][0] : coords[0];
+                poly.forEach((coord: number[]) => {
+                  if (coord[1] < minLat) minLat = coord[1];
+                  if (coord[1] > maxLat) maxLat = coord[1];
+                  if (coord[0] < minLng) minLng = coord[0];
+                  if (coord[0] > maxLng) maxLng = coord[0];
+                  valid = true;
+                });
+              } catch (e) {}
+              if (valid) {
+                feature.properties._centerLat = (minLat + maxLat) / 2;
+                feature.properties._centerLng = (minLng + maxLng) / 2;
+              }
+            });
+          }
+          geoCache[level] = geojson;
+
+          // 로딩 중에 줌이 바뀌었으면 그리지 않음
+          const currentLevel = mapZoom <= 10 ? 'sido' : (mapZoom <= 13 ? 'sigungu' : 'dong');
+          if (level === currentLevel && (showRegions || showWeatherGrid)) {
+            drawRegionLevel(map, level);
+          }
+        }).catch(() => { if (!active) return; lastRenderedKeyRef.current = ''; setDataError('행정구역 데이터를 불러오지 못했습니다. 지도 레이어를 다시 켜주세요.'); });
+    }
+    return () => { active = false; };
+  }, [mapZoom, mapCenter, mapLoaded, showRegions, showWeatherGrid]);
 
   const OFFLINE_CACHE_KEY = 'careroute_markers_cache_v1';
 
@@ -1072,13 +1381,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   };
   const visitPrimaryLabel = (r: Recipient, dateKey = todayKey) => {
     const status = getVisit(r, dateKey).status;
-    if (status === 'completed' || status === 'missed' || status === 'cancelled' || dateKey > todayKey) return '일정 관리';
+    if (status === 'missed' || status === 'cancelled' || dateKey > todayKey || (status === 'planned' && dateKey !== todayKey)) return '';
+    if (status === 'completed') return '완료 메모';
     return status === 'planned' ? '방문 시작' : '방문 완료';
-  };
-  const completionActionLabel = (r: Recipient, dateKey = todayKey) => {
-    const status = getVisit(r, dateKey).status;
-    if (status === 'missed' || status === 'cancelled' || dateKey > todayKey) return '일정 관리';
-    return status === 'completed' ? '완료 내용' : '방문 완료';
   };
   const openCompletionForm = (r: Recipient, dateKey = todayKey) => {
     setVisitActionError('');
@@ -1089,9 +1394,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
   };
   const toggleCompleted = (r: Recipient, dateKey = todayKey) => {
     const status = getVisit(r, dateKey).status;
-    if (status === 'planned' && dateKey === todayKey) void handleStartVisit(r, dateKey);
-    else if (status === 'in_progress') openCompletionForm(r, dateKey);
-    else openScheduleManagement(r, dateKey);
+    if (!visitPrimaryLabel(r, dateKey)) return;
+    if (status === 'planned') void handleStartVisit(r, dateKey);
+    else if (status === 'in_progress' || status === 'completed') openCompletionForm(r, dateKey);
   };
   const finishVisit = async (memo: string, vitals?: VitalsInput) => {
     const scope = captureAccountStorage();
@@ -1732,6 +2037,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
           </button>
         </div>
 
+        <WeatherWidget lat={mapCenter.lat} lng={mapCenter.lng} isOpen={isWeatherDetailOpen} onClose={closeAllHeaderPopups} modalOnly />
         {/* In-Map Search & Region Filter Common Backdrop */}
         {(isMapSearchOpen || isRegionFilterOpen) && (
           <div
@@ -2313,7 +2619,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                           </div>
 
                           <div className="flex flex-col gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-                            <IconButton
+{Boolean(visitPrimaryLabel(marker)) && (<IconButton
                               onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
                               disabled={visitSaving || visits.loading}
                               className={`min-w-11 min-h-11 rounded-[18px] transition-all ${
@@ -2324,7 +2630,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                               aria-label={visitPrimaryLabel(marker)}
                             >
                               {visitActionIcon(marker, todayKey, 18)}
-                            </IconButton>
+                            </IconButton>)}
                             {/* 경로 출발/도착 지정: 누르면 지도 탭의 경로 그리기 모드가 켜지고 순서대로 출발→도착이 지정된다 */}
 
                           </div>
@@ -2364,13 +2670,13 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                             <IconNavigation size={15} />
                             <span>길안내</span>
                           </button>
-                          <button
+<button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); openCompletionForm(marker); }}
+                            onClick={(e) => { e.stopPropagation(); openScheduleManagement(marker); }}
                             className="min-h-11 py-2.5 rounded-[16px] bg-primary/10 hover:bg-primary/15 text-primary text-sm font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
                           >
                             <IconMessageCircle size={15} />
-                            <span>{completionActionLabel(marker)}</span>
+                            <span>일정 관리</span>
                           </button>
                           <button
                             type="button"
@@ -2406,7 +2712,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                               <IconUser size={24} className="text-primary" />
                             )}
                           </div>
-                          <button
+{Boolean(visitPrimaryLabel(marker)) && (<button
                             onClick={(e) => { e.stopPropagation(); toggleCompleted(marker); }}
                               disabled={visitSaving || visits.loading}
                             className={`min-w-11 min-h-11 flex items-center justify-center rounded-[14px] transition-colors ${
@@ -2415,7 +2721,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                             aria-label={visitPrimaryLabel(marker)}
                           >
                             {visitActionIcon(marker, todayKey, 16)}
-                          </button>
+                          </button>)}
                         </div>
                         <button type="button" aria-label={`${marker.name} 어르신 상세 보기`} onClick={(e) => { e.stopPropagation(); setSelectedRecipient(marker); setIsDetailModalOpen(true); }} className="text-left max-w-full text-[17px] font-black text-foreground tracking-tight min-h-11 whitespace-normal [overflow-wrap:anywhere]">{marker.name} 어르신</button>
                         <p className="text-sm font-bold text-accent mb-2 [overflow-wrap:anywhere]">
@@ -2431,6 +2737,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                         >
                           길안내
                         </Button>
+                        <Button variant="ghost" onClick={(e) => { e.stopPropagation(); openScheduleManagement(marker); }} className="min-h-11 mt-2 text-sm w-full rounded-[16px]">일정 관리</Button>
                       </div>
                     )}
 
@@ -2465,6 +2772,9 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                         >
                           <IconNavigation size={18} />
                         </button>
+                        <IconButton onClick={(e) => { e.stopPropagation(); openScheduleManagement(marker); }} aria-label="일정 관리" className="min-w-11 min-h-11 shrink-0 rounded-[14px] bg-surface-muted/80 text-foreground/70">
+                          <IconCalendarEvent size={18} />
+                        </IconButton>
                       </div>
                     )}
                   </motion.div>
@@ -2741,7 +3051,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
                         <div className="mt-4 space-y-3 border-t border-surface-border pt-3" onClick={(e) => e.stopPropagation()}>
                           <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-                            <Button
+{Boolean(visitPrimaryLabel(marker, selectedDateKey)) && (<Button
                               onClick={() => toggleCompleted(marker, selectedDateKey)}
                               disabled={visitSaving || visits.loading || Boolean(visits.error)}
                               startIcon={visitActionIcon(marker, selectedDateKey)}
@@ -2749,13 +3059,13 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                               variant={completed ? 'plain' : 'primary'}
                             >
                               <span aria-label={`${marker.name} ${visitPrimaryLabel(marker, selectedDateKey)}`}>{visitPrimaryLabel(marker, selectedDateKey)}</span>
-                            </Button>
+                            </Button>)}
                             {['planned', 'in_progress'].includes(getVisit(marker, selectedDateKey).status) && <Button variant="ghost" onClick={() => handleDirections(marker.lat, marker.lng, marker.address, marker.detail_address)} startIcon={<IconNavigation size={18} />} className="min-h-11 whitespace-normal text-sm px-3">길안내</Button>}
 
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Button variant="ghost" onClick={() => openPrintRecipient(marker, selectedDateKey)} startIcon={<IconPrinter size={16} />} className="min-h-11 flex-1 whitespace-normal text-sm px-3">출력</Button>
-                            <Button variant="ghost" onClick={() => setManagingScheduleRecipient(marker)} startIcon={<IconPencil size={16} />} className="min-h-11 flex-1 whitespace-normal text-sm px-3">일정 수정</Button>
+                            <Button variant="ghost" onClick={() => openScheduleManagement(marker, selectedDateKey)} startIcon={<IconPencil size={16} />} className="min-h-11 flex-1 whitespace-normal text-sm px-3">일정 수정</Button>
                             {getVisit(marker, selectedDateKey).status !== 'cancelled' && <Button variant="danger-ghost" onClick={() => handleRemoveFromSchedule(marker, scheduleDate)} disabled={visitSaving || visits.loading || Boolean(visits.error)} startIcon={<IconTrash size={16} />} className="min-h-11 flex-1 whitespace-normal text-sm px-3"><span aria-label={`${marker.name} 일정 제거`}>일정 제거</span></Button>}
                           </div>
                         </div>
@@ -2804,6 +3114,61 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
               <AnimatePresence>
 
+              </AnimatePresence>
+            </div>
+
+            <div className="w-7 h-[1px] bg-foreground/10" />
+
+            <div className="relative">
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.90 }}
+                onClick={() => setIsLayerMenuOpen(prev => !prev)}
+                className={`w-11 h-11 flex items-center justify-center rounded-[20px] transition-colors ${(showRegions || showWeatherGrid) ? 'bg-primary text-primary-foreground shadow-md' : 'hover:bg-foreground/[0.04] text-foreground/80'}`}
+                aria-label="지도 레이어" title="지도 레이어"
+              >
+                <IconMap size={22} strokeWidth={2.5} />
+              </motion.button>
+
+              <AnimatePresence>
+                {isLayerMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsLayerMenuOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, x: 8 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, x: 8 }}
+                      transition={{ type: 'spring', damping: 28, stiffness: 400 }}
+                      className="map-layer-menu absolute right-[56px] top-1/2 -translate-y-1/2 z-20 bg-surface/95 supports-[backdrop-filter]:bg-surface/85 backdrop-blur-[40px] saturate-200 rounded-[22px] p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.14)] border border-white/30 dark:border-white/10 w-[196px] pointer-events-auto"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setShowRegions(v => !v)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[16px] hover:bg-foreground/[0.05] transition-colors"
+                      >
+                        <span className="flex items-center gap-2 text-[13px] font-bold text-foreground/80">
+                          <IconMap size={16} /> 행정구역 경계
+                        </span>
+                        <span className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${showRegions ? 'bg-primary' : 'bg-foreground/15'}`}>
+                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showRegions ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                        </span>
+                      </button>
+                      <button type="button" onClick={() => { setIsLayerMenuOpen(false); setActiveHeaderModal('weather'); }} className="w-full min-h-11 px-3 py-2.5 rounded-[16px] text-left text-sm font-bold text-foreground hover:bg-foreground/[0.05]">현재 지도 위치 날씨</button>
+                      <button
+                        type="button"
+                        onClick={() => setShowWeatherGrid(v => !v)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[16px] hover:bg-foreground/[0.05] transition-colors"
+                      >
+                        <span className="flex items-center gap-2 text-[13px] font-bold text-foreground/80">
+                          <IconCloud size={16} /> 기상 그리드
+                        </span>
+                        <span className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${showWeatherGrid ? 'bg-sky-500' : 'bg-foreground/15'}`}>
+                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showWeatherGrid ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                        </span>
+                      </button>
+                    </motion.div>
+                  </>
+                )}
               </AnimatePresence>
             </div>
 
@@ -2988,7 +3353,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                 <span>길안내</span>
               </button>
 
-              <button
+{Boolean(visitPrimaryLabel(selectedRecipient, detailDateKey)) && (<button
                 type="button"
                 onClick={() => toggleCompleted(selectedRecipient, detailDateKey)}
                     disabled={visitSaving || visits.loading}
@@ -3000,15 +3365,15 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               >
                 <IconCheck size={15} strokeWidth={2.5} />
                 <span>{visitPrimaryLabel(selectedRecipient, detailDateKey)}</span>
-              </button>
+              </button>)}
 
-              <button
+<button
                 type="button"
-                onClick={() => openCompletionForm(selectedRecipient, detailDateKey)}
+                onClick={() => openScheduleManagement(selectedRecipient, detailDateKey)}
                 className="py-2.5 rounded-[16px] bg-primary/10 hover:bg-primary/20 text-primary text-[12px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
               >
                 <IconMessageCircle size={15} />
-                <span>{completionActionLabel(selectedRecipient, detailDateKey)}</span>
+                <span>일정 관리</span>
               </button>
 
               <button
@@ -3105,14 +3470,14 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
 
                 {/* Visit action & edit actions */}
                 <div className="flex gap-1.5 shrink-0">
-                  <IconButton
+{Boolean(visitPrimaryLabel(selectedRecipient, detailDateKey)) && (<IconButton
                     onClick={() => toggleCompleted(selectedRecipient, detailDateKey)}
                     disabled={visitSaving || visits.loading}
                     className={`w-11 h-11 rounded-[18px] transition-all ${isSelectedVisitCompleted(selectedRecipient) ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-surface-muted text-foreground/50 hover:bg-surface-border'}`}
                     aria-label={visitPrimaryLabel(selectedRecipient, detailDateKey)}
                   >
                     {visitActionIcon(selectedRecipient, detailDateKey, 20)}
-                  </IconButton>
+                  </IconButton>)}
                   <IconButton
                     onClick={() => { setIsModalOpen(true); setEditingRecipient(selectedRecipient); }}
                     className="w-11 h-11 rounded-[18px] bg-surface-muted text-foreground/70 hover:bg-surface-border"
@@ -3131,11 +3496,11 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
               </div>
 
                 <button type="button" onClick={() => openScheduleManagement(selectedRecipient, detailDateKey)} className="rounded-2xl border border-surface-border px-3 py-2 text-sm font-bold text-left">
-                  {detailDateKey} · {VISIT_STATUS_LABEL[getVisit(selectedRecipient, detailDateKey).status]}
+                  일정 관리 · {detailDateKey} · {VISIT_STATUS_LABEL[getVisit(selectedRecipient, detailDateKey).status]}
                 </button>
 
               {/* One UI 9.0 Quick Action Pill Bar */}
-              <div className="grid grid-cols-4 gap-2 my-4">
+              <div className="grid grid-cols-3 gap-2 my-4">
                 <button
                   onClick={() => handleDirections(selectedRecipient.lat, selectedRecipient.lng, selectedRecipient.address, selectedRecipient.detail_address)}
                   className="py-3 px-1 rounded-[20px] bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
@@ -3144,13 +3509,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
                   <span className="text-[12px] font-black">길안내</span>
                 </button>
 
-                <button
-                  onClick={() => openCompletionForm(selectedRecipient, detailDateKey)}
-                  className="py-3 px-1 rounded-[20px] bg-primary/10 hover:bg-primary/15 text-primary flex flex-col items-center justify-center gap-1 active:scale-95 transition-all border border-primary/20"
-                >
-                  <IconMessageCircle size={20} />
-                  <span className="text-[12px] font-black">{completionActionLabel(selectedRecipient, detailDateKey)}</span>
-                </button>
+
 
                 <button
                   onClick={() => openPrintRecipient(selectedRecipient, detailDateKey)}
