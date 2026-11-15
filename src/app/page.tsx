@@ -1624,7 +1624,7 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
         </div>
       )}
 
-      {(visits.error || (visitActionError && !completingRecipient)) && (
+      {activeTab !== 'route' && (visits.error || (visitActionError && !completingRecipient)) && (
         <div role="alert" className="absolute top-[calc(1rem+var(--app-safe-top))] left-4 right-4 max-w-xl mx-auto z-[70] bg-surface border border-rose-500/40 rounded-2xl p-3 text-sm text-foreground shadow-lg">
           <p>{visits.error || visitActionError}</p>
           <button type="button" className="mt-2 underline font-bold" onClick={() => { setVisitActionError(''); void visits.refresh(); }}>다시 불러오기</button>
@@ -2482,6 +2482,10 @@ function MainApp({ accountEmail, onSignOut }: { accountEmail?: string; onSignOut
             최근접 삽입 휴리스틱으로 방문 순서를 매겨 보여준다. */}
         {activeTab === 'route' && (
           <div className="app-scroll-view absolute inset-0 overflow-y-auto px-4 pt-16 pb-32 bg-background flex flex-col">
+            {(visits.error || (visitActionError && !completingRecipient)) && <div role="alert" className="mb-3 shrink-0 rounded-2xl border border-rose-500/40 bg-surface p-3 text-sm text-foreground">
+              <p className="break-words">{visits.error || visitActionError}</p>
+              <button type="button" className="mt-2 min-h-11 rounded-xl px-3 underline font-bold" onClick={() => { setVisitActionError(''); void visits.refresh(); }}>다시 불러오기</button>
+            </div>}
             {removedSchedule && <div role="status" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-surface-border bg-surface p-3 text-sm text-foreground">
               <p className="min-w-0 flex-1 break-words">{removedSchedule.recipient.name} · {removedSchedule.dateKey} 일정을 제거했습니다.</p>
               <Button variant="ghost" disabled={visitSaving || visits.loading || Boolean(visits.error)} onClick={() => void restoreScheduleDate(removedSchedule.recipient, removedSchedule.dateKey, removedSchedule.version, removedSchedule.status, removedSchedule.memo)} className="min-h-11">되돌리기</Button>

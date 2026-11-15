@@ -1,7 +1,7 @@
 {
   "name": "temp-app",
-  "version": "1.42.0",
-  "androidVersionCode": 21,
+  "version": "1.42.1",
+  "androidVersionCode": 22,
   "private": true,
   "scripts": {
     "dev": "next dev",
