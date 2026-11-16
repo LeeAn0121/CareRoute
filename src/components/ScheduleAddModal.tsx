@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Modal, IconButton } from '@/components/ui';
 import { IconX, IconSearch, IconUser, IconPlus, IconCheck } from '@tabler/icons-react';
-import { supabase } from '@/lib/supabase';
+import PrivateImage from '@/components/PrivateImage';
 
 // Assuming Recipient type is globally available or we duplicate its slim version
 interface Recipient {
@@ -94,7 +94,7 @@ export default function ScheduleAddModal({ isOpen, onClose, date, allRecipients,
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-12 h-12 rounded-[18px] bg-primary/5 flex items-center justify-center shrink-0 overflow-hidden border border-surface-border/40 shadow-2xs">
                   {r.photo_url ? (
-                    <img src={r.photo_url} alt="" className="w-full h-full object-cover" />
+                    <PrivateImage src={r.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" fallback={<IconUser size={24} className="text-primary" />} />
                   ) : (
                     <IconUser size={24} className="text-primary" />
                   )}
